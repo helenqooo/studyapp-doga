@@ -1,4 +1,7 @@
-import { API_URL, APP_TOKEN, AI_UPLOAD_TIMEOUT_MS } from '../config';
+import type { ImageSourcePropType } from 'react-native';
+import { API_URL, APP_TOKEN, AI_UPLOAD_TIMEOUT_MS, DEMO_MODE } from '../config';
+import { demoApi, demoQuestionImage } from './demo/demoApi';
+import { ApiError } from './errors';
 import type {
   AttemptInput,
   AttemptResponse,
@@ -18,15 +21,7 @@ import type {
   WeeklySummary,
 } from './types';
 
-/** Error whose message is ready to show to the user (Turkish). */
-export class ApiError extends Error {
-  constructor(
-    message: string,
-    readonly status?: number,
-  ) {
-    super(message);
-  }
-}
+export { ApiError };
 
 export const authHeaders = { Authorization: `Bearer ${APP_TOKEN}` };
 
@@ -60,8 +55,14 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   return body as T;
 }
 
-export function questionImageUrl(id: string): string {
-  return `${API_URL}/questions/${id}/image`;
+/** Image source for a saved question (authorized request, or the bundled sample in demo mode). */
+export function questionImageSource(id: string): ImageSourcePropType {
+  if (DEMO_MODE) {
+    const src = demoQuestionImage(id)?.source;
+    // Web assets carry their pixel size, which react-native-web would force on the view.
+    return typeof src === 'object' ? { uri: src.uri } : (src ?? {});
+  }
+  return { uri: `${API_URL}/questions/${id}/image`, headers: authHeaders };
 }
 
 /**
@@ -108,7 +109,7 @@ function postImage<T>(path: string, imageUri: string, onUploadProgress?: (fracti
   });
 }
 
-export const api = {
+const httpApi = {
   health: () => request<{ ok: boolean }>('/health'),
   profile: () => request<Profile>('/profile'),
   question: (id: string) => request<Question>(`/questions/${encodeURIComponent(id)}`),
@@ -154,3 +155,8 @@ export const api = {
   overview: () => request<Overview>('/stats/overview'),
   weeklySummary: (refresh = false) => request<WeeklySummary>(`/stats/weekly-summary${refresh ? '?refresh=true' : ''}`),
 };
+
+export type Api = typeof httpApi;
+
+/** The server API, or its in-memory stand-in in demo mode. */
+export const api: Api = DEMO_MODE ? demoApi : httpApi;

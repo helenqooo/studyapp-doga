@@ -1,6 +1,6 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 import { useFacets, useQuestionList, useReviewsToday } from '../../api/hooks';
 import { AppText } from '../../components/AppText';
 import { Button } from '../../components/Button';
@@ -14,6 +14,8 @@ import { SegmentedControl } from '../../components/SegmentedControl';
 import { getTopic, SUBJECTS_BY_EXAM, topicLabel } from '../../data/topics';
 import { useHistoryFilter } from '../../store/historyFilter';
 import { subjectColor, useTheme } from '../../theme';
+import { Appear } from '../../components/motion/Appear';
+import { Loader } from '../../components/motion/Loader';
 
 type Tab = 'today' | 'history';
 
@@ -28,7 +30,7 @@ function TodayPanel() {
     }, [refetch]),
   );
 
-  if (today.isPending) return <ActivityIndicator color={theme.colors.primary} />;
+  if (today.isPending) return <Loader />;
   if (today.isError) {
     return (
       <Card background={theme.colors.dangerSoft}>
@@ -55,9 +57,9 @@ function TodayPanel() {
             }}
           >
             <Icon
-              name={count ? 'arrow.triangle.2.circlepath' : 'checkmark'}
+              name={count ? 'repeat' : 'check'}
               size={theme.layout.iconSize.lg}
-              color={count ? theme.colors.primary : theme.colors.success}
+              color={count ? theme.colors.primaryText : theme.colors.success}
             />
           </View>
           <View style={{ flex: 1, gap: theme.spacing.xxs }}>
@@ -71,7 +73,7 @@ function TodayPanel() {
             </AppText>
           </View>
         </View>
-        {count ? <Button label="Tekrara başla" icon="play.fill" size="lg" onPress={() => router.push('/review-session')} /> : null}
+        {count ? <Button label="Tekrara başla" icon="play" size="lg" onPress={() => router.push('/review-session')} /> : null}
       </Card>
 
       {count ? (
@@ -80,8 +82,10 @@ function TodayPanel() {
             Sıradakiler
           </AppText>
           <Grid columns={{ compact: 1, regular: 2, wide: 3 }}>
-            {items.map((q) => (
-              <QuestionRow key={q.id} question={q} />
+            {items.map((q, i) => (
+              <Appear key={q.id} index={i}>
+                <QuestionRow question={q} />
+              </Appear>
             ))}
           </Grid>
         </View>
@@ -130,13 +134,13 @@ function HistoryPanel() {
       {subject ? (
         <Button
           label={topic ? `Konu: ${topicLabel(topic)}` : 'Konu: Tümü'}
-          icon="line.3.horizontal.decrease.circle"
+          icon="list-filter"
           variant="secondary"
           onPress={() => router.push('/topic-picker')}
         />
       ) : null}
 
-      {list.isPending ? <ActivityIndicator color={theme.colors.primary} /> : null}
+      {list.isPending ? <Loader /> : null}
       {list.isError ? (
         <Card background={theme.colors.dangerSoft}>
           <AppText color="danger">{list.error.message}</AppText>
@@ -156,8 +160,10 @@ function HistoryPanel() {
       ) : null}
 
       <Grid columns={{ compact: 1, regular: 2, wide: 3 }}>
-        {items.map((q) => (
-          <QuestionRow key={q.id} question={q} />
+        {items.map((q, i) => (
+          <Appear key={q.id} index={i}>
+            <QuestionRow question={q} />
+          </Appear>
         ))}
       </Grid>
 

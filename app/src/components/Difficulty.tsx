@@ -13,7 +13,8 @@ export function Difficulty({ value }: { value: number }) {
       {[1, 2, 3, 4, 5].map((n) => (
         <Icon
           key={n}
-          name={n <= value ? 'star.fill' : 'star'}
+          name="star"
+          filled={n <= value}
           size={theme.fontSize.sm}
           color={n <= value ? theme.colors.xp : theme.colors.textMuted}
         />

@@ -1,11 +1,17 @@
 import { useMemo, useRef, useState } from 'react';
 import { PanResponder, View, type LayoutChangeEvent } from 'react-native';
+import Animated, { useAnimatedProps } from 'react-native-reanimated';
 import Svg, { Circle, Line, Path, Text as SvgText } from 'react-native-svg';
 import { formatNet, shortDate } from '../../lib/format';
 import { haptics } from '../../lib/haptics';
 import { useTheme } from '../../theme';
 import { AppText } from '../AppText';
 import { niceDomain } from './scale';
+import { polylineLength, useDrawIn } from './useDrawIn';
+
+const AnimatedPath = Animated.createAnimatedComponent(Path);
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+const AnimatedSvgText = Animated.createAnimatedComponent(SvgText);
 
 export interface TrendDatum {
   key: string;
@@ -19,6 +25,80 @@ interface Props {
   /** Highest possible value (e.g. 120 for TYT total). */
   max: number;
   unit?: string;
+}
+
+interface MarksProps {
+  points: { x: number; y: number }[];
+  baseline: number;
+  /** Index of the marker (selected or latest point). */
+  shown: number;
+  endLabel: string | null;
+}
+
+/** Line, area and end marker; drawn in from left to right when first shown. */
+function TrendMarks({ points, baseline, shown, endLabel }: MarksProps) {
+  const theme = useTheme();
+  const c = theme.colors.chart;
+  const dims = theme.layout.chart;
+  const draw = useDrawIn();
+
+  const line = points.map((p, i) => `${i ? 'L' : 'M'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+  const first = points[0];
+  const lastP = points[points.length - 1];
+  const area =
+    points.length > 1 && first && lastP
+      ? `${line} L${lastP.x.toFixed(1)},${baseline} L${first.x.toFixed(1)},${baseline} Z`
+      : '';
+  const length = polylineLength(points);
+
+  const lineProps = useAnimatedProps(() => ({ strokeDashoffset: length * (1 - draw.value) }));
+  const areaProps = useAnimatedProps(() => ({ fillOpacity: draw.value }));
+  // Marker and end label arrive once the line reaches them.
+  const tipProps = useAnimatedProps(() => ({ opacity: Math.max(0, (draw.value - 0.85) / 0.15) }));
+
+  const marker = points[shown];
+  return (
+    <>
+      {area ? <AnimatedPath d={area} fill={c.area} animatedProps={areaProps} /> : null}
+      {points.length > 1 ? (
+        <AnimatedPath
+          d={line}
+          stroke={c.line}
+          strokeWidth={dims.lineWidth}
+          strokeLinejoin="round"
+          strokeLinecap="round"
+          fill="none"
+          strokeDasharray={`${length} ${length}`}
+          animatedProps={lineProps}
+        />
+      ) : null}
+      {/* Marker on the selected point (or the latest), ringed in the surface color. */}
+      {marker ? (
+        <AnimatedCircle
+          cx={marker.x}
+          cy={marker.y}
+          r={dims.markerRadius}
+          fill={c.line}
+          stroke={c.markerRing}
+          strokeWidth={dims.ringWidth}
+          animatedProps={tipProps}
+        />
+      ) : null}
+      {/* Direct label at the line end only. */}
+      {endLabel && lastP ? (
+        <AnimatedSvgText
+          x={lastP.x + theme.spacing.sm}
+          y={lastP.y + theme.fontSize.xs / 3}
+          fontSize={theme.fontSize.xs}
+          fontFamily={theme.fonts.sans.semibold}
+          fill={theme.colors.text}
+          animatedProps={tipProps}
+        >
+          {endLabel}
+        </AnimatedSvgText>
+      ) : null}
+    </>
+  );
 }
 
 /**
@@ -44,8 +124,7 @@ export function NetTrendChart({ data, max, unit = 'net' }: Props) {
   const x = (i: number) => (data.length === 1 ? left + plotW / 2 : left + (i * plotW) / (data.length - 1));
   const y = (v: number) => top + plotH - ((v - domain.min) / (domain.max - domain.min)) * plotH;
 
-  const line = data.map((d, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(d.value).toFixed(1)}`).join(' ');
-  const area = data.length > 1 ? `${line} L${x(data.length - 1).toFixed(1)},${top + plotH} L${x(0).toFixed(1)},${top + plotH} Z` : '';
+  const points = data.map((d, i) => ({ x: x(i), y: y(d.value) }));
 
   // Refs keep the responder (created once) reading current layout and data.
   const geom = useRef({ left, plotW, n: data.length });
@@ -110,6 +189,7 @@ export function NetTrendChart({ data, max, unit = 'net' }: Props) {
                 x={left - theme.spacing.sm}
                 y={y(t) + theme.fontSize.xs / 3}
                 fontSize={theme.fontSize.xs}
+                fontFamily={theme.fonts.sans.regular}
                 fill={c.axisText}
                 textAnchor="end"
               >
@@ -117,47 +197,26 @@ export function NetTrendChart({ data, max, unit = 'net' }: Props) {
               </SvgText>
             ))}
 
-            {area ? <Path d={area} fill={c.area} /> : null}
-            {data.length > 1 ? (
-              <Path d={line} stroke={c.line} strokeWidth={dims.lineWidth} strokeLinejoin="round" strokeLinecap="round" fill="none" />
-            ) : null}
-
             {active !== null ? (
               <Line x1={x(active)} x2={x(active)} y1={top} y2={top + plotH} stroke={c.crosshair} strokeWidth={theme.layout.borderWidth} />
             ) : null}
 
-            {/* Marker on the selected point (or the latest), ringed in the surface color. */}
-            {current ? (
-              <Circle
-                cx={x(shown)}
-                cy={y(current.value)}
-                r={dims.markerRadius}
-                fill={c.line}
-                stroke={c.markerRing}
-                strokeWidth={dims.ringWidth}
-              />
-            ) : null}
-
-            {/* Direct label at the line end only. */}
-            {data.length && active === null ? (
-              <SvgText
-                x={x(last) + theme.spacing.sm}
-                y={y(data[last]!.value) + theme.fontSize.xs / 3}
-                fontSize={theme.fontSize.xs}
-                fontWeight={theme.fontWeight.bold}
-                fill={theme.colors.text}
-              >
-                {formatNet(data[last]!.value)}
-              </SvgText>
-            ) : null}
+            <TrendMarks
+              // Redraw when the data or the width changes.
+              key={`${width}:${data.map((d) => `${d.key}=${d.value}`).join(',')}`}
+              points={points}
+              baseline={top + plotH}
+              shown={shown}
+              endLabel={data.length && active === null ? formatNet(data[last]!.value) : null}
+            />
 
             {data.length ? (
-              <SvgText x={x(0)} y={height - theme.spacing.xs} fontSize={theme.fontSize.xs} fill={c.axisText} textAnchor={data.length === 1 ? 'middle' : 'start'}>
+              <SvgText x={x(0)} y={height - theme.spacing.xs} fontSize={theme.fontSize.xs} fontFamily={theme.fonts.sans.regular} fill={c.axisText} textAnchor={data.length === 1 ? 'middle' : 'start'}>
                 {shortDate(data[0]!.date)}
               </SvgText>
             ) : null}
             {data.length > 1 ? (
-              <SvgText x={x(last)} y={height - theme.spacing.xs} fontSize={theme.fontSize.xs} fill={c.axisText} textAnchor="end">
+              <SvgText x={x(last)} y={height - theme.spacing.xs} fontSize={theme.fontSize.xs} fontFamily={theme.fonts.sans.regular} fill={c.axisText} textAnchor="end">
                 {shortDate(data[last]!.date)}
               </SvgText>
             ) : null}

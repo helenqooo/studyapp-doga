@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ContentSizeContext, contentSizeClass, useWindowLayout } from '../lib/layout';
 import { useTheme } from '../theme';
 import { AppText } from './AppText';
+import { Icon, type IconName } from './Icon';
 
 interface Props {
   title?: string;
@@ -13,6 +14,8 @@ interface Props {
   safeTop?: boolean;
   /** `wide` for dashboards and lists, `readable` for single-column reading and forms. */
   width?: 'wide' | 'readable';
+  /** Small accent mark before the title. */
+  titleIcon?: IconName;
 }
 
 /**
@@ -20,7 +23,7 @@ interface Props {
  * provided to children (see useContentSize), so grids adapt to iPad, split view and
  * rotation rather than to the device model.
  */
-export function Screen({ title, subtitle, children, safeTop = true, width = 'wide' }: Props) {
+export function Screen({ title, subtitle, children, safeTop = true, width = 'wide', titleIcon }: Props) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const win = useWindowLayout();
@@ -46,7 +49,12 @@ export function Screen({ title, subtitle, children, safeTop = true, width = 'wid
         <View style={{ width: '100%', maxWidth, alignSelf: 'center', gap: theme.spacing.lg }}>
           {title ? (
             <View style={{ gap: theme.spacing.xs }}>
-              <AppText variant="title">{title}</AppText>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm }}>
+                {titleIcon ? <Icon name={titleIcon} size={theme.layout.iconSize.lg} color={theme.colors.accent} /> : null}
+                <AppText variant="title" style={{ flexShrink: 1 }}>
+                  {title}
+                </AppText>
+              </View>
               {subtitle ? <AppText color="textMuted">{subtitle}</AppText> : null}
             </View>
           ) : null}

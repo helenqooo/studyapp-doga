@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { ActivityIndicator, View } from 'react-native';
+import { View } from 'react-native';
 import { useExam, useUpdateExam } from '../../../api/hooks';
 import { AppText } from '../../../components/AppText';
 import { Card } from '../../../components/Card';
@@ -7,6 +7,7 @@ import { ExamForm, formFrom } from '../../../components/ExamForm';
 import { Screen } from '../../../components/Screen';
 import { haptics } from '../../../lib/haptics';
 import { useTheme } from '../../../theme';
+import { Loader } from '../../../components/motion/Loader';
 
 export default function EditExamScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -17,7 +18,7 @@ export default function EditExamScreen() {
   if (query.isPending) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.background }}>
-        <ActivityIndicator color={theme.colors.primary} />
+        <Loader />
       </View>
     );
   }

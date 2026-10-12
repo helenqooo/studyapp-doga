@@ -1,7 +1,7 @@
 import * as ImagePicker from 'expo-image-picker';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, Alert, Linking, View } from 'react-native';
+import { Alert, Linking, View } from 'react-native';
 import { useCreateExam, useParseKarne } from '../../api/hooks';
 import type { KarneDraft } from '../../api/types';
 import { AppText } from '../../components/AppText';
@@ -10,6 +10,7 @@ import { Card } from '../../components/Card';
 import { emptyForm, ExamForm, formFrom } from '../../components/ExamForm';
 import { Icon } from '../../components/Icon';
 import { Screen } from '../../components/Screen';
+import { ThinkingSpark } from '../../components/motion/ThinkingSpark';
 import { LOW_CONFIDENCE_THRESHOLD } from '../../config';
 import { haptics } from '../../lib/haptics';
 import { prepareDocument } from '../../lib/image';
@@ -71,13 +72,13 @@ export default function NewExamScreen() {
       <Screen safeTop={false} width="readable">
         <Card>
           <View style={{ alignItems: 'center', gap: theme.spacing.md, paddingVertical: theme.spacing.md }}>
-            <Icon name="doc.text.viewfinder" size={theme.layout.iconSize.xl} color={theme.colors.primary} />
+            <Icon name="scan-text" size={theme.layout.iconSize.xl} color={theme.colors.primaryText} />
             <AppText color="textMuted" align="center">
               Karnenin fotoğrafını çek ya da yayının sitesinden aldığın ekran görüntüsünü seç. Ders bazında doğru, yanlış ve boşları; varsa konu analizini okuyacağım.
             </AppText>
           </View>
-          <Button label="Fotoğraf çek" icon="camera.fill" size="lg" onPress={() => pick('camera')} />
-          <Button label="Galeriden seç" icon="photo.on.rectangle" variant="secondary" onPress={() => pick('library')} />
+          <Button label="Fotoğraf çek" icon="camera" size="lg" onPress={() => pick('camera')} />
+          <Button label="Galeriden seç" icon="images" variant="secondary" onPress={() => pick('library')} />
         </Card>
         <Button label="Elle gireceğim" variant="ghost" onPress={() => setStage({ kind: 'form', draft: null })} />
       </Screen>
@@ -89,7 +90,7 @@ export default function NewExamScreen() {
       <Screen safeTop={false} width="readable">
         <Card>
           <View style={{ alignItems: 'center', gap: theme.spacing.md, paddingVertical: theme.spacing.xl }}>
-            <ActivityIndicator size="large" color={theme.colors.primary} />
+            <ThinkingSpark />
             <AppText variant="heading" align="center">
               Karne okunuyor…
             </AppText>
@@ -108,7 +109,7 @@ export default function NewExamScreen() {
         <Card background={theme.colors.dangerSoft}>
           <AppText color="danger">{stage.message}</AppText>
         </Card>
-        <Button label="Tekrar dene" icon="arrow.clockwise" onPress={() => read(stage.uri)} />
+        <Button label="Tekrar dene" icon="refresh-cw" onPress={() => read(stage.uri)} />
         <Button label="Başka fotoğraf seç" variant="secondary" onPress={() => setStage({ kind: 'pick' })} />
         <Button label="Elle gireceğim" variant="ghost" onPress={() => setStage({ kind: 'form', draft: null })} />
       </Screen>
@@ -123,9 +124,9 @@ export default function NewExamScreen() {
       {draft && (draft.warnings.length || lowConfidence) ? (
         <Card background={theme.colors.warningSoft}>
           <View style={{ flexDirection: 'row', gap: theme.spacing.md }}>
-            <Icon name="exclamationmark.triangle.fill" color={theme.colors.warning} />
+            <Icon name="triangle-alert" color={theme.colors.warning} />
             <View style={{ flex: 1, gap: theme.spacing.xs }}>
-              <AppText weight="bold" color="warning">
+              <AppText weight="semibold" color="warning">
                 Değerleri karneyle karşılaştır
               </AppText>
               {draft.warnings.map((w) => (

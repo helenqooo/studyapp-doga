@@ -83,7 +83,7 @@ export default function CameraScreen() {
           justifyContent: 'center',
         }}
       >
-        <Icon name="camera.fill" size={theme.layout.iconSize.xl} color={theme.colors.primary} style={{ alignSelf: 'center' }} />
+        <Icon name="camera" size={theme.layout.iconSize.xl} color={theme.colors.primaryText} style={{ alignSelf: 'center' }} />
         <AppText variant="heading" align="center">
           Kamera izni gerekli
         </AppText>
@@ -115,9 +115,9 @@ export default function CameraScreen() {
           justifyContent: 'space-between',
         }}
       >
-        <RoundButton icon="xmark" label="Kapat" onPress={close} />
+        <RoundButton icon="x" label="Kapat" onPress={close} />
         <RoundButton
-          icon={torch ? 'flashlight.on.fill' : 'flashlight.off.fill'}
+          icon={torch ? 'flashlight' : 'flashlight-off'}
           label="Fener"
           active={torch}
           onPress={() => setTorch((t) => !t)}
@@ -160,7 +160,7 @@ export default function CameraScreen() {
           justifyContent: 'space-between',
         }}
       >
-        <RoundButton icon="photo.on.rectangle" label="Galeriden seç" onPress={fromLibrary} />
+        <RoundButton icon="images" label="Galeriden seç" onPress={fromLibrary} />
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Fotoğraf çek"

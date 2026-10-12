@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import { View } from 'react-native';
 import { useReviewResult, useReviewsToday } from '../api/hooks';
 import type { Question, ReviewState } from '../api/types';
 import { AppText } from '../components/AppText';
@@ -9,10 +9,13 @@ import { Button } from '../components/Button';
 import { Card } from '../components/Card';
 import { Icon } from '../components/Icon';
 import { MathView } from '../components/math/MathView';
+import { Appear } from '../components/motion/Appear';
+import { Loader } from '../components/motion/Loader';
 import { ProgressBar } from '../components/ProgressBar';
 import { QuestionImage } from '../components/QuestionImage';
 import { Screen, SplitScreen } from '../components/Screen';
 import { getTopic, topicLabel } from '../data/topics';
+import { useResultCelebration } from '../lib/celebrate';
 import { reviewDueLabel } from '../lib/format';
 import { haptics } from '../lib/haptics';
 import { useWindowLayout } from '../lib/layout';
@@ -38,12 +41,12 @@ function Feedback({ outcome }: { outcome: Outcome }) {
     <Card background={outcome.correct ? theme.colors.successSoft : theme.colors.dangerSoft}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md }}>
         <Icon
-          name={outcome.correct ? (graduated ? 'checkmark.seal.fill' : 'checkmark.circle.fill') : 'arrow.counterclockwise.circle.fill'}
+          name={outcome.correct ? (graduated ? 'badge-check' : 'circle-check') : 'rotate-ccw'}
           size={theme.layout.iconSize.lg}
           color={outcome.correct ? theme.colors.success : theme.colors.danger}
         />
         <View style={{ flex: 1, gap: theme.spacing.xxs }}>
-          <AppText weight="bold" color={outcome.correct ? 'success' : 'danger'}>
+          <AppText weight="semibold" color={outcome.correct ? 'success' : 'danger'}>
             {title}
           </AppText>
           <AppText variant="label" color="textMuted">
@@ -51,7 +54,7 @@ function Feedback({ outcome }: { outcome: Outcome }) {
           </AppText>
         </View>
         {outcome.xpGained > 0 ? (
-          <Badge label={`+${outcome.xpGained} XP`} icon="star.fill" color={theme.colors.xp} background={theme.colors.xpTrack} />
+          <Badge label={`+${outcome.xpGained} XP`} icon="star" color={theme.colors.xpText} background={theme.colors.xpTrack} />
         ) : null}
       </View>
     </Card>
@@ -63,6 +66,7 @@ export default function ReviewSessionScreen() {
   const today = useReviewsToday();
   const submit = useReviewResult();
   const { split } = useWindowLayout();
+  const startCelebration = useResultCelebration();
 
   // Freeze the queue when the session starts so answering doesn't reshuffle it.
   const [queue, setQueue] = useState<Question[] | null>(null);
@@ -85,7 +89,7 @@ export default function ReviewSessionScreen() {
             <AppText color="danger">{today.error.message}</AppText>
           </Card>
         ) : (
-          <ActivityIndicator color={theme.colors.primary} />
+          <Loader />
         )}
       </Screen>
     );
@@ -97,27 +101,31 @@ export default function ReviewSessionScreen() {
     const total = tally.correct + tally.wrong;
     return (
       <Screen safeTop={false} width="readable">
-        <Card>
-          <View style={{ alignItems: 'center', gap: theme.spacing.md, paddingVertical: theme.spacing.lg }}>
-            <Icon name={total ? 'flag.checkered' : 'checkmark.circle'} size={theme.layout.iconSize.xl} color={theme.colors.primary} />
-            <AppText variant="title" align="center">
-              {total ? 'Tekrar bitti!' : 'Bugün tekrar yok'}
-            </AppText>
-            {total ? (
-              <AppText color="textMuted" align="center">
-                {tally.correct} doğru · {tally.wrong} yanlış
+        <Appear>
+          <Card>
+            <View style={{ alignItems: 'center', gap: theme.spacing.md, paddingVertical: theme.spacing.lg }}>
+              <Icon name={total ? 'flag' : 'circle-check'} size={theme.layout.iconSize.xl} color={theme.colors.primaryText} />
+              <AppText variant="title" align="center">
+                {total ? 'Tekrar bitti!' : 'Bugün tekrar yok'}
               </AppText>
-            ) : (
-              <AppText color="textMuted" align="center">
-                Yanlış ya da boş bıraktığın sorular ertesi gün burada olacak.
-              </AppText>
-            )}
-            {tally.xp > 0 ? (
-              <Badge label={`+${tally.xp} XP`} icon="star.fill" color={theme.colors.xp} background={theme.colors.xpTrack} />
-            ) : null}
-          </View>
-        </Card>
-        <Button label="Tamam" size="lg" onPress={() => router.back()} />
+              {total ? (
+                <AppText color="textMuted" align="center">
+                  {tally.correct} doğru · {tally.wrong} yanlış
+                </AppText>
+              ) : (
+                <AppText color="textMuted" align="center">
+                  Yanlış ya da boş bıraktığın sorular ertesi gün burada olacak.
+                </AppText>
+              )}
+              {tally.xp > 0 ? (
+                <Badge label={`+${tally.xp} XP`} icon="star" color={theme.colors.xpText} background={theme.colors.xpTrack} />
+              ) : null}
+            </View>
+          </Card>
+        </Appear>
+        <Appear index={1}>
+          <Button label="Tamam" size="lg" onPress={() => router.back()} />
+        </Appear>
       </Screen>
     );
   }
@@ -126,12 +134,12 @@ export default function ReviewSessionScreen() {
   const topic = getTopic(q.topicId);
 
   const answer = (correct: boolean) => {
+    const celebrate = startCelebration();
     submit.mutate(
       { questionId: q.id, result: correct ? 'correct' : 'wrong', viewedSolution: showSolution },
       {
         onSuccess: (res) => {
-          if (correct) haptics.success();
-          else haptics.warning();
+          celebrate(correct ? 'correct' : 'wrong', res);
           setOutcome({ correct, review: res.review, xpGained: res.xpGained });
           setTally((t) => ({
             correct: t.correct + (correct ? 1 : 0),
@@ -169,21 +177,23 @@ export default function ReviewSessionScreen() {
 
       <View style={{ gap: theme.spacing.xs }}>
         <View style={{ flexDirection: 'row', gap: theme.spacing.sm }}>
-          <Badge label={q.exam} color={theme.colors.primary} background={theme.colors.primarySoft} />
-          <Badge label={q.subject} color={subjectColor(theme, q.subject)} />
+          <Badge label={q.exam} color={theme.colors.primaryText} background={theme.colors.primarySoft} />
+          <Badge label={q.subject} dot={subjectColor(theme, q.subject)} />
         </View>
         {topic ? <AppText variant="heading">{topicLabel(topic)}</AppText> : null}
       </View>
 
-      <Card>
-        <QuestionImage questionId={q.id} size="large" />
-        {showText ? <MathView markdown={q.questionText} /> : null}
-        <Button
-          label={showText ? 'Soru metnini gizle' : 'Soru metnini göster'}
-          variant="ghost"
-          onPress={() => setShowText((v) => !v)}
-        />
-      </Card>
+      <Appear>
+        <Card>
+          <QuestionImage questionId={q.id} size="large" />
+          {showText ? <MathView markdown={q.questionText} /> : null}
+          <Button
+            label={showText ? 'Soru metnini gizle' : 'Soru metnini göster'}
+            variant="ghost"
+            onPress={() => setShowText((v) => !v)}
+          />
+        </Card>
+      </Appear>
     </>
   );
   const answerPane = (
@@ -195,7 +205,7 @@ export default function ReviewSessionScreen() {
           </AppText>
           <Button
             label="Cevabı göster"
-            icon="eye.fill"
+            icon="eye"
             size="lg"
             onPress={() => {
               haptics.press();
@@ -205,20 +215,22 @@ export default function ReviewSessionScreen() {
         </>
       ) : (
         <>
-          <Card title="Doğru cevap">
-            <MathView markdown={showSolution ? solutionMarkdown(q) : answerMarkdown(q)} />
-          </Card>
+          <Appear>
+            <Card title="Doğru cevap">
+              <MathView markdown={showSolution ? solutionMarkdown(q) : answerMarkdown(q)} />
+            </Card>
+          </Appear>
           <View style={{ flexDirection: 'row', gap: theme.spacing.sm }}>
             <Button
               label={showSolution ? 'Çözümü gizle' : 'Çözümü gör'}
-              icon="text.book.closed.fill"
+              icon="book-open"
               variant="secondary"
               onPress={() => setShowSolution((v) => !v)}
               style={{ flex: 1 }}
             />
             <Button
               label="Anlamadım"
-              icon="questionmark.bubble.fill"
+              icon="message-circle-question-mark"
               variant="secondary"
               onPress={() => router.push(`/question/${q.id}/chat`)}
               style={{ flex: 1 }}
@@ -227,13 +239,17 @@ export default function ReviewSessionScreen() {
 
           {outcome ? (
             <>
-              <Feedback outcome={outcome} />
-              <Button
-                label={index + 1 < queue.length ? 'Sonraki soru' : 'Bitir'}
-                icon={index + 1 < queue.length ? 'arrow.right' : 'flag.checkered'}
-                size="lg"
-                onPress={next}
-              />
+              <Appear>
+                <Feedback outcome={outcome} />
+              </Appear>
+              <Appear index={1}>
+                <Button
+                  label={index + 1 < queue.length ? 'Sonraki soru' : 'Bitir'}
+                  icon={index + 1 < queue.length ? 'arrow-right' : 'flag'}
+                  size="lg"
+                  onPress={next}
+                />
+              </Appear>
             </>
           ) : (
             <>
@@ -241,7 +257,7 @@ export default function ReviewSessionScreen() {
               <View style={{ flexDirection: 'row', gap: theme.spacing.sm }}>
                 <Button
                   label="Yanlış yaptım"
-                  icon="xmark"
+                  icon="x"
                   variant="danger"
                   disabled={submit.isPending}
                   onPress={() => answer(false)}
@@ -249,7 +265,7 @@ export default function ReviewSessionScreen() {
                 />
                 <Button
                   label="Doğru yaptım"
-                  icon="checkmark"
+                  icon="check"
                   variant="success"
                   loading={submit.isPending}
                   onPress={() => answer(true)}

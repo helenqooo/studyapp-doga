@@ -30,7 +30,7 @@ export function MathView({ markdown, fontSize, style }: Props) {
         vars: {
           text: theme.colors.text,
           muted: theme.colors.textMuted,
-          accent: theme.colors.primary,
+          accent: theme.colors.primaryText,
           'answer-bg': theme.colors.primarySoft,
           border: theme.colors.border,
           'code-bg': theme.colors.surfaceAlt,

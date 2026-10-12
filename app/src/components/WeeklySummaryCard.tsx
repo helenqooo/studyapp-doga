@@ -1,4 +1,4 @@
-import { ActivityIndicator, View } from 'react-native';
+import { View } from 'react-native';
 import { useRefreshWeeklySummary, useWeeklySummary } from '../api/hooks';
 import { getTopic, topicLabel } from '../data/topics';
 import { shortDate } from '../lib/format';
@@ -7,6 +7,8 @@ import { AppText } from './AppText';
 import { Badge } from './Badge';
 import { Button } from './Button';
 import { Card } from './Card';
+import { Appear } from './motion/Appear';
+import { ThinkingSpark } from './motion/ThinkingSpark';
 
 /** "Bu hafta öncelik verilecek 3 konu": AI picks with reasons, generated once a week. */
 export function WeeklySummaryCard() {
@@ -19,7 +21,7 @@ export function WeeklySummaryCard() {
     <Card title="Bu hafta öncelik verilecek 3 konu" background={theme.colors.primarySoft}>
       {busy ? (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm }}>
-          <ActivityIndicator color={theme.colors.primary} />
+          <ThinkingSpark size={theme.layout.iconSize.lg} />
           <AppText color="textMuted">Haftalık özet hazırlanıyor, biraz sürebilir…</AppText>
         </View>
       ) : summary.isError || refresh.isError ? (
@@ -35,7 +37,7 @@ export function WeeklySummaryCard() {
           {summary.data.priorities.map((p, i) => {
             const topic = getTopic(p.topicId);
             return (
-              <View key={p.topicId} style={{ flexDirection: 'row', gap: theme.spacing.md }}>
+              <Appear key={p.topicId} index={i} style={{ flexDirection: 'row', gap: theme.spacing.md }}>
                 <View
                   style={{
                     width: theme.layout.iconSize.lg,
@@ -46,27 +48,27 @@ export function WeeklySummaryCard() {
                     justifyContent: 'center',
                   }}
                 >
-                  <AppText variant="label" weight="bold" tint={theme.colors.textOnAccent}>
+                  <AppText variant="label" weight="semibold" tint={theme.colors.textOnAccent}>
                     {i + 1}
                   </AppText>
                 </View>
                 <View style={{ flex: 1, gap: theme.spacing.xs }}>
-                  <AppText weight="bold">{topic ? topicLabel(topic) : p.topicId}</AppText>
+                  <AppText weight="semibold">{topic ? topicLabel(topic) : p.topicId}</AppText>
                   {topic ? (
-                    <Badge label={`${topic.exam} ${topic.subject}`} color={subjectColor(theme, topic.subject)} background={theme.colors.surface} />
+                    <Badge label={`${topic.exam} ${topic.subject}`} dot={subjectColor(theme, topic.subject)} background={theme.colors.surface} />
                   ) : null}
                   <AppText variant="label" color="textMuted">
                     {p.reason}
                   </AppText>
                 </View>
-              </View>
+              </Appear>
             );
           })}
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
             <AppText variant="caption" color="textMuted">
               {shortDate(summary.data.generatedAt)} tarihinde hazırlandı
             </AppText>
-            <Button label="Yenile" icon="arrow.clockwise" variant="ghost" onPress={() => refresh.mutate()} />
+            <Button label="Yenile" icon="refresh-cw" variant="ghost" onPress={() => refresh.mutate()} />
           </View>
         </View>
       ) : null}

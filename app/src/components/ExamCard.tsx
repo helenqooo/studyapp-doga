@@ -1,10 +1,11 @@
 import { router } from 'expo-router';
-import { Pressable, View } from 'react-native';
+import { View } from 'react-native';
 import type { ExamResult } from '../api/types';
 import { formatNet, shortDate } from '../lib/format';
 import { subjectColor, useTheme } from '../theme';
 import { AppText } from './AppText';
 import { Badge } from './Badge';
+import { PressableScale } from './motion/PressableScale';
 
 export function examTitle(e: Pick<ExamResult, 'name' | 'exam'>): string {
   return e.name || `${e.exam} denemesi`;
@@ -14,21 +15,20 @@ export function examTitle(e: Pick<ExamResult, 'name' | 'exam'>): string {
 export function ExamCard({ exam }: { exam: ExamResult }) {
   const theme = useTheme();
   return (
-    <Pressable
+    <PressableScale
       accessibilityRole="button"
       onPress={() => router.push(`/exam/${exam.id}`)}
-      style={({ pressed }) => ({
+      style={{
         backgroundColor: theme.colors.surface,
         borderRadius: theme.radius.lg,
         borderWidth: theme.layout.borderWidth,
         borderColor: theme.colors.border,
         padding: theme.spacing.lg,
         gap: theme.spacing.sm,
-        opacity: pressed ? 0.85 : 1,
-      })}
+      }}
     >
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm }}>
-        <Badge label={exam.exam} color={theme.colors.primary} background={theme.colors.primarySoft} />
+        <Badge label={exam.exam} color={theme.colors.primaryText} background={theme.colors.primarySoft} />
         <AppText weight="semibold" numberOfLines={1} style={{ flex: 1 }}>
           {examTitle(exam)}
         </AppText>
@@ -61,6 +61,6 @@ export function ExamCard({ exam }: { exam: ExamResult }) {
           </View>
         ))}
       </View>
-    </Pressable>
+    </PressableScale>
   );
 }

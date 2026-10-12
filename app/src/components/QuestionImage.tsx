@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Image, Pressable, View, type StyleProp, type ViewStyle } from 'react-native';
-import { authHeaders, questionImageUrl } from '../api/client';
+import { questionImageSource } from '../api/client';
 import { useSolveStore } from '../store/solveStore';
 import { useTheme } from '../theme';
 
@@ -16,7 +16,7 @@ export function QuestionImage({ questionId, size = 'regular', style }: Props) {
   const theme = useTheme();
   const local = useSolveStore((s) => s.localImages[questionId]);
   const [expanded, setExpanded] = useState(false);
-  const source = local ? { uri: local.uri } : { uri: questionImageUrl(questionId), headers: authHeaders };
+  const source = local ? { uri: local.uri } : questionImageSource(questionId);
 
   if (size === 'thumb') {
     const side = theme.layout.minTouch + theme.spacing.md;
@@ -27,7 +27,7 @@ export function QuestionImage({ questionId, size = 'regular', style }: Props) {
           style,
         ]}
       >
-        <Image source={source} resizeMode="cover" style={{ flex: 1 }} />
+        <Image source={source} resizeMode="cover" style={{ width: '100%', height: '100%' }} />
       </View>
     );
   }
@@ -48,7 +48,7 @@ export function QuestionImage({ questionId, size = 'regular', style }: Props) {
         style,
       ]}
     >
-      <Image source={source} resizeMode="contain" style={{ flex: 1 }} />
+      <Image source={source} resizeMode="contain" style={{ flex: 1, width: '100%' }} />
     </Pressable>
   );
 }

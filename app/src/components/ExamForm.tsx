@@ -4,7 +4,7 @@ import type { ExamInput, ExamResult, KarneDraft } from '../api/types';
 import { getTopic, QUESTION_COUNTS, SUBJECTS_BY_EXAM, topicLabel, type Exam, type Subject } from '../data/topics';
 import { formatNet, localToday, longDate, shiftDate } from '../lib/format';
 import { haptics } from '../lib/haptics';
-import { useTheme } from '../theme';
+import { font, useTheme } from '../theme';
 import { AppText } from './AppText';
 import { Button } from './Button';
 import { Card } from './Card';
@@ -151,7 +151,7 @@ export function ExamForm({ initial, submitLabel, submitting, error, onSubmit }: 
             }}
             style={{ width: theme.layout.minTouch, height: theme.layout.minTouch, alignItems: 'center', justifyContent: 'center' }}
           >
-            <Icon name="chevron.left" color={theme.colors.primary} />
+            <Icon name="chevron-left" color={theme.colors.primaryText} />
           </Pressable>
           <View style={{ flex: 1, alignItems: 'center' }}>
             <AppText weight="semibold">{longDate(form.date)}</AppText>
@@ -175,7 +175,7 @@ export function ExamForm({ initial, submitLabel, submitting, error, onSubmit }: 
               opacity: form.date >= today ? 0.3 : 1,
             }}
           >
-            <Icon name="chevron.right" color={theme.colors.primary} />
+            <Icon name="chevron-right" color={theme.colors.primaryText} />
           </Pressable>
         </View>
         <TextInput
@@ -191,6 +191,7 @@ export function ExamForm({ initial, submitLabel, submitting, error, onSubmit }: 
             backgroundColor: theme.colors.surfaceAlt,
             color: theme.colors.text,
             fontSize: theme.fontSize.md,
+            ...font('sans'),
           }}
         />
       </Card>
@@ -264,7 +265,7 @@ export function ExamForm({ initial, submitLabel, submitting, error, onSubmit }: 
                                 onPress={() => updateTopic(s.subject, t.topicId, null)}
                                 style={{ width: theme.layout.minTouch, height: theme.layout.minTouch, alignItems: 'center', justifyContent: 'center' }}
                               >
-                                <Icon name="xmark.circle.fill" size={theme.layout.iconSize.sm} color={theme.colors.textMuted} />
+                                <Icon name="circle-x" size={theme.layout.iconSize.sm} color={theme.colors.textMuted} />
                               </Pressable>
                             </View>
                             <View style={{ flexDirection: 'row', gap: theme.spacing.md }}>
@@ -293,7 +294,7 @@ export function ExamForm({ initial, submitLabel, submitting, error, onSubmit }: 
           <AppText variant="label" color="textMuted" style={{ flex: 1 }}>
             Toplam net
           </AppText>
-          <AppText variant="title" tint={theme.colors.primary}>
+          <AppText variant="title" tint={theme.colors.primaryText}>
             {formatNet(totalNet)}
           </AppText>
           <AppText variant="label" color="textMuted">
@@ -303,7 +304,7 @@ export function ExamForm({ initial, submitLabel, submitting, error, onSubmit }: 
       </Card>
 
       {error ? <AppText color="danger">{error}</AppText> : null}
-      <Button label={submitLabel} icon="checkmark" size="lg" loading={submitting} disabled={!canSubmit} onPress={() => onSubmit(toInput(form))} />
+      <Button label={submitLabel} icon="check" size="lg" loading={submitting} disabled={!canSubmit} onPress={() => onSubmit(toInput(form))} />
     </View>
   );
 }

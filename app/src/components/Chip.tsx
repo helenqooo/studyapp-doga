@@ -1,8 +1,9 @@
-import { Pressable, type StyleProp, type ViewStyle } from 'react-native';
+import type { StyleProp, ViewStyle } from 'react-native';
 import { haptics } from '../lib/haptics';
 import { useTheme } from '../theme';
 import { AppText } from './AppText';
 import { Icon, type IconName } from './Icon';
+import { PressableScale } from './motion/PressableScale';
 
 interface Props {
   label: string;
@@ -20,14 +21,14 @@ export function Chip({ label, selected = false, onPress, color, icon, style }: P
   const accent = color ?? theme.colors.primary;
   const fg = selected ? theme.colors.textOnAccent : theme.colors.text;
   return (
-    <Pressable
+    <PressableScale
       accessibilityRole="button"
       accessibilityState={{ selected }}
       onPress={() => {
         haptics.select();
         onPress();
       }}
-      style={({ pressed }) => [
+      style={[
         {
           flexDirection: 'row',
           alignItems: 'center',
@@ -38,7 +39,6 @@ export function Chip({ label, selected = false, onPress, color, icon, style }: P
           backgroundColor: selected ? accent : theme.colors.surface,
           borderWidth: theme.layout.borderWidth,
           borderColor: selected ? accent : theme.colors.border,
-          opacity: pressed ? 0.8 : 1,
         },
         style,
       ]}
@@ -47,6 +47,6 @@ export function Chip({ label, selected = false, onPress, color, icon, style }: P
       <AppText variant="label" tint={fg}>
         {label}
       </AppText>
-    </Pressable>
+    </PressableScale>
   );
 }

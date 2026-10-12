@@ -66,6 +66,24 @@ iPhone'da kamerayla QR kodu okut, Expo Go'da açılır.
 - `EXPO_PUBLIC_APP_TOKEN` uygulama paketinin içinde bulunur; bu yüzden asıl gizli olan `ANTHROPIC_API_KEY` sadece sunucuda tutulur.
 - İleride .ipa olarak kurarken düz `http://` adresi iOS tarafından engellenir; o aşamada alan adı + HTTPS (ör. Caddy / Let's Encrypt) kullan.
 
+## Demo modu (sunucusuz)
+
+`EXPO_PUBLIC_API_URL` boşsa (ya da `EXPO_PUBLIC_DEMO=1` ise) uygulama **demo modunda** açılır: sunucuya hiç bağlanmaz, 12 örnek soru (çözümleri bağımsız olarak kontrol edildi), birkaç haftalık örnek geçmiş, tekrar kuyruğu ve 11 örnek deneme ile çalışır. Ana sayfada ve Profil'de "Demo modu" kartı görünür. Yaptıkların bellekte tutulur, uygulama kapanınca sıfırlanır.
+
+- Expo Go'da denemek için: `app/.env` olmadan `npx expo start` (veya `.env` içinde `EXPO_PUBLIC_DEMO=1`).
+- **Örnek soruyu çöz** butonu bir örnek soruyu kırpma ekranına getirir; kendi fotoğrafını yüklersen de demo bir örnek soruyla cevap verir.
+- `EXPO_PUBLIC_DEMO=0` yazarsan adres boşken de demo açılmaz (eksik ayar uyarısı görünür).
+
+## Tarayıcı önizlemesi
+
+Uygulamanın demo modundaki web sürümü tek bir HTML dosyası olarak üretilebilir (JS, fontlar ve görseller içine gömülü):
+
+```bash
+cd app && npm run build:preview   # → app/web-build/derece-preview.html
+```
+
+`.env` okunmaz, yani dosyaya sunucu adresi ya da anahtar girmez. Kamera tarayıcıda çalışmaz; galeri ve örnek soru çalışır.
+
 ## Konu listesi
 
 `server/src/topics.ts` ve `app/src/data/topics.ts` aynı dosyadır. Birini düzenle, diğerine kopyala:
@@ -84,3 +102,5 @@ cd app && npx tsc --noEmit
 ```
 
 Matematik gösterimi (KaTeX + markdown) çevrimdışı çalışır: KaTeX ve fontları `app/src/components/math/mathHtml.generated.ts` içine gömülüdür. `katex` veya `marked` sürümünü güncellersen `cd app && npm run build:math` çalıştır.
+
+Tasarım: renkler, fontlar (Poppins arayüz, Lora başlıklar ve çözüm metni), boşluklar ve animasyon süreleri `app/src/theme.ts` içinde. İkonlar Lucide'den (ISC lisansı) `app/src/components/icons/icons.generated.ts` dosyasına alınır; yeni ikon için `scripts/build-icons.mjs` listesine ekleyip `npm run build:icons` çalıştır. Animasyonlar iOS'taki "Hareketi Azalt" ayarına uyar.

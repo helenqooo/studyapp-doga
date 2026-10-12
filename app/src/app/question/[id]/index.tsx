@@ -1,6 +1,6 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, View } from 'react-native';
+import { View } from 'react-native';
 import { useQuestion, useRecordAttempt } from '../../../api/hooks';
 import type { AttemptResult, Question } from '../../../api/types';
 import { AppText } from '../../../components/AppText';
@@ -10,10 +10,14 @@ import { Card } from '../../../components/Card';
 import { Difficulty } from '../../../components/Difficulty';
 import { Icon } from '../../../components/Icon';
 import { MathView } from '../../../components/math/MathView';
+import { Appear } from '../../../components/motion/Appear';
+import { Loader } from '../../../components/motion/Loader';
+import { PressableScale } from '../../../components/motion/PressableScale';
 import { QuestionImage } from '../../../components/QuestionImage';
 import { Screen, SplitScreen } from '../../../components/Screen';
 import { LOW_CONFIDENCE_THRESHOLD } from '../../../config';
 import { getTopic, topicLabel } from '../../../data/topics';
+import { useResultCelebration } from '../../../lib/celebrate';
 import { reviewDueLabel, shortDate } from '../../../lib/format';
 import { haptics } from '../../../lib/haptics';
 import { useWindowLayout } from '../../../lib/layout';
@@ -31,11 +35,11 @@ function ReviewStatus({ q }: { q: Question }) {
     <Card background={graduated ? theme.colors.successSoft : theme.colors.primarySoft}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md }}>
         <Icon
-          name={graduated ? 'checkmark.seal.fill' : 'arrow.triangle.2.circlepath'}
-          color={graduated ? theme.colors.success : theme.colors.primary}
+          name={graduated ? 'badge-check' : 'repeat'}
+          color={graduated ? theme.colors.success : theme.colors.primaryText}
         />
         <View style={{ flex: 1, gap: theme.spacing.xxs }}>
-          <AppText weight="bold" tint={graduated ? theme.colors.success : theme.colors.primary}>
+          <AppText weight="semibold" tint={graduated ? theme.colors.success : theme.colors.primaryText}>
             {graduated ? 'Öğrenildi' : `Tekrar: ${reviewDueLabel(review.dueDate)} (${shortDate(review.dueDate)})`}
           </AppText>
           <AppText variant="label" color="textMuted">
@@ -75,6 +79,7 @@ export default function QuestionScreen() {
   const query = useQuestion(id);
   const record = useRecordAttempt(id);
   const { split } = useWindowLayout();
+  const startCelebration = useResultCelebration();
 
   const [hintsShown, setHintsShown] = useState(0);
   const [solutionShown, setSolutionShown] = useState(false);
@@ -84,7 +89,7 @@ export default function QuestionScreen() {
   if (query.isPending) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.background }}>
-        <ActivityIndicator color={theme.colors.primary} />
+        <Loader />
       </View>
     );
   }
@@ -117,11 +122,12 @@ export default function QuestionScreen() {
   };
 
   const save = (result: AttemptResult) => {
+    const celebrate = startCelebration();
     record.mutate(
       { result, userAnswer, hintsUsed: hintsShown, viewedSolution: solutionShown },
       {
         onSuccess: (res) => {
-          haptics.success();
+          celebrate(result, res);
           setSavedXp(res.xpGained);
         },
         onError: () => haptics.error(),
@@ -134,8 +140,8 @@ export default function QuestionScreen() {
     <>
       <View style={{ gap: theme.spacing.sm }}>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.sm }}>
-          <Badge label={q.exam} color={theme.colors.primary} background={theme.colors.primarySoft} />
-          <Badge label={q.subject} color={color} />
+          <Badge label={q.exam} color={theme.colors.primaryText} background={theme.colors.primarySoft} />
+          <Badge label={q.subject} dot={color} />
           <Difficulty value={q.difficulty} />
         </View>
         {topic ? <AppText variant="heading">{topicLabel(topic)}</AppText> : null}
@@ -144,9 +150,9 @@ export default function QuestionScreen() {
       {lowConfidence ? (
         <Card background={theme.colors.warningSoft}>
           <View style={{ flexDirection: 'row', gap: theme.spacing.md, alignItems: 'center' }}>
-            <Icon name="exclamationmark.triangle.fill" color={theme.colors.warning} />
+            <Icon name="triangle-alert" color={theme.colors.warning} />
             <View style={{ flex: 1, gap: theme.spacing.xxs }}>
-              <AppText weight="bold" color="warning">
+              <AppText weight="semibold" color="warning">
                 Cevap anahtarıyla kontrol et
               </AppText>
               <AppText variant="label" color="warning">
@@ -167,15 +173,19 @@ export default function QuestionScreen() {
     <>
       <ReviewStatus q={q} />
       {q.hints.slice(0, hintsShown).map((hint, i) => (
-        <Card key={i} title={`İpucu ${i + 1}`} background={theme.colors.hintBackground}>
-          <MathView markdown={hint} />
-        </Card>
+        <Appear key={i}>
+          <Card title={`İpucu ${i + 1}`} background={theme.colors.hintBackground}>
+            <MathView markdown={hint} />
+          </Card>
+        </Appear>
       ))}
 
       {solutionShown ? (
-        <Card title="Tam çözüm">
-          <MathView markdown={solutionMarkdown(q)} />
-        </Card>
+        <Appear>
+          <Card title="Tam çözüm">
+            <MathView markdown={solutionMarkdown(q)} />
+          </Card>
+        </Appear>
       ) : null}
 
       <View style={{ gap: theme.spacing.sm }}>
@@ -183,18 +193,18 @@ export default function QuestionScreen() {
           <View style={{ flexDirection: 'row', gap: theme.spacing.sm }}>
             <Button
               label={hintsShown < q.hints.length ? `İpucu (${hintsShown + 1}/${q.hints.length})` : 'İpuçları bitti'}
-              icon="lightbulb.fill"
+              icon="lightbulb"
               variant="secondary"
               disabled={hintsShown >= q.hints.length}
               onPress={showHint}
               style={{ flex: 1 }}
             />
-            <Button label="Tam çözüm" icon="text.book.closed.fill" onPress={showSolution} style={{ flex: 1 }} />
+            <Button label="Tam çözüm" icon="book-open" onPress={showSolution} style={{ flex: 1 }} />
           </View>
         ) : null}
         <Button
           label={askedCount > 0 ? `Sohbete devam et (${askedCount})` : 'Anlamadım'}
-          icon="questionmark.bubble.fill"
+          icon="message-circle-question-mark"
           variant="ghost"
           onPress={() => router.push(`/question/${q.id}/chat`)}
         />
@@ -202,23 +212,23 @@ export default function QuestionScreen() {
 
       <Card title="Sen ne yaptın?">
         {saved ? (
-          <View style={{ gap: theme.spacing.sm }}>
+          <Appear style={{ gap: theme.spacing.sm }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm }}>
-              <Icon name="checkmark.circle.fill" color={theme.colors.success} />
+              <Icon name="circle-check" color={theme.colors.success} />
               <AppText weight="semibold" style={{ flex: 1 }}>
                 Kaydedildi: {RESULT_LABELS[saved.result]}
                 {saved.userAnswer ? ` (cevabın: ${saved.userAnswer})` : ''}
               </AppText>
             </View>
             {savedXp ? (
-              <Badge label={`+${savedXp} XP`} icon="star.fill" color={theme.colors.xp} background={theme.colors.xpTrack} />
+              <Badge label={`+${savedXp} XP`} icon="star" color={theme.colors.xpText} background={theme.colors.xpTrack} />
             ) : null}
             {saved.result !== 'correct' && savedXp ? (
               <AppText variant="label" color="textMuted">
                 Bu soru tekrar listene eklendi. Yarın karşına çıkacak.
               </AppText>
             ) : null}
-          </View>
+          </Appear>
         ) : (
           <>
             <AppText variant="label" color="textMuted">
@@ -228,7 +238,7 @@ export default function QuestionScreen() {
               {CHOICES.map((choice) => {
                 const active = userAnswer === choice;
                 return (
-                  <Pressable
+                  <PressableScale
                     key={choice}
                     accessibilityRole="button"
                     accessibilityLabel={`Cevabım ${choice}`}
@@ -246,18 +256,18 @@ export default function QuestionScreen() {
                       backgroundColor: active ? theme.colors.primary : theme.colors.surfaceAlt,
                     }}
                   >
-                    <AppText weight="bold" tint={active ? theme.colors.textOnAccent : theme.colors.text}>
+                    <AppText weight="semibold" tint={active ? theme.colors.textOnAccent : theme.colors.text}>
                       {choice}
                     </AppText>
-                  </Pressable>
+                  </PressableScale>
                 );
               })}
             </View>
 
             {record.isError ? <AppText color="danger">{record.error.message}</AppText> : null}
 
-            <Button label={RESULT_LABELS.correct} icon="checkmark" variant="success" loading={record.isPending} onPress={() => save('correct')} />
-            <Button label={RESULT_LABELS.wrong} icon="xmark" variant="danger" disabled={record.isPending} onPress={() => save('wrong')} />
+            <Button label={RESULT_LABELS.correct} icon="check" variant="success" loading={record.isPending} onPress={() => save('correct')} />
+            <Button label={RESULT_LABELS.wrong} icon="x" variant="danger" disabled={record.isPending} onPress={() => save('wrong')} />
             <Button label={RESULT_LABELS.blank} icon="minus" variant="neutral" disabled={record.isPending} onPress={() => save('blank')} />
           </>
         )}
@@ -266,10 +276,10 @@ export default function QuestionScreen() {
       <AttemptHistory q={q} />
 
       {saved && savedXp ? (
-        <View style={{ gap: theme.spacing.sm }}>
-          <Button label="Yeni soru çöz" icon="camera.fill" size="lg" onPress={() => router.replace('/camera')} />
+        <Appear index={2} style={{ gap: theme.spacing.sm }}>
+          <Button label="Yeni soru çöz" icon="camera" size="lg" onPress={() => router.replace('/camera')} />
           <Button label="Ana sayfaya dön" variant="ghost" onPress={() => router.dismissTo('/')} />
-        </View>
+        </Appear>
       ) : null}
     </>
   );

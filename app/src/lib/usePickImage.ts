@@ -1,7 +1,9 @@
+import { Asset } from 'expo-asset';
 import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { Alert } from 'react-native';
+import { armNextSample } from '../api/demo/demoApi';
 import { useSolveStore } from '../store/solveStore';
 import { normalizeImage } from './image';
 
@@ -30,5 +32,29 @@ export function usePickImage() {
     }
   };
 
-  return { openCamera, pickFromLibrary, busy };
+  /** Demo mode: opens the crop screen with a bundled sample question. */
+  const trySample = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const sample = armNextSample();
+      const src = sample.image.source;
+      let uri: string;
+      if (typeof src === 'number') {
+        const asset = Asset.fromModule(src);
+        await asset.downloadAsync();
+        uri = asset.localUri ?? asset.uri;
+      } else {
+        uri = src.uri;
+      }
+      setPending({ uri, width: sample.image.width, height: sample.image.height });
+      router.push('/crop');
+    } catch {
+      Alert.alert('Örnek soru açılamadı', 'Tekrar dene.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return { openCamera, pickFromLibrary, trySample, busy };
 }

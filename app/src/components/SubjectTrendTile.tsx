@@ -49,7 +49,7 @@ export function SubjectTrendTile({ summary, nets }: { summary: SubjectSummary; n
       {delta !== null ? (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.xxs }}>
           <Icon
-            name={up ? 'arrow.up.right' : down ? 'arrow.down.right' : 'arrow.right'}
+            name={up ? 'arrow-up-right' : down ? 'arrow-down-right' : 'arrow-right'}
             size={theme.fontSize.sm}
             color={up ? theme.colors.success : down ? theme.colors.danger : theme.colors.textMuted}
           />

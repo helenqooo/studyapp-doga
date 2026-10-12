@@ -58,12 +58,15 @@
     });
   }
 
+  // Native: the WebView bridge. Web preview: this page is an iframe, so talk to the parent.
+  var bridge = window.ReactNativeWebView || (window.parent !== window ? { postMessage: function (data) { window.parent.postMessage(data, '*'); } } : null);
+
   var lastHeight = -1;
   function postHeight() {
     var h = Math.ceil(content.getBoundingClientRect().height);
-    if (h !== lastHeight && window.ReactNativeWebView) {
+    if (h !== lastHeight && bridge) {
       lastHeight = h;
-      window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'height', height: h }));
+      bridge.postMessage(JSON.stringify({ type: 'height', height: h }));
     }
   }
 
@@ -75,6 +78,19 @@
     content.innerHTML = renderMarkdown(payload.markdown);
     postHeight();
   };
+
+  // Web preview: the parent sends { type: 'render', payload } with postMessage.
+  window.addEventListener('message', function (e) {
+    var msg = e.data;
+    if (typeof msg === 'string') {
+      try {
+        msg = JSON.parse(msg);
+      } catch (err) {
+        return;
+      }
+    }
+    if (msg && msg.type === 'render') window.__render(msg.payload);
+  });
 
   if (window.ResizeObserver) {
     new ResizeObserver(postHeight).observe(content);

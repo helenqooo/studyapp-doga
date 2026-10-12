@@ -1,6 +1,6 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import { View } from 'react-native';
 import { useExams, useOverview } from '../../api/hooks';
 import type { Overview } from '../../api/types';
 import { AppText } from '../../components/AppText';
@@ -17,6 +17,8 @@ import { SubjectTrendTile } from '../../components/SubjectTrendTile';
 import { WeeklySummaryCard } from '../../components/WeeklySummaryCard';
 import type { Exam } from '../../data/topics';
 import { useTheme } from '../../theme';
+import { Appear } from '../../components/motion/Appear';
+import { Loader } from '../../components/motion/Loader';
 
 type Tab = 'list' | 'analysis';
 
@@ -29,14 +31,14 @@ function ExamList() {
       <View style={{ flexDirection: 'row', gap: theme.spacing.sm }}>
         <Button
           label="Karne fotoğrafı"
-          icon="doc.text.viewfinder"
+          icon="scan-text"
           onPress={() => router.push({ pathname: '/exam/new', params: { source: 'photo' } })}
           style={{ flex: 1 }}
         />
-        <Button label="Elle gir" icon="square.and.pencil" variant="secondary" onPress={() => router.push('/exam/new')} style={{ flex: 1 }} />
+        <Button label="Elle gir" icon="square-pen" variant="secondary" onPress={() => router.push('/exam/new')} style={{ flex: 1 }} />
       </View>
 
-      {exams.isPending ? <ActivityIndicator color={theme.colors.primary} /> : null}
+      {exams.isPending ? <Loader /> : null}
       {exams.isError ? (
         <Card background={theme.colors.dangerSoft}>
           <AppText color="danger">{exams.error.message}</AppText>
@@ -48,14 +50,17 @@ function ExamList() {
         </AppText>
       ) : null}
       <Grid columns={{ compact: 1, regular: 2, wide: 3 }}>
-        {exams.data?.items.map((e) => <ExamCard key={e.id} exam={e} />)}
+        {exams.data?.items.map((e, i) => (
+          <Appear key={e.id} index={i}>
+            <ExamCard exam={e} />
+          </Appear>
+        ))}
       </Grid>
     </>
   );
 }
 
 function ExamTrends({ overview, exam }: { overview: Overview; exam: Exam }) {
-  const theme = useTheme();
   const data = overview.byExam[exam];
   // Branş (partial) exams would distort the total, so the total trend uses complete ones.
   const complete = data.trend.filter((t) => t.complete);
@@ -114,7 +119,7 @@ function Analysis() {
     }, [refetch]),
   );
 
-  if (overview.isPending) return <ActivityIndicator color={theme.colors.primary} />;
+  if (overview.isPending) return <Loader />;
   if (overview.isError) {
     return (
       <Card background={theme.colors.dangerSoft}>

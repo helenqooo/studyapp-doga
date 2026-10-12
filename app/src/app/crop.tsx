@@ -1,11 +1,13 @@
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Image, PanResponder, View, type LayoutChangeEvent } from 'react-native';
+import { Image, PanResponder, View, type LayoutChangeEvent } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSolve } from '../api/hooks';
 import { AppText } from '../components/AppText';
 import { Button } from '../components/Button';
+import { ThinkingSpark } from '../components/motion/ThinkingSpark';
+import { DEMO_MODE } from '../config';
 import { haptics } from '../lib/haptics';
 import { prepareUpload, type LocalImage } from '../lib/image';
 import { useSolveStore } from '../store/solveStore';
@@ -157,7 +159,8 @@ export default function CropScreen() {
           if (f >= 1) setPhase((p) => (p === 'uploading' ? 'solving' : p));
         },
       });
-      rememberImage(question.id, upload);
+      // Demo answers with a bundled sample, so show its image rather than this photo.
+      if (!DEMO_MODE) rememberImage(question.id, upload);
       haptics.success();
       router.replace(`/question/${question.id}`);
     } catch (e) {
@@ -288,7 +291,7 @@ export default function CropScreen() {
                 gap: theme.spacing.md,
               }}
             >
-              <ActivityIndicator size="large" color={c.cameraForeground} />
+              <ThinkingSpark color={c.cameraForeground} />
               <AppText variant="heading" tint={c.cameraForeground} align="center">
                 {phase === 'preparing'
                   ? 'Görsel hazırlanıyor…'

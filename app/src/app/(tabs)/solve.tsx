@@ -4,18 +4,19 @@ import { Button } from '../../components/Button';
 import { Card } from '../../components/Card';
 import { Icon, type IconName } from '../../components/Icon';
 import { Screen } from '../../components/Screen';
+import { DEMO_MODE } from '../../config';
 import { usePickImage } from '../../lib/usePickImage';
 import { useTheme } from '../../theme';
 
 const TIPS: { icon: IconName; text: string }[] = [
-  { icon: 'viewfinder', text: 'Kadrajda tek soru olsun, şıklar da görünsün.' },
-  { icon: 'sun.max.fill', text: 'Işık iyi olsun, gölge düşürme.' },
-  { icon: 'rectangle.portrait', text: 'Telefonu sayfaya paralel tut.' },
+  { icon: 'scan', text: 'Kadrajda tek soru olsun, şıklar da görünsün.' },
+  { icon: 'sun', text: 'Işık iyi olsun, gölge düşürme.' },
+  { icon: 'smartphone', text: 'Telefonu sayfaya paralel tut.' },
 ];
 
 export default function SolveScreen() {
   const theme = useTheme();
-  const { openCamera, pickFromLibrary, busy } = usePickImage();
+  const { openCamera, pickFromLibrary, trySample, busy } = usePickImage();
 
   return (
     <Screen title="Soru Çöz" subtitle="Fotoğrafını çek; ipucu al ya da tam çözümü gör." width="readable">
@@ -31,20 +32,21 @@ export default function SolveScreen() {
               justifyContent: 'center',
             }}
           >
-            <Icon name="camera.viewfinder" size={theme.layout.iconSize.xl} color={theme.colors.primary} />
+            <Icon name="scan-line" size={theme.layout.iconSize.xl} color={theme.colors.primaryText} />
           </View>
           <AppText color="textMuted" align="center">
             Çözemediğin ya da kontrol etmek istediğin soruyu çek.
           </AppText>
         </View>
-        <Button label="Fotoğraf çek" icon="camera.fill" size="lg" onPress={openCamera} />
-        <Button label="Galeriden seç" icon="photo.on.rectangle" variant="secondary" loading={busy} onPress={() => pickFromLibrary()} />
+        <Button label="Fotoğraf çek" icon="camera" size="lg" onPress={openCamera} />
+        <Button label="Galeriden seç" icon="images" variant="secondary" loading={busy} onPress={() => pickFromLibrary()} />
+        {DEMO_MODE ? <Button label="Örnek soruyu çöz" icon="sparkles" variant="ghost" loading={busy} onPress={trySample} /> : null}
       </Card>
 
       <Card title="İyi bir fotoğraf için">
         {TIPS.map((tip) => (
           <View key={tip.text} style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md }}>
-            <Icon name={tip.icon} size={theme.layout.iconSize.sm} color={theme.colors.primary} />
+            <Icon name={tip.icon} size={theme.layout.iconSize.sm} color={theme.colors.primaryText} />
             <AppText style={{ flex: 1 }}>{tip.text}</AppText>
           </View>
         ))}

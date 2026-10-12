@@ -1,7 +1,7 @@
 import { useLocalSearchParams } from 'expo-router';
 import { useHeaderHeight } from 'expo-router/react-navigation';
 import { useRef, useState } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Pressable, ScrollView, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Pressable, ScrollView, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useMessages, useSendMessage } from '../../../api/hooks';
 import type { ChatMessage } from '../../../api/types';
@@ -11,9 +11,12 @@ import { Chip } from '../../../components/Chip';
 import { Icon } from '../../../components/Icon';
 import { MathView } from '../../../components/math/MathView';
 import { QuestionImage } from '../../../components/QuestionImage';
+import { Appear } from '../../../components/motion/Appear';
+import { Loader } from '../../../components/motion/Loader';
+import { ThinkingSpark } from '../../../components/motion/ThinkingSpark';
 import { haptics } from '../../../lib/haptics';
 import { useWindowLayout } from '../../../lib/layout';
-import { useTheme } from '../../../theme';
+import { font, useTheme } from '../../../theme';
 
 const SUGGESTIONS = [
   'Çözümün ilk adımını anlamadım',
@@ -30,32 +33,26 @@ function Bubble({ message }: { message: ChatMessage }) {
         style={{
           alignSelf: 'flex-end',
           maxWidth: '85%',
-          backgroundColor: theme.colors.primary,
+          backgroundColor: theme.colors.surfaceAlt,
           borderRadius: theme.radius.lg,
           borderBottomRightRadius: theme.radius.sm,
           paddingHorizontal: theme.spacing.md,
           paddingVertical: theme.spacing.sm,
         }}
       >
-        <AppText tint={theme.colors.textOnAccent} selectable>
+        <AppText selectable>
           {message.content}
         </AppText>
       </View>
     );
   }
+  // Claude's answers read like a page, without a bubble, marked by the accent asterisk.
   return (
-    <View
-      style={{
-        alignSelf: 'stretch',
-        backgroundColor: theme.colors.surface,
-        borderRadius: theme.radius.lg,
-        borderBottomLeftRadius: theme.radius.sm,
-        borderWidth: theme.layout.borderWidth,
-        borderColor: theme.colors.border,
-        padding: theme.spacing.md,
-      }}
-    >
-      <MathView markdown={message.content} />
+    <View style={{ alignSelf: 'stretch', flexDirection: 'row', gap: theme.spacing.sm }}>
+      <Icon name="asterisk" size={theme.layout.iconSize.sm} color={theme.colors.accent} style={{ marginTop: theme.spacing.xs }} />
+      <View style={{ flex: 1 }}>
+        <MathView markdown={message.content} />
+      </View>
     </View>
   );
 }
@@ -115,7 +112,7 @@ export default function ChatScreen() {
       >
         <QuestionImage questionId={id} size="compact" />
 
-        {thread.isPending ? <ActivityIndicator color={theme.colors.primary} /> : null}
+        {thread.isPending ? <Loader /> : null}
         {thread.isError ? (
           <Card background={theme.colors.dangerSoft}>
             <AppText color="danger">{thread.error.message}</AppText>
@@ -134,18 +131,22 @@ export default function ChatScreen() {
         ) : null}
 
         {items.map((m) => (
-          <Bubble key={m.id} message={m} />
+          <Appear key={m.id}>
+            <Bubble message={m} />
+          </Appear>
         ))}
 
         {pending ? (
           <>
-            <Bubble message={{ id: 'pending', role: 'user', content: pending, createdAt: '' }} />
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm }}>
-              <ActivityIndicator color={theme.colors.primary} />
+            <Appear>
+              <Bubble message={{ id: 'pending', role: 'user', content: pending, createdAt: '' }} />
+            </Appear>
+            <Appear index={2} style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm }}>
+              <ThinkingSpark size={theme.layout.iconSize.lg} />
               <AppText variant="label" color="textMuted">
                 Düşünüyor…
               </AppText>
-            </View>
+            </Appear>
           </>
         ) : null}
 
@@ -193,6 +194,7 @@ export default function ChatScreen() {
                     backgroundColor: theme.colors.surfaceAlt,
                     color: theme.colors.text,
                     fontSize: theme.fontSize.md,
+                    ...font('sans'),
                   }}
                 />
                 <Pressable
@@ -208,7 +210,7 @@ export default function ChatScreen() {
                     opacity: busy || !draft.trim() ? 0.4 : 1,
                   }}
                 >
-                  <Icon name="arrow.up.circle.fill" size={theme.layout.iconSize.xl} color={theme.colors.primary} />
+                  <Icon name="arrow-up" size={theme.layout.iconSize.xl} color={theme.colors.primaryText} />
                 </Pressable>
               </View>
               <AppText variant="caption" color="textMuted" align="right">

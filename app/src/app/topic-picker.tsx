@@ -34,7 +34,7 @@ function Row({ label, count, selected, onPress }: { label: string; count?: numbe
           {count}
         </AppText>
       ) : null}
-      {selected ? <Icon name="checkmark" size={theme.layout.iconSize.sm} color={theme.colors.primary} /> : null}
+      {selected ? <Icon name="check" size={theme.layout.iconSize.sm} color={theme.colors.primaryText} /> : null}
     </Pressable>
   );
 }

@@ -1,5 +1,5 @@
 import { TextInput, View } from 'react-native';
-import { useTheme } from '../theme';
+import { font, useTheme } from '../theme';
 import { AppText } from './AppText';
 
 interface Props {
@@ -36,7 +36,7 @@ export function NumberField({ label, value, onChangeText, invalid = false, compa
           borderColor: invalid ? theme.colors.danger : theme.colors.transparent,
           color: theme.colors.text,
           fontSize: theme.fontSize.lg,
-          fontWeight: theme.fontWeight.semibold,
+          ...font('sans', 'semibold'),
           textAlign: 'center',
           fontVariant: ['tabular-nums'],
         }}

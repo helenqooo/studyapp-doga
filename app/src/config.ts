@@ -4,6 +4,12 @@
 export const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? '').replace(/\/+$/, '');
 export const APP_TOKEN = process.env.EXPO_PUBLIC_APP_TOKEN ?? '';
 
+/**
+ * Demo mode: no server, sample questions and placeholder history kept in memory.
+ * On when EXPO_PUBLIC_DEMO=1, or when no API address is set (EXPO_PUBLIC_DEMO=0 turns that off).
+ */
+export const DEMO_MODE = process.env.EXPO_PUBLIC_DEMO === '1' || (!API_URL && process.env.EXPO_PUBLIC_DEMO !== '0');
+
 /** Below this confidence the solution screen warns the student to check the answer key. */
 export const LOW_CONFIDENCE_THRESHOLD = 0.7;
 

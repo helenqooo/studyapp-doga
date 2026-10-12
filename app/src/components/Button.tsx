@@ -1,8 +1,9 @@
-import { ActivityIndicator, Pressable, View, type StyleProp, type ViewStyle } from 'react-native';
+import { ActivityIndicator, View, type StyleProp, type ViewStyle } from 'react-native';
 import { haptics } from '../lib/haptics';
 import { useTheme, type Theme } from '../theme';
 import { AppText } from './AppText';
 import { Icon, type IconName } from './Icon';
+import { PressableScale } from './motion/PressableScale';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'success' | 'danger' | 'neutral' | 'ghost';
 
@@ -25,16 +26,16 @@ function variantColors(theme: Theme, variant: ButtonVariant, selected: boolean) 
     case 'primary':
       return { bg: c.primary, fg: c.textOnAccent };
     case 'secondary':
-      return { bg: c.primarySoft, fg: c.primary };
+      return { bg: c.primarySoft, fg: c.primaryText };
     case 'success':
-      return selected ? { bg: c.success, fg: c.textOnAccent } : { bg: c.successSoft, fg: c.success };
+      return selected ? { bg: c.successStrong, fg: c.textOnAccent } : { bg: c.successSoft, fg: c.success };
     case 'danger':
-      return selected ? { bg: c.danger, fg: c.textOnAccent } : { bg: c.dangerSoft, fg: c.danger };
+      return selected ? { bg: c.dangerStrong, fg: c.textOnAccent } : { bg: c.dangerSoft, fg: c.danger };
     case 'neutral':
-      return selected ? { bg: c.neutral, fg: c.textOnAccent } : { bg: c.neutralSoft, fg: c.neutral };
+      return selected ? { bg: c.neutralStrong, fg: c.textOnAccent } : { bg: c.neutralSoft, fg: c.neutral };
     case 'ghost':
     default:
-      return { bg: c.background, fg: c.primary };
+      return { bg: c.transparent, fg: c.primaryText };
   }
 }
 
@@ -55,7 +56,7 @@ export function Button({
   const height = size === 'lg' ? theme.layout.minTouch + theme.spacing.xl : theme.layout.minTouch + theme.spacing.xs;
 
   return (
-    <Pressable
+    <PressableScale
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityState={{ disabled: inactive, selected }}
@@ -64,15 +65,14 @@ export function Button({
         haptics.tap();
         onPress?.();
       }}
-      style={({ pressed }) => [
+      style={[
         {
           minHeight: height,
           backgroundColor: bg,
           borderRadius: size === 'lg' ? theme.radius.xl : theme.radius.md,
           paddingHorizontal: theme.spacing.lg,
           justifyContent: 'center',
-          opacity: inactive ? 0.5 : pressed ? 0.85 : 1,
-          transform: [{ scale: pressed ? 0.98 : 1 }],
+          opacity: inactive ? 0.5 : 1,
         },
         style,
       ]}
@@ -86,13 +86,13 @@ export function Button({
         <AppText
           variant={size === 'lg' ? 'heading' : 'label'}
           tint={fg}
-          weight="bold"
+          weight="semibold"
           numberOfLines={1}
           style={size === 'lg' ? { fontSize: theme.fontSize.xl } : null}
         >
           {label}
         </AppText>
       </View>
-    </Pressable>
+    </PressableScale>
   );
 }

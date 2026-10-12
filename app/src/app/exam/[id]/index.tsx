@@ -1,5 +1,5 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
-import { ActivityIndicator, Alert, View } from 'react-native';
+import { Alert, View } from 'react-native';
 import { useDeleteExam, useExam } from '../../../api/hooks';
 import type { ExamSection } from '../../../api/types';
 import { AppText } from '../../../components/AppText';
@@ -13,6 +13,7 @@ import { getTopic, topicLabel } from '../../../data/topics';
 import { formatNet, longDate } from '../../../lib/format';
 import { haptics } from '../../../lib/haptics';
 import { subjectColor, useTheme } from '../../../theme';
+import { Loader } from '../../../components/motion/Loader';
 
 const lost = (t: { wrong: number; blank: number }) => t.wrong * 1.25 + t.blank;
 
@@ -55,7 +56,7 @@ function SectionTable({ sections }: { sections: ExamSection[] }) {
           <AppText variant="label" style={cell}>
             {s.blank}
           </AppText>
-          <AppText variant="label" weight="bold" style={netCell}>
+          <AppText variant="label" weight="semibold" style={netCell}>
             {formatNet(s.net)}
           </AppText>
         </View>
@@ -73,7 +74,7 @@ export default function ExamDetailScreen() {
   if (query.isPending) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.background }}>
-        <ActivityIndicator color={theme.colors.primary} />
+        <Loader />
       </View>
     );
   }
@@ -115,9 +116,9 @@ export default function ExamDetailScreen() {
       <Stack.Screen options={{ title: examTitle(e) }} />
 
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm }}>
-        <Badge label={e.exam} color={theme.colors.primary} background={theme.colors.primarySoft} />
+        <Badge label={e.exam} color={theme.colors.primaryText} background={theme.colors.primarySoft} />
         <AppText color="textMuted">{longDate(e.date)}</AppText>
-        {xp ? <Badge label={`+${xp} XP`} icon="star.fill" color={theme.colors.xp} background={theme.colors.xpTrack} /> : null}
+        {xp ? <Badge label={`+${xp} XP`} icon="star" color={theme.colors.xpText} background={theme.colors.xpTrack} /> : null}
       </View>
 
       <Columns
@@ -145,7 +146,7 @@ export default function ExamDetailScreen() {
                       <AppText variant="caption" color="textMuted" style={{ fontVariant: ['tabular-nums'] }}>
                         {t.correct}D {t.wrong}Y {t.blank}B
                       </AppText>
-                      <AppText variant="label" weight="bold" style={{ fontVariant: ['tabular-nums'] }}>
+                      <AppText variant="label" weight="semibold" style={{ fontVariant: ['tabular-nums'] }}>
                         −{formatNet(lost(t))}
                       </AppText>
                     </View>

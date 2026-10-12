@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { Pressable, View } from 'react-native';
+import { View } from 'react-native';
 import type { AttemptResult, Question } from '../api/types';
 import { getTopic, topicLabel } from '../data/topics';
 import { plainSnippet, reviewDueLabel, shortDate } from '../lib/format';
@@ -7,17 +7,18 @@ import { subjectColor, useTheme, type Theme } from '../theme';
 import { AppText } from './AppText';
 import { Icon, type IconName } from './Icon';
 import { QuestionImage } from './QuestionImage';
+import { PressableScale } from './motion/PressableScale';
 
 function resultIcon(theme: Theme, result: AttemptResult | undefined): { icon: IconName; color: string; label: string } {
   switch (result) {
     case 'correct':
-      return { icon: 'checkmark.circle.fill', color: theme.colors.success, label: 'Doğru' };
+      return { icon: 'circle-check', color: theme.colors.success, label: 'Doğru' };
     case 'wrong':
-      return { icon: 'xmark.circle.fill', color: theme.colors.danger, label: 'Yanlış' };
+      return { icon: 'circle-x', color: theme.colors.danger, label: 'Yanlış' };
     case 'blank':
-      return { icon: 'minus.circle.fill', color: theme.colors.neutral, label: 'Boş' };
+      return { icon: 'circle-minus', color: theme.colors.neutral, label: 'Boş' };
     default:
-      return { icon: 'circle.dashed', color: theme.colors.textMuted, label: 'İşaretlenmedi' };
+      return { icon: 'circle-dashed', color: theme.colors.textMuted, label: 'İşaretlenmedi' };
   }
 }
 
@@ -30,10 +31,10 @@ export function QuestionRow({ question }: { question: Question }) {
   const review = question.review;
 
   return (
-    <Pressable
+    <PressableScale
       accessibilityRole="button"
       onPress={() => router.push(`/question/${question.id}`)}
-      style={({ pressed }) => ({
+      style={{
         flexDirection: 'row',
         gap: theme.spacing.md,
         padding: theme.spacing.md,
@@ -41,8 +42,7 @@ export function QuestionRow({ question }: { question: Question }) {
         backgroundColor: theme.colors.surface,
         borderWidth: theme.layout.borderWidth,
         borderColor: theme.colors.border,
-        opacity: pressed ? 0.85 : 1,
-      })}
+      }}
     >
       <QuestionImage questionId={question.id} size="thumb" />
       <View style={{ flex: 1, gap: theme.spacing.xxs }}>
@@ -74,6 +74,6 @@ export function QuestionRow({ question }: { question: Question }) {
           </AppText>
         </View>
       </View>
-    </Pressable>
+    </PressableScale>
   );
 }

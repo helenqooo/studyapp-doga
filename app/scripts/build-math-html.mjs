@@ -26,14 +26,22 @@ if (/url\(fonts\//.test(katexCss)) {
   throw new Error('Some KaTeX font URLs were not inlined; the CSS format may have changed.');
 }
 
+// Lora: the serif the app uses for Claude's own words (solutions, hints, chat replies).
+const loraDir = pkgDir('@expo-google-fonts/lora');
+const loraFace = (file, weight) =>
+  `@font-face { font-family: 'Lora'; font-style: normal; font-weight: ${weight}; font-display: block; ` +
+  `src: url(data:font/ttf;base64,${fs.readFileSync(path.join(loraDir, file)).toString('base64')}) format("truetype"); }`;
+const fontCss = [loraFace('400Regular/Lora_400Regular.ttf', '400 500'), loraFace('600SemiBold/Lora_600SemiBold.ttf', '600 800')].join('\n');
+
+// Defaults only; the app passes its theme colors in on every render.
 const pageCss = `
-:root { --text: #000; --muted: #666; --accent: #6C5CE7; --answer-bg: #ECE9FD; --border: #ddd; --code-bg: #eee; --font-size: 16px; }
+:root { --text: #141413; --muted: #6B6962; --accent: #A84F33; --answer-bg: #F6E8E1; --border: #E4E1D8; --code-bg: #EEECE4; --font-size: 16px; }
 html, body { margin: 0; padding: 0; background: transparent; }
 body {
   color: var(--text);
-  font-family: -apple-system, system-ui, "Helvetica Neue", sans-serif;
+  font-family: 'Lora', Georgia, serif;
   font-size: var(--font-size);
-  line-height: 1.5;
+  line-height: 1.6;
   -webkit-text-size-adjust: 100%;
   overflow-wrap: anywhere;
   -webkit-user-select: text;
@@ -45,7 +53,7 @@ p { margin: 0 0 0.65em; }
 ul, ol { margin: 0 0 0.65em; padding-left: 1.3em; }
 li { margin: 0.2em 0; }
 h1, h2, h3, h4 { font-size: 1.05em; margin: 0.8em 0 0.4em; }
-strong { font-weight: 700; }
+strong { font-weight: 600; }
 hr { border: none; border-top: 1px solid var(--border); margin: 0.9em 0; }
 code { background: var(--code-bg); border-radius: 4px; padding: 0 0.25em; }
 table { border-collapse: collapse; margin: 0 0 0.65em; }
@@ -61,6 +69,7 @@ const safeScript = (js) => js.replace(/<\/script/gi, '<\\/script');
 const html = `<!DOCTYPE html>
 <html><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<style>${fontCss}</style>
 <style>${katexCss}</style>
 <style>${pageCss}</style>
 </head><body><div id="content"></div>

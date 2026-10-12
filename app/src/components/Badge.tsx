@@ -9,13 +9,15 @@ interface Props {
   color?: string;
   background?: string;
   icon?: IconName;
+  /** Raw color for a small leading dot (e.g. a subject color); the label then stays in the text color. */
+  dot?: string;
   style?: StyleProp<ViewStyle>;
 }
 
 /** Small pill used for exam / subject / topic chips. */
-export function Badge({ label, color, background, icon, style }: Props) {
+export function Badge({ label, color, background, icon, dot, style }: Props) {
   const theme = useTheme();
-  const fg = color ?? theme.colors.primary;
+  const fg = color ?? (dot ? theme.colors.text : theme.colors.primaryText);
   return (
     <View
       style={[
@@ -32,8 +34,11 @@ export function Badge({ label, color, background, icon, style }: Props) {
         style,
       ]}
     >
+      {dot ? (
+        <View style={{ width: theme.spacing.sm, height: theme.spacing.sm, borderRadius: theme.radius.pill, backgroundColor: dot }} />
+      ) : null}
       {icon ? <Icon name={icon} size={theme.fontSize.sm} color={fg} /> : null}
-      <AppText variant="caption" weight="bold" tint={fg}>
+      <AppText variant="caption" weight="semibold" tint={fg}>
         {label}
       </AppText>
     </View>
