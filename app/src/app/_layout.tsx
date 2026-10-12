@@ -1,8 +1,10 @@
 import { focusManager, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
+import * as ScreenOrientation from 'expo-screen-orientation';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo, useState } from 'react';
 import { AppState } from 'react-native';
+import { isTabletDevice } from '../lib/layout';
 import { useTheme } from '../theme';
 
 export default function RootLayout() {
@@ -10,6 +12,11 @@ export default function RootLayout() {
   const [queryClient] = useState(
     () => new QueryClient({ defaultOptions: { queries: { retry: 1, staleTime: 30_000 } } }),
   );
+
+  // iPad supports every orientation (and split view); iPhone stays portrait.
+  useEffect(() => {
+    if (!isTabletDevice) ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(() => {});
+  }, []);
 
   // Refetch stale queries when the app comes back to the foreground.
   useEffect(() => {

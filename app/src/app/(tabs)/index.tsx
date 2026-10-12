@@ -9,14 +9,43 @@ import { Icon } from '../../components/Icon';
 import { ProgressBar } from '../../components/ProgressBar';
 import { Screen } from '../../components/Screen';
 import { StatTile } from '../../components/StatTile';
+import { useResponsive } from '../../lib/layout';
 import { usePickImage } from '../../lib/usePickImage';
 import { useTheme } from '../../theme';
 
-export default function HomeScreen() {
+function SolveActions({ stacked }: { stacked: boolean }) {
   const theme = useTheme();
+  const { openCamera, pickFromLibrary, busy } = usePickImage();
+  const solve = <Button label="Soru Çöz" icon="camera.fill" size="lg" onPress={openCamera} style={stacked ? undefined : { flex: 2 }} />;
+  const gallery = (
+    <Button
+      label="Galeriden seç"
+      icon="photo.on.rectangle"
+      variant={stacked ? 'ghost' : 'secondary'}
+      size={stacked ? 'md' : 'lg'}
+      loading={busy}
+      onPress={() => pickFromLibrary()}
+      style={stacked ? undefined : { flex: 1 }}
+    />
+  );
+  return stacked ? (
+    <View style={{ gap: theme.spacing.sm }}>
+      {solve}
+      {gallery}
+    </View>
+  ) : (
+    <View style={{ flexDirection: 'row', gap: theme.spacing.sm }}>
+      {solve}
+      {gallery}
+    </View>
+  );
+}
+
+function HomeContent() {
+  const theme = useTheme();
+  const size = useResponsive<'compact' | 'regular' | 'wide'>({ compact: 'compact', regular: 'regular', wide: 'wide' });
   const profile = useProfile();
   const reviews = useReviewsToday();
-  const { openCamera, pickFromLibrary, busy } = usePickImage();
   const { refetch: refetchProfile } = profile;
   const { refetch: refetchReviews } = reviews;
 
@@ -40,71 +69,107 @@ export default function HomeScreen() {
   const p = profile.data;
   const streak = p?.streak ?? 0;
 
-  return (
-    <Screen title="Derece" subtitle="Bugün de bir adım öne geç.">
-      {profile.isError ? (
-        <Card background={theme.colors.dangerSoft}>
-          <AppText color="danger">{profile.error.message}</AppText>
-        </Card>
-      ) : null}
-
-      <Card>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.lg }}>
-          <View
-            style={{
-              width: theme.layout.minTouch + theme.spacing.lg,
-              height: theme.layout.minTouch + theme.spacing.lg,
-              borderRadius: theme.radius.pill,
-              backgroundColor: theme.colors.streakSoft,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Icon name="flame.fill" size={theme.layout.iconSize.lg} color={theme.colors.streak} />
-          </View>
-          <View style={{ flex: 1, gap: theme.spacing.xxs }}>
-            <AppText variant="title" tint={theme.colors.streak}>
-              {streak} gün
-            </AppText>
-            <AppText color="textMuted">{streak > 0 ? 'Serini bozma!' : 'Bugün bir seri başlat.'}</AppText>
-          </View>
+  const progress = (
+    <Card>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.lg }}>
+        <View
+          style={{
+            width: theme.layout.minTouch + theme.spacing.lg,
+            height: theme.layout.minTouch + theme.spacing.lg,
+            borderRadius: theme.radius.pill,
+            backgroundColor: theme.colors.streakSoft,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Icon name="flame.fill" size={theme.layout.iconSize.lg} color={theme.colors.streak} />
         </View>
-
-        <View style={{ gap: theme.spacing.sm }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' }}>
-            <AppText variant="heading">Seviye {p?.level ?? 1}</AppText>
-            <AppText variant="label" color="textMuted">
-              {p ? `${p.levelXp} / ${p.levelXpRequired} XP` : '— XP'}
-            </AppText>
-          </View>
-          <ProgressBar progress={p ? p.levelXp / p.levelXpRequired : 0} />
+        <View style={{ flex: 1, gap: theme.spacing.xxs }}>
+          <AppText variant="title" tint={theme.colors.streak}>
+            {streak} gün
+          </AppText>
+          <AppText color="textMuted">{streak > 0 ? 'Serini bozma!' : 'Bugün bir seri başlat.'}</AppText>
         </View>
-      </Card>
-
-      <View style={{ flexDirection: 'row', gap: theme.spacing.md }}>
-        <StatTile
-          label="Bugünün tekrarı"
-          value={dueCount === undefined ? '—' : `${dueCount} soru`}
-          caption={reviewCaption}
-          icon="arrow.triangle.2.circlepath"
-          color={theme.colors.primary}
-          softColor={theme.colors.primarySoft}
-          onPress={() => (dueCount ? router.push('/review-session') : router.navigate('/review'))}
-        />
-        <StatTile
-          label="Bugünkü çalışma"
-          value="0 dk"
-          caption="Sayaç yakında"
-          icon="timer"
-          color={theme.colors.success}
-          softColor={theme.colors.successSoft}
-        />
       </View>
 
       <View style={{ gap: theme.spacing.sm }}>
-        <Button label="Soru Çöz" icon="camera.fill" size="lg" onPress={openCamera} />
-        <Button label="Galeriden seç" icon="photo.on.rectangle" variant="ghost" loading={busy} onPress={() => pickFromLibrary()} />
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' }}>
+          <AppText variant="heading">Seviye {p?.level ?? 1}</AppText>
+          <AppText variant="label" color="textMuted">
+            {p ? `${p.levelXp} / ${p.levelXpRequired} XP` : '— XP'}
+          </AppText>
+        </View>
+        <ProgressBar progress={p ? p.levelXp / p.levelXpRequired : 0} />
       </View>
+    </Card>
+  );
+
+  const tiles = (
+    <View style={{ flexDirection: 'row', gap: theme.spacing.md }}>
+      <StatTile
+        label="Bugünün tekrarı"
+        value={dueCount === undefined ? '—' : `${dueCount} soru`}
+        caption={reviewCaption}
+        icon="arrow.triangle.2.circlepath"
+        color={theme.colors.primary}
+        softColor={theme.colors.primarySoft}
+        onPress={() => (dueCount ? router.push('/review-session') : router.navigate('/review'))}
+      />
+      <StatTile
+        label="Bugünkü çalışma"
+        value="0 dk"
+        caption="Sayaç yakında"
+        icon="timer"
+        color={theme.colors.success}
+        softColor={theme.colors.successSoft}
+      />
+    </View>
+  );
+
+  const error = profile.isError ? (
+    <Card background={theme.colors.dangerSoft}>
+      <AppText color="danger">{profile.error.message}</AppText>
+    </Card>
+  ) : null;
+
+  if (size === 'wide') {
+    // iPad landscape: progress and stats on the left, the main action as its own card.
+    return (
+      <>
+        {error}
+        <View style={{ flexDirection: 'row', gap: theme.spacing.lg, alignItems: 'stretch' }}>
+          <View style={{ flex: 1.4, gap: theme.spacing.lg }}>
+            {progress}
+            {tiles}
+          </View>
+          <Card style={{ flex: 1, justifyContent: 'center' }}>
+            <View style={{ alignItems: 'center', gap: theme.spacing.md, paddingVertical: theme.spacing.md }}>
+              <Icon name="camera.viewfinder" size={theme.layout.iconSize.xl} color={theme.colors.primary} />
+              <AppText color="textMuted" align="center">
+                Takıldığın soruyu çek; ipucu al ya da tam çözümü gör.
+              </AppText>
+            </View>
+            <SolveActions stacked />
+          </Card>
+        </View>
+      </>
+    );
+  }
+
+  return (
+    <>
+      {error}
+      {progress}
+      {tiles}
+      <SolveActions stacked={size === 'compact'} />
+    </>
+  );
+}
+
+export default function HomeScreen() {
+  return (
+    <Screen title="Derece" subtitle="Bugün de bir adım öne geç.">
+      <HomeContent />
     </Screen>
   );
 }

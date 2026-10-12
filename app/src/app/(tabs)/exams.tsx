@@ -10,6 +10,7 @@ import { NetTrendChart } from '../../components/charts/NetTrendChart';
 import { TopicLossBars } from '../../components/charts/TopicLossBars';
 import { Chip } from '../../components/Chip';
 import { ExamCard, examTitle } from '../../components/ExamCard';
+import { Columns, Grid } from '../../components/Grid';
 import { Screen } from '../../components/Screen';
 import { SegmentedControl } from '../../components/SegmentedControl';
 import { SubjectTrendTile } from '../../components/SubjectTrendTile';
@@ -46,7 +47,9 @@ function ExamList() {
           Henüz deneme girmedin. İlk denemeni gir, netlerini burada takip et.
         </AppText>
       ) : null}
-      {exams.data?.items.map((e) => <ExamCard key={e.id} exam={e} />)}
+      <Grid columns={{ compact: 1, regular: 2, wide: 3 }}>
+        {exams.data?.items.map((e) => <ExamCard key={e.id} exam={e} />)}
+      </Grid>
     </>
   );
 }
@@ -69,7 +72,6 @@ function ExamTrends({ overview, exam }: { overview: Overview; exam: Exam }) {
     summary: s,
     nets: data.trend.flatMap((t) => (s.subject in t.sections ? [t.sections[s.subject]!] : [])),
   }));
-  const rows = [tiles.slice(0, 2), tiles.slice(2, 4)];
 
   return (
     <>
@@ -91,15 +93,11 @@ function ExamTrends({ overview, exam }: { overview: Overview; exam: Exam }) {
         )}
       </Card>
 
-      <View style={{ gap: theme.spacing.md }}>
-        {rows.map((row, i) => (
-          <View key={i} style={{ flexDirection: 'row', gap: theme.spacing.md }}>
-            {row.map((t) => (
-              <SubjectTrendTile key={t.summary.subject} summary={t.summary} nets={t.nets} />
-            ))}
-          </View>
+      <Grid columns={{ compact: 2, regular: 4 }}>
+        {tiles.map((t) => (
+          <SubjectTrendTile key={t.summary.subject} summary={t.summary} nets={t.nets} />
         ))}
-      </View>
+      </Grid>
     </>
   );
 }
@@ -132,27 +130,36 @@ function Analysis() {
   return (
     // Hold the previous render (dimmed) while refetching instead of flashing a spinner.
     <View style={{ gap: theme.spacing.lg, opacity: overview.isFetching ? 0.6 : 1 }}>
-      <WeeklySummaryCard />
-
-      <Card title={`En çok net kaybettiğin konular (son ${o.windowDays} gün)`}>
-        {o.topicLosses.length ? (
+      <Columns
+        left={
           <>
-            <TopicLossBars items={o.topicLosses} />
-            <AppText variant="caption" color="textMuted">
-              Deneme konu analizleri ve çözdüğün soruların birleşimi. Her yanlış 1,25, her boş 1 net sayılır; çözdüğün sorulardaki hatalar yarım ağırlıkta. Dokununca o konudaki sorularını açar.
-            </AppText>
+            <WeeklySummaryCard />
+            <Card title={`En çok net kaybettiğin konular (son ${o.windowDays} gün)`}>
+              {o.topicLosses.length ? (
+                <>
+                  <TopicLossBars items={o.topicLosses} />
+                  <AppText variant="caption" color="textMuted">
+                    Deneme konu analizleri ve çözdüğün soruların birleşimi. Her yanlış 1,25, her boş 1 net sayılır; çözdüğün sorulardaki hatalar yarım ağırlıkta. Dokununca o konudaki sorularını açar.
+                  </AppText>
+                </>
+              ) : (
+                <AppText color="textMuted">Konu analizi olan bir deneme girdiğinde ya da soru çözüp işaretlediğinde burada görünür.</AppText>
+              )}
+            </Card>
           </>
-        ) : (
-          <AppText color="textMuted">Konu analizi olan bir deneme girdiğinde ya da soru çözüp işaretlediğinde burada görünür.</AppText>
-        )}
-      </Card>
-
-      <View style={{ flexDirection: 'row', gap: theme.spacing.sm }}>
-        {(['TYT', 'AYT'] as const).map((e) => (
-          <Chip key={e} label={`${e} (${o.byExam[e].count})`} selected={selected === e} onPress={() => setExam(e)} />
-        ))}
-      </View>
-      <ExamTrends overview={o} exam={selected} />
+        }
+        right={
+          <>
+            {/* The exam filter scopes only the charts below it. */}
+            <View style={{ flexDirection: 'row', gap: theme.spacing.sm }}>
+              {(['TYT', 'AYT'] as const).map((e) => (
+                <Chip key={e} label={`${e} (${o.byExam[e].count})`} selected={selected === e} onPress={() => setExam(e)} />
+              ))}
+            </View>
+            <ExamTrends overview={o} exam={selected} />
+          </>
+        }
+      />
     </View>
   );
 }

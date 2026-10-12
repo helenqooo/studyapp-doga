@@ -11,11 +11,12 @@ import { Difficulty } from '../../../components/Difficulty';
 import { Icon } from '../../../components/Icon';
 import { MathView } from '../../../components/math/MathView';
 import { QuestionImage } from '../../../components/QuestionImage';
-import { Screen } from '../../../components/Screen';
+import { Screen, SplitScreen } from '../../../components/Screen';
 import { LOW_CONFIDENCE_THRESHOLD } from '../../../config';
 import { getTopic, topicLabel } from '../../../data/topics';
 import { reviewDueLabel, shortDate } from '../../../lib/format';
 import { haptics } from '../../../lib/haptics';
+import { useWindowLayout } from '../../../lib/layout';
 import { RESULT_LABELS, RESULT_SHORT, solutionMarkdown } from '../../../lib/question';
 import { subjectColor, useTheme } from '../../../theme';
 
@@ -73,6 +74,7 @@ export default function QuestionScreen() {
   const theme = useTheme();
   const query = useQuestion(id);
   const record = useRecordAttempt(id);
+  const { split } = useWindowLayout();
 
   const [hintsShown, setHintsShown] = useState(0);
   const [solutionShown, setSolutionShown] = useState(false);
@@ -127,10 +129,9 @@ export default function QuestionScreen() {
     );
   };
 
-  return (
-    <Screen safeTop={false}>
-      <Stack.Screen options={{ title: topic ? topic.topic : 'Çözüm' }} />
-
+  const title = <Stack.Screen options={{ title: topic ? topic.topic : 'Çözüm' }} />;
+  const questionPane = (
+    <>
       <View style={{ gap: theme.spacing.sm }}>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.sm }}>
           <Badge label={q.exam} color={theme.colors.primary} background={theme.colors.primarySoft} />
@@ -156,13 +157,15 @@ export default function QuestionScreen() {
         </Card>
       ) : null}
 
-      <ReviewStatus q={q} />
-
       <Card title="Soru">
-        <QuestionImage questionId={q.id} />
+        <QuestionImage questionId={q.id} size={split ? 'large' : 'regular'} />
         <MathView markdown={q.questionText} />
       </Card>
-
+    </>
+  );
+  const workPane = (
+    <>
+      <ReviewStatus q={q} />
       {q.hints.slice(0, hintsShown).map((hint, i) => (
         <Card key={i} title={`İpucu ${i + 1}`} background={theme.colors.hintBackground}>
           <MathView markdown={hint} />
@@ -268,6 +271,24 @@ export default function QuestionScreen() {
           <Button label="Ana sayfaya dön" variant="ghost" onPress={() => router.dismissTo('/')} />
         </View>
       ) : null}
+    </>
+  );
+
+  // Large iPad windows: the question stays in view on the left while the solution scrolls.
+  if (split) {
+    return (
+      <>
+        {title}
+        <SplitScreen left={questionPane} right={workPane} />
+      </>
+    );
+  }
+
+  return (
+    <Screen safeTop={false} width="readable">
+      {title}
+      {questionPane}
+      {workPane}
     </Screen>
   );
 }

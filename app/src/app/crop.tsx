@@ -308,6 +308,9 @@ export default function CropScreen() {
           paddingHorizontal: theme.layout.screenPadding,
           paddingBottom: insets.bottom + theme.spacing.lg,
           gap: theme.spacing.sm,
+          width: '100%',
+          maxWidth: theme.layout.readableWidth,
+          alignSelf: 'center',
         }}
       >
         {phase === 'error' ? (

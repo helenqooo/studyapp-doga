@@ -23,7 +23,7 @@ export default function EditExamScreen() {
   }
   if (query.isError) {
     return (
-      <Screen safeTop={false}>
+      <Screen safeTop={false} width="readable">
         <Card background={theme.colors.dangerSoft}>
           <AppText color="danger">{query.error.message}</AppText>
         </Card>
@@ -32,7 +32,7 @@ export default function EditExamScreen() {
   }
 
   return (
-    <Screen safeTop={false}>
+    <Screen safeTop={false} width="readable">
       <ExamForm
         initial={formFrom(query.data)}
         submitLabel="Değişiklikleri kaydet"

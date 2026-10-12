@@ -2,7 +2,7 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Linking, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Alert, Linking, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppText } from '../components/AppText';
 import { Button } from '../components/Button';
@@ -38,6 +38,10 @@ function RoundButton({ icon, label, onPress, active }: { icon: IconName; label: 
 export default function CameraScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+  const window = useWindowDimensions();
+  // 3:4 guide that fits the space between the top buttons and the shutter row, in any orientation.
+  const chrome = insets.top + insets.bottom + theme.layout.shutterSize + theme.layout.minTouch * 3;
+  const frameWidth = Math.min(window.width * theme.layout.cameraFrameShare, (window.height - chrome) * (3 / 4));
   const [permission, requestPermission] = useCameraPermissions();
   const cameraRef = useRef<CameraView>(null);
   const [torch, setTorch] = useState(false);
@@ -123,7 +127,7 @@ export default function CameraScreen() {
       <View pointerEvents="none" style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
         <View
           style={{
-            width: '86%',
+            width: frameWidth,
             aspectRatio: 3 / 4,
             borderWidth: theme.layout.frameBorder,
             borderColor: theme.colors.cropFrame,

@@ -1,5 +1,6 @@
 import { Tabs } from 'expo-router/js-tabs';
 import { Icon, type IconName } from '../../components/Icon';
+import { useWindowLayout } from '../../lib/layout';
 import { useTheme } from '../../theme';
 
 const TABS: { name: string; title: string; icon: IconName }[] = [
@@ -12,14 +13,23 @@ const TABS: { name: string; title: string; icon: IconName }[] = [
 
 export default function TabsLayout() {
   const theme = useTheme();
+  // Large windows (iPad landscape, 13" portrait) get a sidebar instead of bottom tabs.
+  const { sidebar } = useWindowLayout();
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
+        tabBarPosition: sidebar ? 'left' : 'bottom',
+        tabBarVariant: 'uikit',
         tabBarActiveTintColor: theme.colors.tabActive,
         tabBarInactiveTintColor: theme.colors.tabInactive,
-        tabBarStyle: { backgroundColor: theme.colors.tabBar, borderTopColor: theme.colors.border },
-        tabBarLabelStyle: { fontSize: theme.fontSize.xs, fontWeight: theme.fontWeight.semibold },
+        tabBarActiveBackgroundColor: sidebar ? theme.colors.primarySoft : undefined,
+        tabBarStyle: sidebar
+          ? // The navigator defaults to a 360pt Material sidebar (minWidth); keep it slimmer.
+            { width: theme.layout.sidebarWidth, minWidth: theme.layout.sidebarWidth, backgroundColor: theme.colors.tabBar, borderRightColor: theme.colors.border, paddingTop: theme.spacing.xl }
+          : { backgroundColor: theme.colors.tabBar, borderTopColor: theme.colors.border },
+        tabBarItemStyle: sidebar ? { borderRadius: theme.radius.md, marginHorizontal: theme.spacing.sm } : undefined,
+        tabBarLabelStyle: { fontSize: sidebar ? theme.fontSize.md : theme.fontSize.xs, fontWeight: theme.fontWeight.semibold },
       }}
     >
       {TABS.map((tab) => (

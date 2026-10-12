@@ -63,7 +63,7 @@ export default function TopicPickerScreen() {
   };
 
   return (
-    <Screen safeTop={false}>
+    <Screen safeTop={false} width="readable">
       <Row label="Tüm konular" selected={!topicId} onPress={() => choose(null)} />
       {groups.length === 0 && facets.isSuccess ? (
         <AppText color="textMuted" align="center">

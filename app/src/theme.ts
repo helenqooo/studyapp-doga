@@ -213,8 +213,27 @@ export const fontWeight = {
   heavy: '800',
 } as const;
 
+/**
+ * Size classes. `window` decides navigation chrome (sidebar vs bottom tabs) and the
+ * split two-pane screens; `content` is measured inside a screen and decides grids.
+ */
+export const breakpoints = {
+  window: { sidebar: 1000, split: 960 },
+  content: { regular: 560, wide: 860 },
+} as const;
+
 export const layout = {
   screenPadding: spacing.lg,
+  /** Side padding once the window is tablet-sized. */
+  screenPaddingRegular: spacing.xl,
+  /** Comfortable reading width for single-column content (solutions, forms, chat). */
+  readableWidth: 760,
+  /** Cap for dashboards so cards don't stretch across a large iPad. */
+  maxContentWidth: 1180,
+  /** Tab sidebar on large windows. */
+  sidebarWidth: 220,
+  /** Width of the left pane in split screens, as a fraction. */
+  splitLeft: 0.46,
   /** Minimum touch target (Apple HIG). */
   minTouch: 44,
   borderWidth: 1,
@@ -223,6 +242,8 @@ export const layout = {
   shutterBorder: 4,
   iconSize: { sm: 18, md: 22, lg: 28, xl: 40 },
   shutterSize: 76,
+  /** Camera guide frame width as a share of the screen width (before fitting the height). */
+  cameraFrameShare: 0.86,
   cropHandle: 44,
   cropMinSize: 80,
   chart: {
@@ -241,6 +262,7 @@ export const layout = {
 export interface Theme {
   scheme: ColorScheme;
   colors: ColorTokens;
+  breakpoints: typeof breakpoints;
   spacing: typeof spacing;
   radius: typeof radius;
   fontSize: typeof fontSize;
@@ -249,8 +271,8 @@ export interface Theme {
 }
 
 const themes: Record<ColorScheme, Theme> = {
-  light: { scheme: 'light', colors: light, spacing, radius, fontSize, fontWeight, layout },
-  dark: { scheme: 'dark', colors: dark, spacing, radius, fontSize, fontWeight, layout },
+  light: { scheme: 'light', colors: light, breakpoints, spacing, radius, fontSize, fontWeight, layout },
+  dark: { scheme: 'dark', colors: dark, breakpoints, spacing, radius, fontSize, fontWeight, layout },
 };
 
 export function useTheme(): Theme {

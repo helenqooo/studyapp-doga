@@ -68,7 +68,7 @@ export default function NewExamScreen() {
 
   if (stage.kind === 'pick') {
     return (
-      <Screen safeTop={false}>
+      <Screen safeTop={false} width="readable">
         <Card>
           <View style={{ alignItems: 'center', gap: theme.spacing.md, paddingVertical: theme.spacing.md }}>
             <Icon name="doc.text.viewfinder" size={theme.layout.iconSize.xl} color={theme.colors.primary} />
@@ -86,7 +86,7 @@ export default function NewExamScreen() {
 
   if (stage.kind === 'reading') {
     return (
-      <Screen safeTop={false}>
+      <Screen safeTop={false} width="readable">
         <Card>
           <View style={{ alignItems: 'center', gap: theme.spacing.md, paddingVertical: theme.spacing.xl }}>
             <ActivityIndicator size="large" color={theme.colors.primary} />
@@ -104,7 +104,7 @@ export default function NewExamScreen() {
 
   if (stage.kind === 'failed') {
     return (
-      <Screen safeTop={false}>
+      <Screen safeTop={false} width="readable">
         <Card background={theme.colors.dangerSoft}>
           <AppText color="danger">{stage.message}</AppText>
         </Card>
@@ -119,7 +119,7 @@ export default function NewExamScreen() {
   const lowConfidence = draft && draft.confidence < LOW_CONFIDENCE_THRESHOLD;
 
   return (
-    <Screen safeTop={false}>
+    <Screen safeTop={false} width="readable">
       {draft && (draft.warnings.length || lowConfidence) ? (
         <Card background={theme.colors.warningSoft}>
           <View style={{ flexDirection: 'row', gap: theme.spacing.md }}>

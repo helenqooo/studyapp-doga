@@ -11,10 +11,11 @@ import { Icon } from '../components/Icon';
 import { MathView } from '../components/math/MathView';
 import { ProgressBar } from '../components/ProgressBar';
 import { QuestionImage } from '../components/QuestionImage';
-import { Screen } from '../components/Screen';
+import { Screen, SplitScreen } from '../components/Screen';
 import { getTopic, topicLabel } from '../data/topics';
 import { reviewDueLabel } from '../lib/format';
 import { haptics } from '../lib/haptics';
+import { useWindowLayout } from '../lib/layout';
 import { answerMarkdown, solutionMarkdown } from '../lib/question';
 import { subjectColor, useTheme } from '../theme';
 
@@ -61,6 +62,7 @@ export default function ReviewSessionScreen() {
   const theme = useTheme();
   const today = useReviewsToday();
   const submit = useReviewResult();
+  const { split } = useWindowLayout();
 
   // Freeze the queue when the session starts so answering doesn't reshuffle it.
   const [queue, setQueue] = useState<Question[] | null>(null);
@@ -77,7 +79,7 @@ export default function ReviewSessionScreen() {
 
   if (!queue) {
     return (
-      <Screen safeTop={false}>
+      <Screen safeTop={false} width="readable">
         {today.isError ? (
           <Card background={theme.colors.dangerSoft}>
             <AppText color="danger">{today.error.message}</AppText>
@@ -94,7 +96,7 @@ export default function ReviewSessionScreen() {
   if (done) {
     const total = tally.correct + tally.wrong;
     return (
-      <Screen safeTop={false}>
+      <Screen safeTop={false} width="readable">
         <Card>
           <View style={{ alignItems: 'center', gap: theme.spacing.md, paddingVertical: theme.spacing.lg }}>
             <Icon name={total ? 'flag.checkered' : 'checkmark.circle'} size={theme.layout.iconSize.xl} color={theme.colors.primary} />
@@ -151,9 +153,8 @@ export default function ReviewSessionScreen() {
     submit.reset();
   };
 
-  return (
-    // Keyed by question so the scroll position starts at the top for each one.
-    <Screen key={q.id} safeTop={false}>
+  const questionPane = (
+    <>
       <View style={{ gap: theme.spacing.sm }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
           <AppText variant="label" color="textMuted">
@@ -183,7 +184,10 @@ export default function ReviewSessionScreen() {
           onPress={() => setShowText((v) => !v)}
         />
       </Card>
-
+    </>
+  );
+  const answerPane = (
+    <>
       {!revealed ? (
         <>
           <AppText color="textMuted" align="center">
@@ -256,6 +260,16 @@ export default function ReviewSessionScreen() {
           )}
         </>
       )}
+    </>
+  );
+
+  // Keyed by question so scroll positions start at the top for each one.
+  if (split) return <SplitScreen key={q.id} left={questionPane} right={answerPane} />;
+
+  return (
+    <Screen key={q.id} safeTop={false} width="readable">
+      {questionPane}
+      {answerPane}
     </Screen>
   );
 }

@@ -61,6 +61,7 @@ iPhone'da kamerayla QR kodu okut, Expo Go'da açılır.
 | `EXPO_PUBLIC_APP_TOKEN` | `server/.env` içindeki `APP_TOKEN` ile aynı. |
 
 - `.env` değişince `npx expo start --tunnel -c` ile yeniden başlat (`EXPO_PUBLIC_*` değerleri paketlemede gömülür).
+- iPad'de de aynı QR ile Expo Go'da açılır: dikey, yatay ve Split View desteklenir; geniş ekranda sekmeler yan menüye geçer, çözüm ve tekrar ekranları iki panele bölünür. iPhone dikey modda kilitli kalır.
 - Bağlantıyı kontrol etmek için: **Profil → Bağlantıyı test et**.
 - `EXPO_PUBLIC_APP_TOKEN` uygulama paketinin içinde bulunur; bu yüzden asıl gizli olan `ANTHROPIC_API_KEY` sadece sunucuda tutulur.
 - İleride .ipa olarak kurarken düz `http://` adresi iOS tarafından engellenir; o aşamada alan adı + HTTPS (ör. Caddy / Let's Encrypt) kullan.

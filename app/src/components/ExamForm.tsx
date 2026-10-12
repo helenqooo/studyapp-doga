@@ -8,6 +8,7 @@ import { useTheme } from '../theme';
 import { AppText } from './AppText';
 import { Button } from './Button';
 import { Card } from './Card';
+import { Grid } from './Grid';
 import { Icon } from './Icon';
 import { NumberField } from './NumberField';
 import { SegmentedControl } from './SegmentedControl';
@@ -194,96 +195,98 @@ export function ExamForm({ initial, submitLabel, submitting, error, onSubmit }: 
         />
       </Card>
 
-      {form.sections.map((s) => {
-        const total = QUESTION_COUNTS[s.subject];
-        const err = s.included ? sectionError(s) : null;
-        const blank = total - num(s.correct) - num(s.wrong);
-        return (
-          <Card key={s.subject}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm }}>
-              <View style={{ flex: 1 }}>
-                <AppText variant="heading">{s.subject}</AppText>
-                <AppText variant="caption" color="textMuted">
-                  {total} soru
-                </AppText>
-              </View>
-              <Switch
-                value={s.included}
-                onValueChange={(v) => updateSection(s.subject, { included: v })}
-                trackColor={{ true: theme.colors.primary, false: theme.colors.surfaceAlt }}
-                accessibilityLabel={`${s.subject} bölümüne girdim`}
-              />
-            </View>
-
-            {s.included ? (
-              <>
-                <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' }}>
-                  <NumberField label="Doğru" value={s.correct} invalid={!!err} onChangeText={(t) => updateSection(s.subject, { correct: t })} />
-                  <NumberField label="Yanlış" value={s.wrong} invalid={!!err} onChangeText={(t) => updateSection(s.subject, { wrong: t })} />
-                  <View style={{ alignItems: 'center', gap: theme.spacing.xxs, minWidth: theme.layout.minTouch }}>
-                    <AppText variant="caption" color="textMuted">
-                      Boş
-                    </AppText>
-                    <AppText variant="heading" color="textMuted" style={{ lineHeight: theme.layout.minTouch, fontVariant: ['tabular-nums'] }}>
-                      {err ? '—' : blank}
-                    </AppText>
-                  </View>
-                  <View style={{ alignItems: 'center', gap: theme.spacing.xxs, minWidth: theme.layout.minTouch }}>
-                    <AppText variant="caption" color="textMuted">
-                      Net
-                    </AppText>
-                    <AppText variant="heading" style={{ lineHeight: theme.layout.minTouch, fontVariant: ['tabular-nums'] }}>
-                      {formatNet(num(s.correct) - num(s.wrong) / 4)}
-                    </AppText>
-                  </View>
-                </View>
-                {err ? (
-                  <AppText variant="label" color="danger">
-                    {err}
+      <Grid columns={{ compact: 1, regular: 2 }}>
+        {form.sections.map((s) => {
+          const total = QUESTION_COUNTS[s.subject];
+          const err = s.included ? sectionError(s) : null;
+          const blank = total - num(s.correct) - num(s.wrong);
+          return (
+            <Card key={s.subject}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm }}>
+                <View style={{ flex: 1 }}>
+                  <AppText variant="heading">{s.subject}</AppText>
+                  <AppText variant="caption" color="textMuted">
+                    {total} soru
                   </AppText>
-                ) : null}
+                </View>
+                <Switch
+                  value={s.included}
+                  onValueChange={(v) => updateSection(s.subject, { included: v })}
+                  trackColor={{ true: theme.colors.primary, false: theme.colors.surfaceAlt }}
+                  accessibilityLabel={`${s.subject} bölümüne girdim`}
+                />
+              </View>
 
-                {s.topics.length ? (
-                  <View style={{ gap: theme.spacing.sm }}>
-                    <AppText variant="label" color="textMuted">
-                      Konu analizi
-                    </AppText>
-                    {s.topics.map((t) => {
-                      const topic = getTopic(t.topicId);
-                      return (
-                        <View key={t.topicId} style={{ gap: theme.spacing.xs }}>
-                          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                            <AppText variant="label" style={{ flex: 1 }} numberOfLines={2}>
-                              {topic ? topicLabel(topic) : t.topicId}
-                            </AppText>
-                            <Pressable
-                              accessibilityRole="button"
-                              accessibilityLabel="Konuyu kaldır"
-                              onPress={() => updateTopic(s.subject, t.topicId, null)}
-                              style={{ width: theme.layout.minTouch, height: theme.layout.minTouch, alignItems: 'center', justifyContent: 'center' }}
-                            >
-                              <Icon name="xmark.circle.fill" size={theme.layout.iconSize.sm} color={theme.colors.textMuted} />
-                            </Pressable>
-                          </View>
-                          <View style={{ flexDirection: 'row', gap: theme.spacing.md }}>
-                            <NumberField compact label="D" value={t.correct} onChangeText={(v) => updateTopic(s.subject, t.topicId, { correct: v })} />
-                            <NumberField compact label="Y" value={t.wrong} onChangeText={(v) => updateTopic(s.subject, t.topicId, { wrong: v })} />
-                            <NumberField compact label="B" value={t.blank} onChangeText={(v) => updateTopic(s.subject, t.topicId, { blank: v })} />
-                          </View>
-                        </View>
-                      );
-                    })}
+              {s.included ? (
+                <>
+                  <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' }}>
+                    <NumberField label="Doğru" value={s.correct} invalid={!!err} onChangeText={(t) => updateSection(s.subject, { correct: t })} />
+                    <NumberField label="Yanlış" value={s.wrong} invalid={!!err} onChangeText={(t) => updateSection(s.subject, { wrong: t })} />
+                    <View style={{ alignItems: 'center', gap: theme.spacing.xxs, minWidth: theme.layout.minTouch }}>
+                      <AppText variant="caption" color="textMuted">
+                        Boş
+                      </AppText>
+                      <AppText variant="heading" color="textMuted" style={{ lineHeight: theme.layout.minTouch, fontVariant: ['tabular-nums'] }}>
+                        {err ? '—' : blank}
+                      </AppText>
+                    </View>
+                    <View style={{ alignItems: 'center', gap: theme.spacing.xxs, minWidth: theme.layout.minTouch }}>
+                      <AppText variant="caption" color="textMuted">
+                        Net
+                      </AppText>
+                      <AppText variant="heading" style={{ lineHeight: theme.layout.minTouch, fontVariant: ['tabular-nums'] }}>
+                        {formatNet(num(s.correct) - num(s.wrong) / 4)}
+                      </AppText>
+                    </View>
                   </View>
-                ) : null}
-              </>
-            ) : (
-              <AppText variant="label" color="textMuted">
-                Bu bölüme girmedin (branş denemesi için kapat).
-              </AppText>
-            )}
-          </Card>
-        );
-      })}
+                  {err ? (
+                    <AppText variant="label" color="danger">
+                      {err}
+                    </AppText>
+                  ) : null}
+
+                  {s.topics.length ? (
+                    <View style={{ gap: theme.spacing.sm }}>
+                      <AppText variant="label" color="textMuted">
+                        Konu analizi
+                      </AppText>
+                      {s.topics.map((t) => {
+                        const topic = getTopic(t.topicId);
+                        return (
+                          <View key={t.topicId} style={{ gap: theme.spacing.xs }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                              <AppText variant="label" style={{ flex: 1 }} numberOfLines={2}>
+                                {topic ? topicLabel(topic) : t.topicId}
+                              </AppText>
+                              <Pressable
+                                accessibilityRole="button"
+                                accessibilityLabel="Konuyu kaldır"
+                                onPress={() => updateTopic(s.subject, t.topicId, null)}
+                                style={{ width: theme.layout.minTouch, height: theme.layout.minTouch, alignItems: 'center', justifyContent: 'center' }}
+                              >
+                                <Icon name="xmark.circle.fill" size={theme.layout.iconSize.sm} color={theme.colors.textMuted} />
+                              </Pressable>
+                            </View>
+                            <View style={{ flexDirection: 'row', gap: theme.spacing.md }}>
+                              <NumberField compact label="D" value={t.correct} onChangeText={(v) => updateTopic(s.subject, t.topicId, { correct: v })} />
+                              <NumberField compact label="Y" value={t.wrong} onChangeText={(v) => updateTopic(s.subject, t.topicId, { wrong: v })} />
+                              <NumberField compact label="B" value={t.blank} onChangeText={(v) => updateTopic(s.subject, t.topicId, { blank: v })} />
+                            </View>
+                          </View>
+                        );
+                      })}
+                    </View>
+                  ) : null}
+                </>
+              ) : (
+                <AppText variant="label" color="textMuted">
+                  Bu bölüme girmedin (branş denemesi için kapat).
+                </AppText>
+              )}
+            </Card>
+          );
+        })}
+      </Grid>
 
       <Card background={theme.colors.primarySoft}>
         <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: theme.spacing.sm }}>

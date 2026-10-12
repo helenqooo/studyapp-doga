@@ -18,7 +18,7 @@ export default function SolveScreen() {
   const { openCamera, pickFromLibrary, busy } = usePickImage();
 
   return (
-    <Screen title="Soru Çöz" subtitle="Fotoğrafını çek; ipucu al ya da tam çözümü gör.">
+    <Screen title="Soru Çöz" subtitle="Fotoğrafını çek; ipucu al ya da tam çözümü gör." width="readable">
       <Card>
         <View style={{ alignItems: 'center', paddingVertical: theme.spacing.lg, gap: theme.spacing.md }}>
           <View

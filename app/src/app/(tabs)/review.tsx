@@ -5,6 +5,7 @@ import { useFacets, useQuestionList, useReviewsToday } from '../../api/hooks';
 import { AppText } from '../../components/AppText';
 import { Button } from '../../components/Button';
 import { Card } from '../../components/Card';
+import { Grid } from '../../components/Grid';
 import { Chip } from '../../components/Chip';
 import { Icon } from '../../components/Icon';
 import { QuestionRow } from '../../components/QuestionRow';
@@ -78,9 +79,11 @@ function TodayPanel() {
           <AppText variant="label" color="textMuted">
             Sıradakiler
           </AppText>
-          {items.map((q) => (
-            <QuestionRow key={q.id} question={q} />
-          ))}
+          <Grid columns={{ compact: 1, regular: 2, wide: 3 }}>
+            {items.map((q) => (
+              <QuestionRow key={q.id} question={q} />
+            ))}
+          </Grid>
         </View>
       ) : (
         <AppText variant="label" color="textMuted" align="center">
@@ -152,11 +155,11 @@ function HistoryPanel() {
         </AppText>
       ) : null}
 
-      <View style={{ gap: theme.spacing.sm }}>
+      <Grid columns={{ compact: 1, regular: 2, wide: 3 }}>
         {items.map((q) => (
           <QuestionRow key={q.id} question={q} />
         ))}
-      </View>
+      </Grid>
 
       {list.hasNextPage ? (
         <Button label="Daha fazla göster" variant="ghost" loading={list.isFetchingNextPage} onPress={() => list.fetchNextPage()} />

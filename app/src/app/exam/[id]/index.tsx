@@ -7,6 +7,7 @@ import { Badge } from '../../../components/Badge';
 import { Button } from '../../../components/Button';
 import { Card } from '../../../components/Card';
 import { examTitle } from '../../../components/ExamCard';
+import { Columns } from '../../../components/Grid';
 import { Screen } from '../../../components/Screen';
 import { getTopic, topicLabel } from '../../../data/topics';
 import { formatNet, longDate } from '../../../lib/format';
@@ -19,25 +20,29 @@ const lost = (t: { wrong: number; blank: number }) => t.wrong * 1.25 + t.blank;
 function SectionTable({ sections }: { sections: ExamSection[] }) {
   const theme = useTheme();
   const cell = { width: theme.layout.minTouch, textAlign: 'right' as const, fontVariant: ['tabular-nums' as const] };
+  const netCell = { ...cell, width: theme.layout.minTouch + theme.spacing.lg };
   return (
     <View style={{ gap: theme.spacing.sm }}>
-      <View style={{ flexDirection: 'row' }}>
+      <View style={{ flexDirection: 'row', gap: theme.spacing.xs }}>
         <AppText variant="caption" color="textMuted" style={{ flex: 1 }}>
           Ders
         </AppText>
-        {['D', 'Y', 'B', 'Net'].map((h) => (
+        {['D', 'Y', 'B'].map((h) => (
           <AppText key={h} variant="caption" color="textMuted" style={cell}>
             {h}
           </AppText>
         ))}
+        <AppText variant="caption" color="textMuted" style={netCell}>
+          Net
+        </AppText>
       </View>
       {sections.map((s) => (
-        <View key={s.subject} style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <View key={s.subject} style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.xs }}>
           <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: theme.spacing.xs }}>
             <View
               style={{ width: theme.spacing.sm, height: theme.spacing.sm, borderRadius: theme.radius.pill, backgroundColor: subjectColor(theme, s.subject) }}
             />
-            <AppText variant="label" numberOfLines={1}>
+            <AppText variant="label" numberOfLines={2} style={{ flexShrink: 1 }}>
               {s.subject}
             </AppText>
           </View>
@@ -50,7 +55,7 @@ function SectionTable({ sections }: { sections: ExamSection[] }) {
           <AppText variant="label" style={cell}>
             {s.blank}
           </AppText>
-          <AppText variant="label" weight="bold" style={cell}>
+          <AppText variant="label" weight="bold" style={netCell}>
             {formatNet(s.net)}
           </AppText>
         </View>
@@ -115,48 +120,56 @@ export default function ExamDetailScreen() {
         {xp ? <Badge label={`+${xp} XP`} icon="star.fill" color={theme.colors.xp} background={theme.colors.xpTrack} /> : null}
       </View>
 
-      <Card>
-        <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: theme.spacing.sm }}>
-          <AppText variant="display">{formatNet(e.totalNet)}</AppText>
-          <AppText color="textMuted">net / {e.totalQuestions}</AppText>
-        </View>
-        <SectionTable sections={e.sections} />
-      </Card>
+      <Columns
+        ratio={1.1}
+        left={
+          <Card>
+            <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: theme.spacing.sm }}>
+              <AppText variant="display">{formatNet(e.totalNet)}</AppText>
+              <AppText color="textMuted">net / {e.totalQuestions}</AppText>
+            </View>
+            <SectionTable sections={e.sections} />
+          </Card>
+        }
+        right={
+          <>
+            {topics.length ? (
+              <Card title="Konu analizi (en çok kaybedilenler)">
+                {topics.map((t) => {
+                  const topic = getTopic(t.topicId);
+                  return (
+                    <View key={t.topicId} style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm }}>
+                      <AppText variant="label" numberOfLines={2} style={{ flex: 1 }}>
+                        {topic ? topicLabel(topic) : t.topicId}
+                      </AppText>
+                      <AppText variant="caption" color="textMuted" style={{ fontVariant: ['tabular-nums'] }}>
+                        {t.correct}D {t.wrong}Y {t.blank}B
+                      </AppText>
+                      <AppText variant="label" weight="bold" style={{ fontVariant: ['tabular-nums'] }}>
+                        −{formatNet(lost(t))}
+                      </AppText>
+                    </View>
+                  );
+                })}
+                <AppText variant="caption" color="textMuted">
+                  Kayıp: her yanlış 1,25, her boş 1 net.
+                </AppText>
+              </Card>
+            ) : null}
 
-      {topics.length ? (
-        <Card title="Konu analizi (en çok kaybedilenler)">
-          {topics.map((t) => {
-            const topic = getTopic(t.topicId);
-            return (
-              <View key={t.topicId} style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm }}>
-                <AppText variant="label" numberOfLines={2} style={{ flex: 1 }}>
-                  {topic ? topicLabel(topic) : t.topicId}
-                </AppText>
-                <AppText variant="caption" color="textMuted" style={{ fontVariant: ['tabular-nums'] }}>
-                  {t.correct}D {t.wrong}Y {t.blank}B
-                </AppText>
-                <AppText variant="label" weight="bold" style={{ fontVariant: ['tabular-nums'] }}>
-                  −{formatNet(lost(t))}
-                </AppText>
-              </View>
-            );
-          })}
-          <AppText variant="caption" color="textMuted">
-            Kayıp: her yanlış 1,25, her boş 1 net.
-          </AppText>
-        </Card>
-      ) : null}
-
-      <View style={{ flexDirection: 'row', gap: theme.spacing.sm }}>
-        <Button
-          label="Düzenle"
-          icon="pencil"
-          variant="secondary"
-          onPress={() => router.push({ pathname: '/exam/[id]/edit', params: { id: e.id } })}
-          style={{ flex: 1 }}
-        />
-        <Button label="Sil" icon="trash" variant="danger" loading={remove.isPending} onPress={confirmDelete} style={{ flex: 1 }} />
-      </View>
+            <View style={{ flexDirection: 'row', gap: theme.spacing.sm }}>
+              <Button
+                label="Düzenle"
+                icon="pencil"
+                variant="secondary"
+                onPress={() => router.push({ pathname: '/exam/[id]/edit', params: { id: e.id } })}
+                style={{ flex: 1 }}
+              />
+              <Button label="Sil" icon="trash" variant="danger" loading={remove.isPending} onPress={confirmDelete} style={{ flex: 1 }} />
+            </View>
+          </>
+        }
+      />
     </Screen>
   );
 }

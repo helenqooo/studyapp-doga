@@ -12,6 +12,7 @@ import { Icon } from '../../../components/Icon';
 import { MathView } from '../../../components/math/MathView';
 import { QuestionImage } from '../../../components/QuestionImage';
 import { haptics } from '../../../lib/haptics';
+import { useWindowLayout } from '../../../lib/layout';
 import { useTheme } from '../../../theme';
 
 const SUGGESTIONS = [
@@ -64,6 +65,7 @@ export default function ChatScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
+  const win = useWindowLayout();
   const thread = useMessages(id);
   const send = useSendMessage(id);
   const scrollRef = useRef<ScrollView>(null);
@@ -101,7 +103,13 @@ export default function ChatScreen() {
       <ScrollView
         ref={scrollRef}
         style={{ flex: 1 }}
-        contentContainerStyle={{ padding: theme.layout.screenPadding, gap: theme.spacing.md }}
+        contentContainerStyle={{
+          padding: win.padding,
+          gap: theme.spacing.md,
+          width: '100%',
+          maxWidth: theme.layout.readableWidth + win.padding * 2,
+          alignSelf: 'center',
+        }}
         keyboardShouldPersistTaps="handled"
         onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}
       >
@@ -153,61 +161,62 @@ export default function ChatScreen() {
           borderTopWidth: theme.layout.borderWidth,
           borderTopColor: theme.colors.border,
           backgroundColor: theme.colors.surface,
-          paddingHorizontal: theme.layout.screenPadding,
+          paddingHorizontal: win.padding,
           paddingTop: theme.spacing.sm,
           paddingBottom: insets.bottom + theme.spacing.sm,
-          gap: theme.spacing.xs,
         }}
       >
-        {limitReached ? (
-          <AppText variant="label" color="textMuted" align="center">
-            Bu soru için soru hakkın doldu ({limit}/{limit}).
-          </AppText>
-        ) : (
-          <>
-            <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: theme.spacing.sm }}>
-              <TextInput
-                value={draft}
-                onChangeText={setDraft}
-                placeholder="Sorunu yaz…"
-                placeholderTextColor={theme.colors.textMuted}
-                multiline
-                maxLength={2000}
-                editable={!busy}
-                style={{
-                  flex: 1,
-                  minHeight: theme.layout.minTouch,
-                  maxHeight: theme.layout.minTouch * 3,
-                  paddingHorizontal: theme.spacing.md,
-                  paddingTop: theme.spacing.md,
-                  paddingBottom: theme.spacing.md,
-                  borderRadius: theme.radius.lg,
-                  backgroundColor: theme.colors.surfaceAlt,
-                  color: theme.colors.text,
-                  fontSize: theme.fontSize.md,
-                }}
-              />
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Gönder"
-                disabled={busy || !draft.trim()}
-                onPress={() => submit(draft)}
-                style={{
-                  width: theme.layout.minTouch,
-                  height: theme.layout.minTouch,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  opacity: busy || !draft.trim() ? 0.4 : 1,
-                }}
-              >
-                <Icon name="arrow.up.circle.fill" size={theme.layout.iconSize.xl} color={theme.colors.primary} />
-              </Pressable>
-            </View>
-            <AppText variant="caption" color="textMuted" align="right">
-              {asked}/{limit} soru
+        <View style={{ width: '100%', maxWidth: theme.layout.readableWidth, alignSelf: 'center', gap: theme.spacing.xs }}>
+          {limitReached ? (
+            <AppText variant="label" color="textMuted" align="center">
+              Bu soru için soru hakkın doldu ({limit}/{limit}).
             </AppText>
-          </>
-        )}
+          ) : (
+            <>
+              <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: theme.spacing.sm }}>
+                <TextInput
+                  value={draft}
+                  onChangeText={setDraft}
+                  placeholder="Sorunu yaz…"
+                  placeholderTextColor={theme.colors.textMuted}
+                  multiline
+                  maxLength={2000}
+                  editable={!busy}
+                  style={{
+                    flex: 1,
+                    minHeight: theme.layout.minTouch,
+                    maxHeight: theme.layout.minTouch * 3,
+                    paddingHorizontal: theme.spacing.md,
+                    paddingTop: theme.spacing.md,
+                    paddingBottom: theme.spacing.md,
+                    borderRadius: theme.radius.lg,
+                    backgroundColor: theme.colors.surfaceAlt,
+                    color: theme.colors.text,
+                    fontSize: theme.fontSize.md,
+                  }}
+                />
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Gönder"
+                  disabled={busy || !draft.trim()}
+                  onPress={() => submit(draft)}
+                  style={{
+                    width: theme.layout.minTouch,
+                    height: theme.layout.minTouch,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    opacity: busy || !draft.trim() ? 0.4 : 1,
+                  }}
+                >
+                  <Icon name="arrow.up.circle.fill" size={theme.layout.iconSize.xl} color={theme.colors.primary} />
+                </Pressable>
+              </View>
+              <AppText variant="caption" color="textMuted" align="right">
+                {asked}/{limit} soru
+              </AppText>
+            </>
+          )}
+        </View>
       </View>
     </KeyboardAvoidingView>
   );
