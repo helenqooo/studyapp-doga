@@ -1,7 +1,7 @@
-import { useFocusEffect } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useCallback } from 'react';
 import { View } from 'react-native';
-import { useProfile } from '../../api/hooks';
+import { useProfile, useReviewsToday } from '../../api/hooks';
 import { AppText } from '../../components/AppText';
 import { Button } from '../../components/Button';
 import { Card } from '../../components/Card';
@@ -15,14 +15,27 @@ import { useTheme } from '../../theme';
 export default function HomeScreen() {
   const theme = useTheme();
   const profile = useProfile();
+  const reviews = useReviewsToday();
   const { openCamera, pickFromLibrary, busy } = usePickImage();
-  const { refetch } = profile;
+  const { refetch: refetchProfile } = profile;
+  const { refetch: refetchReviews } = reviews;
 
   useFocusEffect(
     useCallback(() => {
-      refetch();
-    }, [refetch]),
+      refetchProfile();
+      refetchReviews();
+    }, [refetchProfile, refetchReviews]),
   );
+
+  const dueCount = reviews.data?.items.length;
+  const reviewCaption =
+    dueCount === undefined
+      ? undefined
+      : dueCount > 0
+        ? 'Başlamak için dokun'
+        : reviews.data?.completedToday
+          ? 'Bugünlük bitti'
+          : 'Bugün tekrar yok';
 
   const p = profile.data;
   const streak = p?.streak ?? 0;
@@ -71,11 +84,12 @@ export default function HomeScreen() {
       <View style={{ flexDirection: 'row', gap: theme.spacing.md }}>
         <StatTile
           label="Bugünün tekrarı"
-          value="—"
-          caption="Tekrar sistemi yakında"
+          value={dueCount === undefined ? '—' : `${dueCount} soru`}
+          caption={reviewCaption}
           icon="arrow.triangle.2.circlepath"
           color={theme.colors.primary}
           softColor={theme.colors.primarySoft}
+          onPress={() => (dueCount ? router.push('/review-session') : router.navigate('/review'))}
         />
         <StatTile
           label="Bugünkü çalışma"

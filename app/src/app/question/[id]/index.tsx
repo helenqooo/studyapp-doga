@@ -1,70 +1,70 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, Image, Pressable, View } from 'react-native';
-import { authHeaders, questionImageUrl } from '../../api/client';
-import { useQuestion, useRecordAttempt } from '../../api/hooks';
-import type { AttemptResult, Question } from '../../api/types';
-import { AppText } from '../../components/AppText';
-import { Badge } from '../../components/Badge';
-import { Button } from '../../components/Button';
-import { Card } from '../../components/Card';
-import { Icon } from '../../components/Icon';
-import { MathView } from '../../components/math/MathView';
-import { Screen } from '../../components/Screen';
-import { LOW_CONFIDENCE_THRESHOLD } from '../../config';
-import { getTopic, topicLabel } from '../../data/topics';
-import { haptics } from '../../lib/haptics';
-import { useSolveStore } from '../../store/solveStore';
-import { subjectColor, useTheme } from '../../theme';
+import { ActivityIndicator, Pressable, View } from 'react-native';
+import { useQuestion, useRecordAttempt } from '../../../api/hooks';
+import type { AttemptResult, Question } from '../../../api/types';
+import { AppText } from '../../../components/AppText';
+import { Badge } from '../../../components/Badge';
+import { Button } from '../../../components/Button';
+import { Card } from '../../../components/Card';
+import { Difficulty } from '../../../components/Difficulty';
+import { Icon } from '../../../components/Icon';
+import { MathView } from '../../../components/math/MathView';
+import { QuestionImage } from '../../../components/QuestionImage';
+import { Screen } from '../../../components/Screen';
+import { LOW_CONFIDENCE_THRESHOLD } from '../../../config';
+import { getTopic, topicLabel } from '../../../data/topics';
+import { reviewDueLabel, shortDate } from '../../../lib/format';
+import { haptics } from '../../../lib/haptics';
+import { RESULT_LABELS, RESULT_SHORT, solutionMarkdown } from '../../../lib/question';
+import { subjectColor, useTheme } from '../../../theme';
 
 const CHOICES = ['A', 'B', 'C', 'D', 'E'];
 
-const RESULT_LABELS: Record<AttemptResult, string> = {
-  correct: 'Doğru yaptım',
-  wrong: 'Yanlış yaptım',
-  blank: 'Boş bıraktım',
-};
-
-function solutionMarkdown(q: Question): string {
-  const steps = q.solutionSteps.map((s, i) => `**${i + 1}.** ${s}`).join('\n\n');
-  return `${steps}\n\n> **Cevap:** ${q.finalAnswer}`;
-}
-
-function QuestionImage({ id }: { id: string }) {
+function ReviewStatus({ q }: { q: Question }) {
   const theme = useTheme();
-  const local = useSolveStore((s) => s.localImages[id]);
-  const [expanded, setExpanded] = useState(false);
-  const source = local ? { uri: local.uri } : { uri: questionImageUrl(id), headers: authHeaders };
+  const review = q.review;
+  if (!review) return null;
+  const graduated = review.status === 'graduated';
   return (
-    <Pressable
-      accessibilityRole="imagebutton"
-      accessibilityLabel={expanded ? 'Görseli küçült' : 'Görseli büyüt'}
-      onPress={() => setExpanded((e) => !e)}
-      style={{
-        height: expanded ? theme.layout.minTouch * 11 : theme.layout.minTouch * 5,
-        borderRadius: theme.radius.md,
-        overflow: 'hidden',
-        backgroundColor: theme.colors.surfaceAlt,
-      }}
-    >
-      <Image source={source} resizeMode="contain" style={{ flex: 1 }} />
-    </Pressable>
+    <Card background={graduated ? theme.colors.successSoft : theme.colors.primarySoft}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md }}>
+        <Icon
+          name={graduated ? 'checkmark.seal.fill' : 'arrow.triangle.2.circlepath'}
+          color={graduated ? theme.colors.success : theme.colors.primary}
+        />
+        <View style={{ flex: 1, gap: theme.spacing.xxs }}>
+          <AppText weight="bold" tint={graduated ? theme.colors.success : theme.colors.primary}>
+            {graduated ? 'Öğrenildi' : `Tekrar: ${reviewDueLabel(review.dueDate)} (${shortDate(review.dueDate)})`}
+          </AppText>
+          <AppText variant="label" color="textMuted">
+            {graduated
+              ? `${review.correctCount} doğru tekrarla listeden çıktı.`
+              : `${review.intervalDays} günlük aralıkta · ${review.correctCount} doğru tekrar`}
+          </AppText>
+        </View>
+      </View>
+    </Card>
   );
 }
 
-function Difficulty({ value }: { value: number }) {
+function AttemptHistory({ q }: { q: Question }) {
   const theme = useTheme();
+  if (q.attempts.length < 2) return null;
+  const color = { correct: theme.colors.success, wrong: theme.colors.danger, blank: theme.colors.neutral };
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.xxs }}>
-      {[1, 2, 3, 4, 5].map((n) => (
-        <Icon
-          key={n}
-          name={n <= value ? 'star.fill' : 'star'}
-          size={theme.fontSize.sm}
-          color={n <= value ? theme.colors.xp : theme.colors.textMuted}
-        />
+    <Card title="Geçmiş">
+      {[...q.attempts].reverse().map((a) => (
+        <View key={a.id} style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+          <AppText variant="label" color="textMuted">
+            {shortDate(a.createdAt)} · {a.source === 'solve' ? 'İlk çözüm' : 'Tekrar'}
+          </AppText>
+          <AppText variant="label" tint={color[a.result]}>
+            {RESULT_SHORT[a.result]}
+          </AppText>
+        </View>
       ))}
-    </View>
+    </Card>
   );
 }
 
@@ -102,6 +102,7 @@ export default function QuestionScreen() {
   const color = subjectColor(theme, q.subject);
   const lowConfidence = q.confidence < LOW_CONFIDENCE_THRESHOLD;
   const saved = q.attempts.find((a) => a.source === 'solve');
+  const askedCount = Math.floor(q.messageCount / 2);
 
   const showHint = () => {
     haptics.select();
@@ -155,8 +156,10 @@ export default function QuestionScreen() {
         </Card>
       ) : null}
 
+      <ReviewStatus q={q} />
+
       <Card title="Soru">
-        <QuestionImage id={q.id} />
+        <QuestionImage questionId={q.id} />
         <MathView markdown={q.questionText} />
       </Card>
 
@@ -172,19 +175,27 @@ export default function QuestionScreen() {
         </Card>
       ) : null}
 
-      {!solutionShown ? (
-        <View style={{ flexDirection: 'row', gap: theme.spacing.sm }}>
-          <Button
-            label={hintsShown < q.hints.length ? `İpucu (${hintsShown + 1}/${q.hints.length})` : 'İpuçları bitti'}
-            icon="lightbulb.fill"
-            variant="secondary"
-            disabled={hintsShown >= q.hints.length}
-            onPress={showHint}
-            style={{ flex: 1 }}
-          />
-          <Button label="Tam çözüm" icon="text.book.closed.fill" onPress={showSolution} style={{ flex: 1 }} />
-        </View>
-      ) : null}
+      <View style={{ gap: theme.spacing.sm }}>
+        {!solutionShown ? (
+          <View style={{ flexDirection: 'row', gap: theme.spacing.sm }}>
+            <Button
+              label={hintsShown < q.hints.length ? `İpucu (${hintsShown + 1}/${q.hints.length})` : 'İpuçları bitti'}
+              icon="lightbulb.fill"
+              variant="secondary"
+              disabled={hintsShown >= q.hints.length}
+              onPress={showHint}
+              style={{ flex: 1 }}
+            />
+            <Button label="Tam çözüm" icon="text.book.closed.fill" onPress={showSolution} style={{ flex: 1 }} />
+          </View>
+        ) : null}
+        <Button
+          label={askedCount > 0 ? `Sohbete devam et (${askedCount})` : 'Anlamadım'}
+          icon="questionmark.bubble.fill"
+          variant="ghost"
+          onPress={() => router.push(`/question/${q.id}/chat`)}
+        />
+      </View>
 
       <Card title="Sen ne yaptın?">
         {saved ? (
@@ -199,9 +210,9 @@ export default function QuestionScreen() {
             {savedXp ? (
               <Badge label={`+${savedXp} XP`} icon="star.fill" color={theme.colors.xp} background={theme.colors.xpTrack} />
             ) : null}
-            {saved.result !== 'correct' ? (
+            {saved.result !== 'correct' && savedXp ? (
               <AppText variant="label" color="textMuted">
-                Bu soru tekrar listene eklendi.
+                Bu soru tekrar listene eklendi. Yarın karşına çıkacak.
               </AppText>
             ) : null}
           </View>
@@ -249,7 +260,9 @@ export default function QuestionScreen() {
         )}
       </Card>
 
-      {saved ? (
+      <AttemptHistory q={q} />
+
+      {saved && savedXp ? (
         <View style={{ gap: theme.spacing.sm }}>
           <Button label="Yeni soru çöz" icon="camera.fill" size="lg" onPress={() => router.replace('/camera')} />
           <Button label="Ana sayfaya dön" variant="ghost" onPress={() => router.dismissTo('/')} />

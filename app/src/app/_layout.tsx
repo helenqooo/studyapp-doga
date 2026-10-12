@@ -48,7 +48,10 @@ export default function RootLayout() {
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="camera" options={{ presentation: 'fullScreenModal', headerShown: false, animation: 'fade' }} />
           <Stack.Screen name="crop" options={{ presentation: 'fullScreenModal', headerShown: false, gestureEnabled: false }} />
-          <Stack.Screen name="question/[id]" options={{ title: 'Çözüm' }} />
+          <Stack.Screen name="question/[id]/index" options={{ title: 'Çözüm' }} />
+          <Stack.Screen name="question/[id]/chat" options={{ title: 'Anlamadım' }} />
+          <Stack.Screen name="review-session" options={{ title: 'Tekrar' }} />
+          <Stack.Screen name="topic-picker" options={{ presentation: 'modal', title: 'Konu seç' }} />
         </Stack>
       </ThemeProvider>
     </QueryClientProvider>

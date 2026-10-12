@@ -1,4 +1,5 @@
-import { View, type StyleProp, type ViewStyle } from 'react-native';
+import { Pressable, View, type StyleProp, type ViewStyle } from 'react-native';
+import { haptics } from '../lib/haptics';
 import { useTheme } from '../theme';
 import { AppText } from './AppText';
 import { Icon, type IconName } from './Icon';
@@ -11,17 +12,25 @@ interface Props {
   color?: string;
   softColor?: string;
   caption?: string;
+  onPress?: () => void;
   style?: StyleProp<ViewStyle>;
 }
 
-export function StatTile({ label, value, icon, color, softColor, caption, style }: Props) {
+export function StatTile({ label, value, icon, color, softColor, caption, onPress, style }: Props) {
   const theme = useTheme();
   const accent = color ?? theme.colors.primary;
   return (
-    <View
-      style={[
+    <Pressable
+      accessibilityRole={onPress ? 'button' : undefined}
+      disabled={!onPress}
+      onPress={() => {
+        haptics.tap();
+        onPress?.();
+      }}
+      style={({ pressed }) => [
         {
           flex: 1,
+          opacity: pressed ? 0.85 : 1,
           backgroundColor: theme.colors.surface,
           borderRadius: theme.radius.lg,
           borderWidth: theme.layout.borderWidth,
@@ -53,6 +62,6 @@ export function StatTile({ label, value, icon, color, softColor, caption, style 
           {caption}
         </AppText>
       ) : null}
-    </View>
+    </Pressable>
   );
 }

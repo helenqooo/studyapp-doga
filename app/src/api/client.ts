@@ -1,5 +1,17 @@
 import { API_URL, APP_TOKEN, SOLVE_TIMEOUT_MS } from '../config';
-import type { AttemptInput, AttemptResponse, Profile, Question } from './types';
+import type {
+  AttemptInput,
+  AttemptResponse,
+  ChatMessage,
+  ChatThread,
+  Facets,
+  Profile,
+  Question,
+  QuestionFilter,
+  QuestionPage,
+  ReviewResultResponse,
+  ReviewsToday,
+} from './types';
 
 /** Error whose message is ready to show to the user (Turkish). */
 export class ApiError extends Error {
@@ -55,6 +67,25 @@ export const api = {
     request<AttemptResponse>(`/questions/${encodeURIComponent(id)}/attempt`, {
       method: 'POST',
       body: JSON.stringify(input),
+    }),
+  questions: (filter: QuestionFilter, offset: number) => {
+    const params = new URLSearchParams({ offset: String(offset), limit: '30' });
+    if (filter.subject) params.set('subject', filter.subject);
+    if (filter.topicId) params.set('topicId', filter.topicId);
+    return request<QuestionPage>(`/questions?${params.toString()}`);
+  },
+  facets: () => request<Facets>('/questions/facets'),
+  reviewsToday: () => request<ReviewsToday>('/reviews/today'),
+  reviewResult: (id: string, input: { result: 'correct' | 'wrong'; viewedSolution: boolean }) =>
+    request<ReviewResultResponse>(`/reviews/${encodeURIComponent(id)}/result`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+  messages: (id: string) => request<ChatThread>(`/questions/${encodeURIComponent(id)}/messages`),
+  sendMessage: (id: string, content: string) =>
+    request<{ userMessage: ChatMessage; assistantMessage: ChatMessage }>(`/questions/${encodeURIComponent(id)}/messages`, {
+      method: 'POST',
+      body: JSON.stringify({ content }),
     }),
 
   /**

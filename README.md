@@ -78,7 +78,7 @@ Soru kaydedilmiş bir konunun `id`'sini değiştirme veya silme; adını (`topic
 ## Geliştirme
 
 ```bash
-cd server && npx tsc --noEmit
+cd server && npx tsc --noEmit && npm test   # testler: geçici veritabanı + sahte AI, gerçek API çağrısı yok
 cd app && npx tsc --noEmit
 ```
 
