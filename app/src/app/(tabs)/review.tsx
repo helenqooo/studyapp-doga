@@ -5,6 +5,7 @@ import { useFacets, useQuestionList, useReviewsToday } from '../../api/hooks';
 import { AppText } from '../../components/AppText';
 import { Button } from '../../components/Button';
 import { Card } from '../../components/Card';
+import { DamlaNote } from '../../components/Damla';
 import { Grid } from '../../components/Grid';
 import { Chip } from '../../components/Chip';
 import { Icon } from '../../components/Icon';
@@ -148,9 +149,15 @@ function HistoryPanel() {
       ) : null}
 
       {list.isSuccess && items.length === 0 ? (
-        <AppText color="textMuted" align="center">
-          {subject ? 'Bu filtrede soru yok.' : 'Henüz soru çözmedin. İlk soruyu Çöz sekmesinden çek!'}
-        </AppText>
+        subject ? (
+          <AppText color="textMuted" align="center">
+            Bu filtrede soru yok.
+          </AppText>
+        ) : (
+          <Card>
+            <DamlaNote title="Henüz soru yok.">Takıldığın ilk soruyu Çöz sekmesinden çek; yanlışların burada tekrar sırasına girer.</DamlaNote>
+          </Card>
+        )
       ) : null}
 
       {total ? (

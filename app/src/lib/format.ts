@@ -71,3 +71,22 @@ export function formatDelta(n: number): string {
   if (Math.abs(n) < 0.005) return '0';
   return n > 0 ? `+${formatNet(n)}` : formatNet(n);
 }
+
+const WEEKDAYS = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'];
+
+/** Turkish capitals: "i" → "İ", "ı" → "I" (toUpperCase alone gives "I" for both). */
+export function upperTr(text: string): string {
+  return text.replace(/i/g, 'İ').replace(/ı/g, 'I').toUpperCase();
+}
+
+/** "12 Ekim Pazartesi" from "YYYY-MM-DD". */
+export function dayTitle(date: string): string {
+  const [y, m, d] = date.split('-').map(Number);
+  const weekday = new Date(Date.UTC(y!, m! - 1, d!)).getUTCDay();
+  return `${d} ${MONTHS_LONG[m! - 1]} ${WEEKDAYS[weekday]}`;
+}
+
+/** Whole days from `from` to `to` (both "YYYY-MM-DD"). */
+export function daysBetween(from: string, to: string): number {
+  return dayNumber(to) - dayNumber(from);
+}

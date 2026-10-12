@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
+import { useRef, useState } from 'react';
+import { KeyboardAvoidingView, Platform, ScrollView, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthConfig, useLogin, useRegister } from '../api/hooks';
 import type { AvatarKey } from '../api/types';
@@ -8,6 +8,7 @@ import { Avatar } from '../components/Avatar';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
 import { Icon } from '../components/Icon';
+import { LogoMark } from '../components/Logo';
 import { Appear } from '../components/motion/Appear';
 import { PressableScale } from '../components/motion/PressableScale';
 import { SegmentedControl } from '../components/SegmentedControl';
@@ -18,6 +19,16 @@ import { useTheme } from '../theme';
 
 type Mode = 'login' | 'register';
 const AVATARS: AvatarKey[] = ['clay', 'kraft', 'olive', 'sky', 'plum', 'sand', 'slate', 'rose'];
+const AVATAR_NAMES: Record<AvatarKey, string> = {
+  clay: 'kil',
+  kraft: 'kahve',
+  olive: 'zeytin',
+  sky: 'gök',
+  plum: 'erik',
+  sand: 'kum',
+  slate: 'gri',
+  rose: 'gül',
+};
 const USERNAME_RE = /^[a-z0-9_.]{3,20}$/;
 
 export default function LoginScreen() {
@@ -33,15 +44,20 @@ export default function LoginScreen() {
   const [inviteCode, setInviteCode] = useState('');
   const [avatar, setAvatar] = useState<AvatarKey>('clay');
   const [touched, setTouched] = useState(false);
+  const displayNameRef = useRef<TextInput>(null);
+  const passwordRef = useRef<TextInput>(null);
 
   const registering = mode === 'register';
   const busy = login.isPending || register.isPending;
-  const error = (registering ? register.error : login.error)?.message;
   const name = username.trim().toLocaleLowerCase('en-US');
   const usernameOk = USERNAME_RE.test(name);
   const passwordOk = password.length >= 8;
   const formOk = registering ? usernameOk && passwordOk && displayName.trim().length > 0 : name.length > 0 && password.length > 0;
+  const missing = touched && !registering && !(name.length > 0 && password.length > 0);
+  const error = missing ? 'Kullanıcı adını ve şifreni yaz.' : (registering ? register.error : login.error)?.message;
   const closed = config.data && !config.data.registrationOpen;
+  // If the server's rules couldn't be read, offer the field anyway; the server decides.
+  const askInvite = config.data?.inviteRequired || config.isError;
 
   const submit = () => {
     setTouched(true);
@@ -72,25 +88,12 @@ export default function LoginScreen() {
       >
         <View style={{ width: '100%', maxWidth: theme.layout.readableWidth * 0.62, alignSelf: 'center', gap: theme.spacing.xl }}>
           <Appear style={{ alignItems: 'center', gap: theme.spacing.sm }}>
-            <View
-              style={{
-                width: theme.layout.resultBadge,
-                height: theme.layout.resultBadge,
-                borderRadius: theme.radius.xl,
-                backgroundColor: theme.colors.primary,
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <AppText family="serif" weight="semibold" tint={theme.colors.textOnAccent} style={{ fontSize: theme.fontSize.display, lineHeight: theme.fontSize.display * 1.2 }}>
-                d
-              </AppText>
-            </View>
+            <LogoMark size={theme.layout.resultBadge} />
             <AppText variant="display" align="center">
-              Derece
+              Netlik
             </AppText>
             <AppText color="textMuted" align="center">
-              Soruyu çek, netini büyüt.
+              Her gün biraz daha net.
             </AppText>
           </Appear>
 
@@ -105,6 +108,7 @@ export default function LoginScreen() {
                 onChange={(m) => {
                   setMode(m);
                   setTouched(false);
+                  if (m === 'register' && !config.data) config.refetch();
                 }}
               />
 
@@ -121,12 +125,18 @@ export default function LoginScreen() {
                 autoComplete="username"
                 textContentType="username"
                 returnKeyType="next"
-                error={touched && registering && !usernameOk}
+                submitBehavior="submit"
+                onSubmitEditing={() => (registering ? displayNameRef : passwordRef).current?.focus()}
+                error={touched && (registering ? !usernameOk : !name)}
                 hint={registering ? '3–20 karakter: küçük harf, rakam, nokta, alt çizgi.' : undefined}
               />
               {registering ? (
                 <TextField
+                  ref={displayNameRef}
                   label="Görünen ad"
+                  returnKeyType="next"
+                  submitBehavior="submit"
+                  onSubmitEditing={() => passwordRef.current?.focus()}
                   value={displayName}
                   onChangeText={setDisplayName}
                   autoCapitalize="words"
@@ -136,6 +146,7 @@ export default function LoginScreen() {
                 />
               ) : null}
               <TextField
+                ref={passwordRef}
                 label="Şifre"
                 value={password}
                 onChangeText={setPassword}
@@ -144,10 +155,10 @@ export default function LoginScreen() {
                 textContentType={registering ? 'newPassword' : 'password'}
                 onSubmitEditing={submit}
                 returnKeyType="go"
-                error={touched && registering && !passwordOk}
+                error={touched && (registering ? !passwordOk : !password)}
                 hint={registering ? 'En az 8 karakter.' : undefined}
               />
-              {registering && config.data?.inviteRequired ? (
+              {registering && askInvite ? (
                 <TextField
                   label="Davet kodu"
                   value={inviteCode}
@@ -169,7 +180,7 @@ export default function LoginScreen() {
                         key={key}
                         accessibilityRole="radio"
                         accessibilityState={{ selected: avatar === key }}
-                        accessibilityLabel={`Renk ${key}`}
+                        accessibilityLabel={`Renk: ${AVATAR_NAMES[key]}`}
                         onPress={() => {
                           haptics.select();
                           setAvatar(key);

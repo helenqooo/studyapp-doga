@@ -8,15 +8,13 @@ import Animated, {
   withSequence,
   withTiming,
 } from 'react-native-reanimated';
-import Svg, { Line } from 'react-native-svg';
+import Svg, { Circle, Path } from 'react-native-svg';
 import { useTheme } from '../../theme';
-
-// Three strokes crossing at 60° make a plain typographic asterisk.
-const STROKES = 3;
+import { LOGO_DOT, LOGO_RING } from '../Logo';
 
 /**
- * Slowly turning, breathing asterisk shown while the AI reads or writes
- * (solving a question, reading a karne, answering in chat).
+ * The Netlik mark, slowly turning and breathing, shown while the AI reads or writes
+ * (solving a question, reading a karne, answering in chat): the ring "focusing".
  */
 export function ThinkingSpark({ size, color }: { size?: number; color?: string }) {
   const theme = useTheme();
@@ -42,28 +40,12 @@ export function ThinkingSpark({ size, color }: { size?: number; color?: string }
     opacity: 0.75 + 0.25 * breath.value,
   }));
 
-  const c = s / 2;
-  const r = s * 0.42;
+  const fill = color ?? theme.colors.accent;
   return (
     <Animated.View style={[{ width: s, height: s, alignSelf: 'center' }, style]} accessibilityLabel="Düşünüyor">
-      <Svg width={s} height={s}>
-        {Array.from({ length: STROKES }, (_, i) => {
-          const a = (i * Math.PI) / STROKES + Math.PI / 2;
-          const dx = Math.cos(a) * r;
-          const dy = Math.sin(a) * r;
-          return (
-            <Line
-              key={i}
-              x1={c - dx}
-              y1={c - dy}
-              x2={c + dx}
-              y2={c + dy}
-              stroke={color ?? theme.colors.accent}
-              strokeWidth={s * 0.11}
-              strokeLinecap="round"
-            />
-          );
-        })}
+      <Svg width={s} height={s} viewBox="13 13 74 74">
+        <Path d={LOGO_RING} fill="none" stroke={fill} strokeWidth={14} strokeLinecap="round" />
+        <Circle {...LOGO_DOT} fill={fill} />
       </Svg>
     </Animated.View>
   );

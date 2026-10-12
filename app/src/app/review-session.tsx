@@ -7,6 +7,7 @@ import { AppText } from '../components/AppText';
 import { Badge } from '../components/Badge';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
+import { Damla } from '../components/Damla';
 import { Icon } from '../components/Icon';
 import { MathView } from '../components/math/MathView';
 import { Appear } from '../components/motion/Appear';
@@ -104,13 +105,14 @@ export default function ReviewSessionScreen() {
         <Appear>
           <Card>
             <View style={{ alignItems: 'center', gap: theme.spacing.md, paddingVertical: theme.spacing.lg }}>
-              <Icon name={total ? 'flag' : 'circle-check'} size={theme.layout.iconSize.xl} color={theme.colors.primaryText} />
+              <Damla size={theme.layout.mascot.hero} />
               <AppText variant="title" align="center">
                 {total ? 'Tekrar bitti!' : 'Bugün tekrar yok'}
               </AppText>
               {total ? (
                 <AppText color="textMuted" align="center">
-                  {tally.correct} doğru · {tally.wrong} yanlış
+                  {tally.correct} doğru · {tally.wrong} yanlış.{' '}
+                  {tally.wrong ? 'Yanlışlar baştan sıraya girdi; damlaya damlaya göl olur.' : 'Hepsi yerinde, harika.'}
                 </AppText>
               ) : (
                 <AppText color="textMuted" align="center">

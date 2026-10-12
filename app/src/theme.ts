@@ -310,6 +310,8 @@ export const letterSpacing = {
   display: -0.8,
   title: -0.4,
   normal: 0,
+  /** Small uppercase labels above a title (date, section). */
+  eyebrow: 1.2,
 } as const;
 
 /** Durations (ms) and springs for every animation. Reduced-motion users get fades only. */
@@ -380,6 +382,8 @@ export const layout = {
   timerStroke: 10,
   /** Avatar circle on the leaderboard. */
   avatar: 40,
+  /** Damla, the assistant: in a note (home, empty states) and large (sign-in, celebrations). */
+  mascot: { note: 72, hero: 132 },
   chart: {
     lineWidth: 2,
     markerRadius: 4,

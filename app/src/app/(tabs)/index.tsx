@@ -7,6 +7,7 @@ import { AppText } from '../../components/AppText';
 import { Button } from '../../components/Button';
 import { Avatar } from '../../components/Avatar';
 import { Card } from '../../components/Card';
+import { DamlaNote } from '../../components/Damla';
 import { DemoBanner } from '../../components/DemoBanner';
 import { Icon } from '../../components/Icon';
 import { PressableScale } from '../../components/motion/PressableScale';
@@ -17,6 +18,8 @@ import { Screen } from '../../components/Screen';
 import { StatTile } from '../../components/StatTile';
 import { StreakFlame } from '../../components/StreakFlame';
 import { DEMO_MODE } from '../../config';
+import { YKS_DATE } from '../../data/exam';
+import { dayTitle, daysBetween, localToday, upperTr } from '../../lib/format';
 import { useResponsive } from '../../lib/layout';
 import { formatClock, formatMinutes, useNow } from '../../lib/useNow';
 import { useAuthStore } from '../../store/authStore';
@@ -127,6 +130,16 @@ function PressableCard({ children, onPress, label }: { children: React.ReactNode
   );
 }
 
+/** What Damla says on the home screen, from the most useful next step down. */
+function damlaLine(o: { phase: 'idle' | 'focus' | 'break'; due?: number; streak: number; streakToday: boolean }) {
+  if (o.phase === 'focus') return { title: 'Odaktasın.', body: 'Bitince haber veririm, molayı ben başlatırım.' };
+  if (o.phase === 'break') return { title: 'Mola zamanı.', body: 'Biraz su iç, gözlerini dinlendir.' };
+  if (o.due) return { title: `Bugün ${o.due} soru tekrar bekliyor.`, body: 'Unutmadan önce bir bakalım; birkaç dakika sürer.' };
+  if (o.streak > 0 && !o.streakToday) return { title: `Serin ${o.streak} gün.`, body: 'Bugün bir pomodoro ya da tekrar seriyi korur.' };
+  if (o.streakToday) return { title: 'Bugünlük harikasın.', body: 'Takıldığın bir soru olursa çek, birlikte bakalım.' };
+  return { title: 'Merhaba, ben Damla.', body: 'Takıldığın soruyu çek: önce ipucu veririm, istersen tam çözümü.' };
+}
+
 function HomeContent() {
   const theme = useTheme();
   const size = useResponsive<'compact' | 'regular' | 'wide'>({ compact: 'compact', regular: 'regular', wide: 'wide' });
@@ -160,6 +173,12 @@ function HomeContent() {
 
   const p = profile.data;
   const streak = p?.streak ?? 0;
+  const line = damlaLine({ phase: timer.phase, due: dueCount, streak, streakToday: !!p?.streakToday });
+  const note = (
+    <Card>
+      <DamlaNote title={line.title}>{line.body}</DamlaNote>
+    </Card>
+  );
 
   const progress = (
     <Card>
@@ -240,6 +259,7 @@ function HomeContent() {
       <>
         {demo}
         {error}
+        <Appear>{note}</Appear>
         <View style={{ flexDirection: 'row', gap: theme.spacing.lg, alignItems: 'stretch' }}>
           <View style={{ flex: 1.4, gap: theme.spacing.lg }}>
             <Appear>{progress}</Appear>
@@ -268,12 +288,13 @@ function HomeContent() {
     <>
       {demo}
       {error}
-      <Appear>{progress}</Appear>
-      <Appear index={1}>{tiles}</Appear>
-      <Appear index={2}>
+      <Appear>{note}</Appear>
+      <Appear index={1}>{progress}</Appear>
+      <Appear index={2}>{tiles}</Appear>
+      <Appear index={3}>
         <SolveActions stacked={size === 'compact'} />
       </Appear>
-      <Appear index={3}>
+      <Appear index={4}>
         <LeagueCard />
       </Appear>
     </>
@@ -290,8 +311,11 @@ function greeting(hour: number) {
 export default function HomeScreen() {
   const name = useAuthStore((s) => s.user?.displayName);
   const first = name && name !== 'Sen' ? `, ${name.split(' ')[0]}` : '';
+  const today = localToday();
+  const left = daysBetween(today, YKS_DATE);
+  const eyebrow = upperTr(left > 0 ? `${dayTitle(today)} · YKS'ye ${left} gün` : dayTitle(today));
   return (
-    <Screen title={`${greeting(new Date().getHours())}${first}`} titleIcon="asterisk" subtitle="Bugün de bir adım öne geç.">
+    <Screen eyebrow={eyebrow} title={`${greeting(new Date().getHours())}${first}`} titleIcon="logo">
       <HomeContent />
     </Screen>
   );

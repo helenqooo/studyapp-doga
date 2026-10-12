@@ -8,6 +8,7 @@ import type { ChatMessage } from '../../../api/types';
 import { AppText } from '../../../components/AppText';
 import { Card } from '../../../components/Card';
 import { Chip } from '../../../components/Chip';
+import { Damla } from '../../../components/Damla';
 import { Icon } from '../../../components/Icon';
 import { MathView } from '../../../components/math/MathView';
 import { QuestionImage } from '../../../components/QuestionImage';
@@ -46,10 +47,10 @@ function Bubble({ message }: { message: ChatMessage }) {
       </View>
     );
   }
-  // Claude's answers read like a page, without a bubble, marked by the accent asterisk.
+  // Damla's answers read like a page, without a bubble, marked by her portrait.
   return (
     <View style={{ alignSelf: 'stretch', flexDirection: 'row', gap: theme.spacing.sm }}>
-      <Icon name="asterisk" size={theme.layout.iconSize.sm} color={theme.colors.accent} style={{ marginTop: theme.spacing.xs }} />
+      <Damla size={theme.layout.iconSize.lg} still />
       <View style={{ flex: 1 }}>
         <MathView markdown={message.content} />
       </View>

@@ -1,7 +1,7 @@
 import { Text, type TextProps, type TextStyle } from 'react-native';
 import { font, useTheme, type ColorTokens, type FontKind, type FontWeightName, type Theme } from '../theme';
 
-type Variant = 'display' | 'title' | 'heading' | 'body' | 'label' | 'caption';
+type Variant = 'display' | 'title' | 'heading' | 'body' | 'label' | 'caption' | 'eyebrow';
 type ColorName = Exclude<keyof ColorTokens, 'subject' | 'chart' | 'confetti' | 'celebrationScrim' | 'badge' | 'avatar'>;
 
 interface Props extends TextProps {
@@ -23,6 +23,8 @@ const VARIANTS: Record<Variant, { kind: FontKind; weight: FontWeightName }> = {
   body: { kind: 'sans', weight: 'regular' },
   label: { kind: 'sans', weight: 'medium' },
   caption: { kind: 'sans', weight: 'regular' },
+  // Pass text already in capitals (upperTr): textTransform would turn "i" into "I", not "İ".
+  eyebrow: { kind: 'sans', weight: 'semibold' },
 };
 
 function sizeStyle(theme: Theme, variant: Variant): TextStyle {
@@ -38,6 +40,8 @@ function sizeStyle(theme: Theme, variant: Variant): TextStyle {
       return { fontSize: fontSize.sm };
     case 'caption':
       return { fontSize: fontSize.xs };
+    case 'eyebrow':
+      return { fontSize: fontSize.xs, letterSpacing: letterSpacing.eyebrow };
     case 'body':
     default:
       return { fontSize: fontSize.md };

@@ -1,6 +1,6 @@
-# Derece
+# Netlik
 
-YKS (TYT + AYT Sayısal) için kişisel çalışma uygulaması. Proje spesifikasyonu: [`CLAUDE.md`](CLAUDE.md).
+*Her gün biraz daha net.* YKS (TYT + AYT Sayısal) için kişisel çalışma uygulaması; asistanın adı Damla. (İlk çalışma adı: Derece.) Proje spesifikasyonu: [`CLAUDE.md`](CLAUDE.md).
 
 ```
 app/     Expo (SDK 57) iOS uygulaması: expo-router, TypeScript
@@ -32,7 +32,7 @@ Kontrol: `curl http://<VDS-IP>:3000/health` → `{"ok":true}`
 | `ANTHROPIC_API_KEY` | Anthropic API anahtarı. **Sadece burada durur**, uygulamaya asla girmez. |
 | `AI_MODEL` | Kullanılan model. Varsayılan `claude-sonnet-5-5`. |
 | `AI_EFFORT` | İsteğe bağlı: `low` / `medium` / `high` / `xhigh` / `max`. Boş = modelin varsayılanı. |
-| `INVITE_CODE` | Arkadaşlarının hesap açarken gireceği davet kodu (en az 6 karakter). Boş bırakırsan ilk hesaptan sonra kayıt kapanır. |
+| `INVITE_CODE` | Arkadaşlarının hesap açarken gireceği davet kodu (en az 12 karakter; örn. `openssl rand -hex 8`). Boş bırakırsan ilk hesaptan sonra kayıt kapanır. |
 | `HOST`, `PORT` | Dinlenen adres. Varsayılan `0.0.0.0:3000`. |
 | `APP_TIMEZONE` | Gün hesabı (tekrar tarihleri, seri). Varsayılan `Europe/Istanbul`. |
 | `DATA_DIR` | Veritabanı ve görseller. Varsayılan `server/data/`. **Bu klasörü yedekle.** |

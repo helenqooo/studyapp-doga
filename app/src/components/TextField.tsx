@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type Ref } from 'react';
 import { TextInput, View, type TextInputProps } from 'react-native';
 import { font, useTheme } from '../theme';
 import { AppText } from './AppText';
@@ -12,9 +12,10 @@ interface Props extends Omit<TextInputProps, 'style'> {
   error?: boolean;
   /** Password field with a show/hide toggle. */
   secret?: boolean;
+  ref?: Ref<TextInput>;
 }
 
-export function TextField({ label, hint, error = false, secret = false, ...input }: Props) {
+export function TextField({ label, hint, error = false, secret = false, ref, ...input }: Props) {
   const theme = useTheme();
   const [focused, setFocused] = useState(false);
   const [shown, setShown] = useState(false);
@@ -37,6 +38,7 @@ export function TextField({ label, hint, error = false, secret = false, ...input
       >
         <TextInput
           {...input}
+          ref={ref}
           accessibilityLabel={label}
           secureTextEntry={secret && !shown}
           placeholderTextColor={theme.colors.textMuted}

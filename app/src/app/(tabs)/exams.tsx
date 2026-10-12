@@ -6,6 +6,7 @@ import type { Overview } from '../../api/types';
 import { AppText } from '../../components/AppText';
 import { Button } from '../../components/Button';
 import { Card } from '../../components/Card';
+import { DamlaNote } from '../../components/Damla';
 import { NetTrendChart } from '../../components/charts/NetTrendChart';
 import { TopicLossBars } from '../../components/charts/TopicLossBars';
 import { Chip } from '../../components/Chip';
@@ -45,9 +46,9 @@ function ExamList() {
         </Card>
       ) : null}
       {exams.isSuccess && exams.data.items.length === 0 ? (
-        <AppText color="textMuted" align="center">
-          Henüz deneme girmedin. İlk denemeni gir, netlerini burada takip et.
-        </AppText>
+        <Card>
+          <DamlaNote title="Henüz deneme yok.">İlk denemeni gir; netlerini, trendini ve en çok net kaybettiğin konuları burada birlikte izleriz.</DamlaNote>
+        </Card>
       ) : null}
       <Grid columns={{ compact: 1, regular: 2, wide: 3 }}>
         {exams.data?.items.map((e, i) => (

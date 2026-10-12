@@ -5,6 +5,7 @@ import { ContentSizeContext, contentSizeClass, useWindowLayout } from '../lib/la
 import { useTheme } from '../theme';
 import { AppText } from './AppText';
 import { Icon, type IconName } from './Icon';
+import { LogoMark } from './Logo';
 
 interface Props {
   title?: string;
@@ -14,8 +15,10 @@ interface Props {
   safeTop?: boolean;
   /** `wide` for dashboards and lists, `readable` for single-column reading and forms. */
   width?: 'wide' | 'readable';
-  /** Small accent mark before the title. */
-  titleIcon?: IconName;
+  /** Small accent mark before the title; `logo` is the Netlik mark. */
+  titleIcon?: IconName | 'logo';
+  /** Small capitals above the title (pass them already uppercase, see upperTr). */
+  eyebrow?: string;
 }
 
 /**
@@ -23,7 +26,7 @@ interface Props {
  * provided to children (see useContentSize), so grids adapt to iPad, split view and
  * rotation rather than to the device model.
  */
-export function Screen({ title, subtitle, children, safeTop = true, width = 'wide', titleIcon }: Props) {
+export function Screen({ title, subtitle, children, safeTop = true, width = 'wide', titleIcon, eyebrow }: Props) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const win = useWindowLayout();
@@ -49,8 +52,17 @@ export function Screen({ title, subtitle, children, safeTop = true, width = 'wid
         <View style={{ width: '100%', maxWidth, alignSelf: 'center', gap: theme.spacing.lg }}>
           {title ? (
             <View style={{ gap: theme.spacing.xs }}>
+              {eyebrow ? (
+                <AppText variant="eyebrow" color="textMuted">
+                  {eyebrow}
+                </AppText>
+              ) : null}
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm }}>
-                {titleIcon ? <Icon name={titleIcon} size={theme.layout.iconSize.lg} color={theme.colors.accent} /> : null}
+                {titleIcon === 'logo' ? (
+                  <LogoMark size={theme.layout.iconSize.lg} />
+                ) : titleIcon ? (
+                  <Icon name={titleIcon} size={theme.layout.iconSize.lg} color={theme.colors.accent} />
+                ) : null}
                 <AppText variant="title" style={{ flexShrink: 1 }}>
                   {title}
                 </AppText>
