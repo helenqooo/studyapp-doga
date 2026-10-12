@@ -16,6 +16,5 @@ export function openDb(dbFile: string) {
 
   const db = drizzle(sqlite, { schema });
   migrate(db, { migrationsFolder: path.join(SERVER_ROOT, 'drizzle') });
-  db.insert(schema.profile).values({ id: 1 }).onConflictDoNothing().run();
   return db;
 }

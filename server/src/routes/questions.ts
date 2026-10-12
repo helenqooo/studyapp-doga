@@ -2,14 +2,16 @@ import { randomUUID } from 'node:crypto';
 import { createReadStream } from 'node:fs';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { and, count, desc, eq, sql } from 'drizzle-orm';
+import { and, count, desc, eq } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import type { AppDeps } from '../app';
+import { currentUser } from '../auth';
 import { hydrateQuestions } from '../db/hydrate';
-import { attempts, profile, questions, reviews } from '../db/schema';
+import type { Db } from '../db/client';
+import { attempts, questions, reviews } from '../db/schema';
 import { attemptDto, profileDto } from '../dto';
-import { XP } from '../gamification';
+import { applyRewards, XP } from '../gamification';
 import { initialSchedule } from '../srs';
 import { localDate } from '../time';
 
@@ -29,17 +31,27 @@ const AttemptBody = z.object({
 
 export type IdParams = { Params: { id: string } };
 
+/** The user's own question, or undefined (someone else's reads as not found). */
+export function ownedQuestion(db: Db, id: string, userId: string) {
+  return db
+    .select()
+    .from(questions)
+    .where(and(eq(questions.id, id), eq(questions.userId, userId)))
+    .get();
+}
+
 export function questionRoutes(app: FastifyInstance, { env, db, now }: AppDeps): void {
   // History list, newest first, filterable by subject and topic.
   app.get('/questions', async (req, reply) => {
     const query = ListQuery.safeParse(req.query);
     if (!query.success) return reply.code(400).send({ error: 'Geçersiz filtre.' });
     const { subject, topicId, limit, offset } = query.data;
+    const user = currentUser(req);
 
-    const filters = [];
+    const filters = [eq(questions.userId, user.id)];
     if (subject) filters.push(eq(questions.subject, subject));
     if (topicId) filters.push(eq(questions.topicId, topicId));
-    const where = filters.length ? and(...filters) : undefined;
+    const where = and(...filters);
 
     const rows = db
       .select()
@@ -55,32 +67,31 @@ export function questionRoutes(app: FastifyInstance, { env, db, now }: AppDeps):
   });
 
   // Question counts per subject and topic, for the history filters.
-  app.get('/questions/facets', async () => {
+  app.get('/questions/facets', async (req) => {
+    const user = currentUser(req);
     const subjects = db
       .select({ subject: questions.subject, count: count() })
       .from(questions)
+      .where(eq(questions.userId, user.id))
       .groupBy(questions.subject)
       .all();
     const topics = db
       .select({ topicId: questions.topicId, count: count() })
       .from(questions)
+      .where(eq(questions.userId, user.id))
       .groupBy(questions.topicId)
       .all();
     return { total: subjects.reduce((sum, s) => sum + s.count, 0), subjects, topics };
   });
 
   app.get<IdParams>('/questions/:id', async (req, reply) => {
-    const q = db.select().from(questions).where(eq(questions.id, req.params.id)).get();
+    const q = ownedQuestion(db, req.params.id, currentUser(req).id);
     if (!q) return reply.code(404).send({ error: 'Soru bulunamadı.' });
     return hydrateQuestions(db, [q])[0];
   });
 
   app.get<IdParams>('/questions/:id/image', async (req, reply) => {
-    const q = db
-      .select({ imageFile: questions.imageFile, imageMime: questions.imageMime })
-      .from(questions)
-      .where(eq(questions.id, req.params.id))
-      .get();
+    const q = ownedQuestion(db, req.params.id, currentUser(req).id);
     if (!q) return reply.code(404).send({ error: 'Soru bulunamadı.' });
 
     const filePath = path.join(env.imagesDir, path.basename(q.imageFile));
@@ -101,10 +112,12 @@ export function questionRoutes(app: FastifyInstance, { env, db, now }: AppDeps):
     const body = AttemptBody.safeParse(req.body);
     if (!body.success) return reply.code(400).send({ error: 'Geçersiz istek.' });
 
-    const q = db.select({ id: questions.id }).from(questions).where(eq(questions.id, req.params.id)).get();
+    const user = currentUser(req);
+    const q = ownedQuestion(db, req.params.id, user.id);
     if (!q) return reply.code(404).send({ error: 'Soru bulunamadı.' });
 
     const ts = now();
+    const today = localDate(ts, env.APP_TIMEZONE);
     const result = db.transaction((tx) => {
       const existing = tx
         .select({ id: attempts.id })
@@ -124,34 +137,37 @@ export function questionRoutes(app: FastifyInstance, { env, db, now }: AppDeps):
           userAnswer: body.data.userAnswer || null,
           hintsUsed: body.data.hintsUsed,
           viewedSolution: body.data.viewedSolution,
+          userId: user.id,
         })
         .returning()
         .get();
 
       if (body.data.result !== 'correct') {
-        const schedule = initialSchedule(localDate(ts, env.APP_TIMEZONE));
+        const schedule = initialSchedule(today);
         tx.insert(reviews)
-          .values({ questionId: q.id, stage: schedule.stage, dueDate: schedule.dueDate, status: schedule.status, createdAt: ts })
+          .values({
+            questionId: q.id,
+            stage: schedule.stage,
+            dueDate: schedule.dueDate,
+            status: schedule.status,
+            createdAt: ts,
+            userId: user.id,
+          })
           .onConflictDoNothing()
           .run();
       }
 
-      const updatedProfile = tx
-        .update(profile)
-        .set({ xp: sql`${profile.xp} + ${XP.solveQuestion}` })
-        .where(eq(profile.id, 1))
-        .returning()
-        .get();
-
-      return { attempt, updatedProfile };
+      const { rewards, profile } = applyRewards(tx, user.id, { xp: XP.solveQuestion, reason: 'solve', now: ts, today });
+      return { attempt, rewards, profile };
     });
 
     if (!result) return reply.code(409).send({ error: 'Bu soru zaten işaretlendi.' });
 
     return reply.code(201).send({
       attempt: attemptDto(result.attempt),
-      xpGained: XP.solveQuestion,
-      profile: profileDto(result.updatedProfile),
+      xpGained: result.rewards.xpGained,
+      rewards: result.rewards,
+      profile: profileDto(result.profile, today),
     });
   });
 }

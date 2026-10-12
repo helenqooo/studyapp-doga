@@ -9,22 +9,48 @@ import { openDb } from './db/client';
 import { loadEnv } from './env';
 
 export const DAY = 24 * 60 * 60 * 1000;
-const TOKEN = 'test-token-1234567890';
+export const INVITE = 'davet-123';
 
-export async function createTestApp(startIso = '2026-10-12T09:00:00Z') {
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'derece-test-'));
-  const env = loadEnv({ APP_TOKEN: TOKEN, MOCK_SOLVER: 'true', DATA_DIR: dataDir, APP_TIMEZONE: 'Europe/Istanbul' });
+export async function createTestApp(startIso = '2026-10-12T09:00:00Z', opts: { dataDir?: string } = {}) {
+  const dataDir = opts.dataDir ?? fs.mkdtempSync(path.join(os.tmpdir(), 'derece-test-'));
+  const env = loadEnv({ INVITE_CODE: INVITE, MOCK_SOLVER: 'true', DATA_DIR: dataDir, APP_TIMEZONE: 'Europe/Istanbul' });
   // Default start is noon in Istanbul, so day arithmetic never straddles midnight.
   const clock = { now: Date.parse(startIso) };
   const app = await buildApp(
     { env, db: openDb(env.dbFile), ai: createMockAi({ delayMs: 0 }), now: () => clock.now },
     { logger: false },
   );
-  const auth = { authorization: `Bearer ${TOKEN}` };
+  type Method = 'GET' | 'POST' | 'PUT' | 'DELETE';
 
-  async function call<T = any>(method: 'GET' | 'POST' | 'PUT' | 'DELETE', url: string, body?: unknown) {
-    const res = await app.inject({ method, url, headers: auth, ...(body !== undefined ? { payload: body as object } : {}) });
+  /** A request as a given login token (or none). */
+  async function callAs<T = any>(token: string | null, method: Method, url: string, body?: unknown) {
+    const res = await app.inject({
+      method,
+      url,
+      headers: token ? { authorization: `Bearer ${token}` } : {},
+      ...(body !== undefined ? { payload: body as object } : {}),
+    });
     return { status: res.statusCode, json: (res.body ? res.json() : null) as T };
+  }
+
+  /** Registers an account (the first one needs no invite) and returns its token. */
+  async function register(username: string, displayName = username) {
+    const res = await callAs(null, 'POST', '/auth/register', {
+      username,
+      displayName,
+      password: 'parola-1234',
+      inviteCode: INVITE,
+    });
+    assert.equal(res.status, 201, JSON.stringify(res.json));
+    return res.json.token as string;
+  }
+
+  // Tests run as this account unless they use callAs.
+  const token = await register('ogrenci', 'Öğrenci');
+  const auth = { authorization: `Bearer ${token}` };
+
+  async function call<T = any>(method: Method, url: string, body?: unknown) {
+    return callAs<T>(token, method, url, body);
   }
 
   /** Multipart upload of a tiny PNG (enough for the magic-byte check). */
@@ -56,5 +82,5 @@ export async function createTestApp(startIso = '2026-10-12T09:00:00Z') {
     fs.rmSync(dataDir, { recursive: true, force: true });
   }
 
-  return { app, clock, call, upload, solveOne, close };
+  return { app, clock, call, callAs, register, token, upload, solveOne, close, dataDir };
 }

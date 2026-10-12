@@ -13,7 +13,12 @@ const EnvSchema = z
   .object({
     HOST: z.string().default('0.0.0.0'),
     PORT: z.coerce.number().int().positive().default(3000),
-    APP_TOKEN: z.string().min(16, 'APP_TOKEN must be at least 16 characters'),
+    /** Lets friends create accounts (the first account never needs it). Empty = sign-up closed after the first. */
+    INVITE_CODE: z
+      .string()
+      .optional()
+      .transform((v) => (v?.trim() ? v.trim() : undefined))
+      .refine((v) => v === undefined || v.length >= 6, 'INVITE_CODE must be at least 6 characters'),
     ANTHROPIC_API_KEY: z.string().optional(),
     AI_MODEL: z.string().min(1).default('claude-sonnet-5-5'),
     AI_EFFORT: z

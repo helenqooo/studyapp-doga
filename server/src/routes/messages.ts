@@ -5,10 +5,11 @@ import { and, asc, count, eq } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import type { AppDeps } from '../app';
+import { currentUser } from '../auth';
 import { AiError } from '../claude/client';
-import { questionMessages, questions } from '../db/schema';
+import { questionMessages } from '../db/schema';
 import { messageDto } from '../dto';
-import type { IdParams } from './questions';
+import { ownedQuestion, type IdParams } from './questions';
 
 /** "Kısa bir sohbet": cap follow-up questions per solved question. */
 export const MAX_USER_MESSAGES = 10;
@@ -17,7 +18,7 @@ const MessageBody = z.object({ content: z.string().trim().min(1).max(2000) });
 
 export function messageRoutes(app: FastifyInstance, { env, db, ai, now }: AppDeps): void {
   app.get<IdParams>('/questions/:id/messages', async (req, reply) => {
-    const q = db.select({ id: questions.id }).from(questions).where(eq(questions.id, req.params.id)).get();
+    const q = ownedQuestion(db, req.params.id, currentUser(req).id);
     if (!q) return reply.code(404).send({ error: 'Soru bulunamadı.' });
     const rows = db
       .select()
@@ -33,7 +34,7 @@ export function messageRoutes(app: FastifyInstance, { env, db, ai, now }: AppDep
     const body = MessageBody.safeParse(req.body);
     if (!body.success) return reply.code(400).send({ error: 'Mesaj boş olamaz (en fazla 2000 karakter).' });
 
-    const q = db.select().from(questions).where(eq(questions.id, req.params.id)).get();
+    const q = ownedQuestion(db, req.params.id, currentUser(req).id);
     if (!q) return reply.code(404).send({ error: 'Soru bulunamadı.' });
 
     const sent =

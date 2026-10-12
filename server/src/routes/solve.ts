@@ -7,10 +7,12 @@ import { questions } from '../db/schema';
 import { questionDto } from '../dto';
 import { sniffImage } from '../images';
 import type { AppDeps } from '../app';
+import { currentUser } from '../auth';
 
 export function solveRoutes(app: FastifyInstance, { env, db, ai, now }: AppDeps): void {
   // multipart/form-data with a single "image" file field.
   app.post('/solve', async (req, reply) => {
+    const user = currentUser(req);
     const file = await req.file();
     if (!file || file.fieldname !== 'image') {
       return reply.code(400).send({ error: '"image" alanında bir görsel gönderilmeli.' });
@@ -46,6 +48,7 @@ export function solveRoutes(app: FastifyInstance, { env, db, ai, now }: AppDeps)
         imageFile,
         imageMime: kind.mime,
         model: ai.model,
+        userId: user.id,
         ...solution,
       })
       .returning()

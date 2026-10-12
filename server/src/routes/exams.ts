@@ -1,14 +1,16 @@
 import { randomUUID } from 'node:crypto';
-import { desc, eq, sql } from 'drizzle-orm';
+import { and, desc, eq } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import type { AppDeps } from '../app';
+import { currentUser } from '../auth';
 import { AiError } from '../claude/client';
-import { exams, profile } from '../db/schema';
+import { exams } from '../db/schema';
 import { profileDto } from '../dto';
 import { examDto, mergeTopics, orderSections, validateSections } from '../exams';
-import { XP } from '../gamification';
+import { applyRewards, XP } from '../gamification';
 import { sniffImage } from '../images';
+import { localDate } from '../time';
 import type { IdParams } from './questions';
 
 const Count = z.number().int().min(0).max(100);
@@ -50,7 +52,9 @@ function readBody(raw: unknown): { ok: true; value: Omit<typeof exams.$inferInse
   return { ok: true, value: { exam, date, name: name || null, sections } };
 }
 
-export function examRoutes(app: FastifyInstance, { db, ai, now }: AppDeps): void {
+export function examRoutes(app: FastifyInstance, { env, db, ai, now }: AppDeps): void {
+  const owned = (id: string, userId: string) => and(eq(exams.id, id), eq(exams.userId, userId));
+
   // Reads a karne photo into an editable draft. Nothing is stored.
   app.post('/exams/parse', async (req, reply) => {
     const file = await req.file();
@@ -75,37 +79,38 @@ export function examRoutes(app: FastifyInstance, { db, ai, now }: AppDeps): void
     const body = readBody(req.body);
     if (!body.ok) return reply.code(400).send({ error: body.error });
 
-    const { row, updatedProfile } = db.transaction((tx) => ({
-      row: tx
+    const user = currentUser(req);
+    const ts = now();
+    const today = localDate(ts, env.APP_TIMEZONE);
+    const { row, rewards, profile } = db.transaction((tx) => {
+      const row = tx
         .insert(exams)
-        .values({ id: randomUUID(), createdAt: now(), ...body.value })
+        .values({ id: randomUUID(), createdAt: ts, userId: user.id, ...body.value })
         .returning()
-        .get(),
-      updatedProfile: tx
-        .update(profile)
-        .set({ xp: sql`${profile.xp} + ${XP.examEntry}` })
-        .where(eq(profile.id, 1))
-        .returning()
-        .get(),
-    }));
+        .get();
+      return { row, ...applyRewards(tx, user.id, { xp: XP.examEntry, reason: 'exam', now: ts, today }) };
+    });
 
-    return reply.code(201).send({ exam: examDto(row), xpGained: XP.examEntry, profile: profileDto(updatedProfile) });
+    return reply
+      .code(201)
+      .send({ exam: examDto(row), xpGained: rewards.xpGained, rewards, profile: profileDto(profile, today) });
   });
 
   app.get('/exams', async (req, reply) => {
     const query = ListQuery.safeParse(req.query);
     if (!query.success) return reply.code(400).send({ error: 'Geçersiz filtre.' });
+    const user = currentUser(req);
     const rows = db
       .select()
       .from(exams)
-      .where(query.data.exam ? eq(exams.exam, query.data.exam) : undefined)
+      .where(and(eq(exams.userId, user.id), query.data.exam ? eq(exams.exam, query.data.exam) : undefined))
       .orderBy(desc(exams.date), desc(exams.createdAt))
       .all();
     return { items: rows.map(examDto) };
   });
 
   app.get<IdParams>('/exams/:id', async (req, reply) => {
-    const row = db.select().from(exams).where(eq(exams.id, req.params.id)).get();
+    const row = db.select().from(exams).where(owned(req.params.id, currentUser(req).id)).get();
     if (!row) return reply.code(404).send({ error: 'Deneme bulunamadı.' });
     return examDto(row);
   });
@@ -113,13 +118,13 @@ export function examRoutes(app: FastifyInstance, { db, ai, now }: AppDeps): void
   app.put<IdParams>('/exams/:id', async (req, reply) => {
     const body = readBody(req.body);
     if (!body.ok) return reply.code(400).send({ error: body.error });
-    const row = db.update(exams).set(body.value).where(eq(exams.id, req.params.id)).returning().get();
+    const row = db.update(exams).set(body.value).where(owned(req.params.id, currentUser(req).id)).returning().get();
     if (!row) return reply.code(404).send({ error: 'Deneme bulunamadı.' });
     return examDto(row);
   });
 
   app.delete<IdParams>('/exams/:id', async (req, reply) => {
-    const row = db.delete(exams).where(eq(exams.id, req.params.id)).returning({ id: exams.id }).get();
+    const row = db.delete(exams).where(owned(req.params.id, currentUser(req).id)).returning({ id: exams.id }).get();
     if (!row) return reply.code(404).send({ error: 'Deneme bulunamadı.' });
     return reply.code(204).send();
   });

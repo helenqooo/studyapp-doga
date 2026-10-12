@@ -17,11 +17,11 @@ export const PRACTICE_WEIGHT = 0.5;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
-function examSummary(db: Db, exam: Exam) {
+function examSummary(db: Db, userId: string, exam: Exam) {
   const list = db
     .select()
     .from(exams)
-    .where(eq(exams.exam, exam))
+    .where(and(eq(exams.userId, userId), eq(exams.exam, exam)))
     .orderBy(asc(exams.date), asc(exams.createdAt))
     .all()
     .map(examDto);
@@ -69,7 +69,7 @@ interface TopicTally {
 }
 
 /** "En çok net kaybedilen konular": exam topic analyses + practice history, last 90 days. */
-function topicLosses(db: Db, ts: number, today: string) {
+function topicLosses(db: Db, userId: string, ts: number, today: string) {
   const since = addDays(today, -ANALYSIS_WINDOW_DAYS);
   const tallies = new Map<string, TopicTally>();
   const tally = (topicId: string) => {
@@ -81,7 +81,7 @@ function topicLosses(db: Db, ts: number, today: string) {
     return t;
   };
 
-  for (const e of db.select().from(exams).where(gte(exams.date, since)).all()) {
+  for (const e of db.select().from(exams).where(and(eq(exams.userId, userId), gte(exams.date, since))).all()) {
     for (const s of e.sections) {
       for (const t of s.topics ?? []) {
         const x = tally(t.topicId);
@@ -96,7 +96,7 @@ function topicLosses(db: Db, ts: number, today: string) {
     .select({ topicId: questions.topicId, result: attempts.result })
     .from(attempts)
     .innerJoin(questions, eq(attempts.questionId, questions.id))
-    .where(gte(attempts.createdAt, ts - ANALYSIS_WINDOW_DAYS * DAY_MS))
+    .where(and(eq(attempts.userId, userId), gte(attempts.createdAt, ts - ANALYSIS_WINDOW_DAYS * DAY_MS)))
     .all();
   for (const p of practice) {
     const x = tally(p.topicId);
@@ -122,24 +122,33 @@ function topicLosses(db: Db, ts: number, today: string) {
     .sort((a, b) => b.lostNet - a.lostNet);
 }
 
-export function computeOverview(db: Db, ts: number, timeZone: string) {
+export function computeOverview(db: Db, userId: string, ts: number, timeZone: string) {
   const today = localDate(ts, timeZone);
   const since = ts - ANALYSIS_WINDOW_DAYS * DAY_MS;
 
-  const recentAttempts = db.select({ result: attempts.result }).from(attempts).where(gte(attempts.createdAt, since)).all();
-  const activeReviews = db.select({ n: count() }).from(reviews).where(eq(reviews.status, 'active')).get()?.n ?? 0;
+  const recentAttempts = db
+    .select({ result: attempts.result })
+    .from(attempts)
+    .where(and(eq(attempts.userId, userId), gte(attempts.createdAt, since)))
+    .all();
+  const activeReviews =
+    db
+      .select({ n: count() })
+      .from(reviews)
+      .where(and(eq(reviews.userId, userId), eq(reviews.status, 'active')))
+      .get()?.n ?? 0;
   const dueToday =
     db
       .select({ n: count() })
       .from(reviews)
-      .where(and(eq(reviews.status, 'active'), lte(reviews.dueDate, today)))
+      .where(and(eq(reviews.userId, userId), eq(reviews.status, 'active'), lte(reviews.dueDate, today)))
       .get()?.n ?? 0;
 
   return {
     today,
     windowDays: ANALYSIS_WINDOW_DAYS,
-    byExam: { TYT: examSummary(db, 'TYT'), AYT: examSummary(db, 'AYT') },
-    topicLosses: topicLosses(db, ts, today).slice(0, 10),
+    byExam: { TYT: examSummary(db, userId, 'TYT'), AYT: examSummary(db, userId, 'AYT') },
+    topicLosses: topicLosses(db, userId, ts, today).slice(0, 10),
     practice: {
       attempts: recentAttempts.length,
       correct: recentAttempts.filter((a) => a.result === 'correct').length,

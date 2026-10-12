@@ -1,12 +1,12 @@
-import type { attempts, profile, questionMessages, questions, reviews } from './db/schema';
-import { levelFromXp } from './gamification';
+import type { attempts, profiles, questionMessages, questions, reviews } from './db/schema';
+import { effectiveStreak, levelFromXp } from './gamification';
 import { intervalDays } from './srs';
 
 type QuestionRow = typeof questions.$inferSelect;
 type AttemptRow = typeof attempts.$inferSelect;
 type ReviewRow = typeof reviews.$inferSelect;
 type MessageRow = typeof questionMessages.$inferSelect;
-type ProfileRow = typeof profile.$inferSelect;
+type ProfileRow = typeof profiles.$inferSelect;
 
 const iso = (ts: number) => new Date(ts).toISOString();
 
@@ -63,11 +63,14 @@ export function messageDto(m: MessageRow) {
   return { id: m.id, role: m.role, content: m.content, createdAt: iso(m.createdAt) };
 }
 
-export function profileDto(p: ProfileRow) {
+/** `today` (local date) decides whether the stored streak is still alive. */
+export function profileDto(p: ProfileRow, today: string) {
   return {
     xp: p.xp,
     ...levelFromXp(p.xp),
-    streak: p.currentStreak,
+    streak: effectiveStreak(p.currentStreak, p.lastStreakDate, today),
+    /** Today already counts toward the streak. */
+    streakToday: p.lastStreakDate === today,
     longestStreak: p.longestStreak,
     badges: p.badges,
     settings: p.settings,
