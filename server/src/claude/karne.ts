@@ -110,7 +110,7 @@ export function normalizeKarne(raw: z.infer<typeof OutputSchema>): KarneDraft {
     }
     const s = found.reduce((a, b) => ({ ...a, correct: a.correct + b.correct, wrong: a.wrong + b.wrong, blank: a.blank + b.blank, topics: [...a.topics, ...b.topics] }));
     if (s.correct + s.wrong > total) {
-      warnings.push(`${subject}: doğru + yanlış ${total}'ı geçiyor, değerleri kontrol et.`);
+      warnings.push(`${subject}: doğru + yanlış toplamı ${total} soruyu geçiyor, değerleri kontrol et.`);
     } else if (s.correct + s.wrong + s.blank !== total) {
       warnings.push(`${subject}: boş sayısı soru sayısıyla tutmadı, ${total - s.correct - s.wrong} olarak düzeltildi.`);
     }

@@ -32,6 +32,8 @@ function examSummary(db: Db, exam: Exam) {
     name: e.name,
     totalNet: e.totalNet,
     totalQuestions: e.totalQuestions,
+    /** All sections entered; partial (branş) exams are left out of the total-net trend. */
+    complete: e.sections.length === SUBJECTS_BY_EXAM[exam].length,
     sections: Object.fromEntries(e.sections.map((s) => [s.subject, s.net])) as Record<string, number>,
   }));
 

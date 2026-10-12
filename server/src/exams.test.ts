@@ -80,6 +80,7 @@ test('overview: net trend per subject and topic losses from exams + practice', a
   const tyt = o.byExam.TYT;
   assert.equal(tyt.count, 2);
   assert.deepEqual(tyt.trend.map((e: { name: string }) => e.name), ['Deneme 1 (düzeltildi)', 'Deneme 2']);
+  assert.ok(tyt.trend.every((e: { complete: boolean }) => e.complete));
   const turkce = tyt.subjects.find((s: { subject: string }) => s.subject === 'Türkçe');
   assert.deepEqual([turkce.latestNet, turkce.previousNet, turkce.bestNet, turkce.averageNet], [31, 29, 31, 30]);
   assert.equal(o.byExam.AYT.count, 0);

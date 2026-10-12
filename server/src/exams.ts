@@ -35,7 +35,7 @@ export function validateSections(exam: Exam, sections: ExamSectionResult[]): str
     if (seen.has(s.subject)) return `${s.subject} iki kez girilmiş.`;
     seen.add(s.subject);
     const total = QUESTION_COUNTS[s.subject as Subject];
-    if (s.correct + s.wrong + s.blank > total) return `${s.subject}: doğru + yanlış + boş ${total}'ı geçemez.`;
+    if (s.correct + s.wrong + s.blank > total) return `${s.subject}: doğru + yanlış + boş toplamı ${total} soruyu geçemez.`;
     for (const t of s.topics ?? []) {
       const topic = getTopic(t.topicId);
       if (!topic || topic.exam !== exam || topic.subject !== s.subject) {

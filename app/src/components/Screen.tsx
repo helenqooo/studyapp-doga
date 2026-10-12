@@ -48,6 +48,7 @@ export function Screen({ title, subtitle, children, scroll = true, safeTop = tru
       // Tab screens pad by the safe area themselves; screens under a native header let iOS adjust.
       contentInsetAdjustmentBehavior={safeTop ? 'never' : 'automatic'}
       keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="on-drag"
     >
       {header}
       {children}

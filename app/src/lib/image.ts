@@ -47,3 +47,15 @@ export async function prepareUpload(image: LocalImage, crop: CropRect): Promise<
   const saved = await ref.saveAsync({ format: SaveFormat.JPEG, compress: UPLOAD_JPEG_QUALITY });
   return { uri: saved.uri, width: saved.width, height: saved.height };
 }
+
+/** A whole-page document (deneme karnesi): no crop, long side capped for upload. */
+export async function prepareDocument(uri: string): Promise<LocalImage> {
+  let ref = await ImageManipulator.manipulate(uri).renderAsync();
+  if (Math.max(ref.width, ref.height) > UPLOAD_MAX_SIDE) {
+    ref = await ImageManipulator.manipulate(ref)
+      .resize(ref.width >= ref.height ? { width: UPLOAD_MAX_SIDE } : { height: UPLOAD_MAX_SIDE })
+      .renderAsync();
+  }
+  const saved = await ref.saveAsync({ format: SaveFormat.JPEG, compress: UPLOAD_JPEG_QUALITY });
+  return { uri: saved.uri, width: saved.width, height: saved.height };
+}

@@ -2,7 +2,7 @@ import { Text, type TextProps, type TextStyle } from 'react-native';
 import { useTheme, type ColorTokens, type Theme } from '../theme';
 
 type Variant = 'display' | 'title' | 'heading' | 'body' | 'label' | 'caption';
-type ColorName = Exclude<keyof ColorTokens, 'subject'>;
+type ColorName = Exclude<keyof ColorTokens, 'subject' | 'chart'>;
 
 interface Props extends TextProps {
   variant?: Variant;

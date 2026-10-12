@@ -1,6 +1,6 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from './client';
-import type { AttemptInput, ChatThread, Question, QuestionFilter } from './types';
+import type { AttemptInput, ChatThread, ExamInput, ExamResult, Question, QuestionFilter } from './types';
 
 export const queryKeys = {
   profile: ['profile'] as const,
@@ -11,6 +11,12 @@ export const queryKeys = {
   facets: ['questions', 'facets'] as const,
   reviewsToday: ['reviews', 'today'] as const,
   messages: (id: string) => ['messages', id] as const,
+  exams: ['exams'] as const,
+  exam: (id: string) => ['exam', id] as const,
+  /** Overview and weekly summary both depend on exams and practice. */
+  stats: ['stats'] as const,
+  overview: ['stats', 'overview'] as const,
+  weeklySummary: ['stats', 'weekly-summary'] as const,
 };
 
 export function useProfile() {
@@ -46,6 +52,7 @@ export function useRecordAttempt(questionId: string) {
       queryClient.invalidateQueries({ queryKey: queryKeys.question(questionId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.questions });
       queryClient.invalidateQueries({ queryKey: queryKeys.reviewsToday });
+      queryClient.invalidateQueries({ queryKey: queryKeys.stats });
     },
   });
 }
@@ -79,6 +86,7 @@ export function useReviewResult() {
       );
       queryClient.invalidateQueries({ queryKey: queryKeys.reviewsToday });
       queryClient.invalidateQueries({ queryKey: queryKeys.questions });
+      queryClient.invalidateQueries({ queryKey: queryKeys.stats });
     },
   });
 }
@@ -99,5 +107,69 @@ export function useSendMessage(questionId: string) {
         q ? { ...q, messageCount: q.messageCount + 2 } : q,
       );
     },
+  });
+}
+
+export function useExams() {
+  return useQuery({ queryKey: queryKeys.exams, queryFn: api.exams });
+}
+
+export function useExam(id: string) {
+  return useQuery({ queryKey: queryKeys.exam(id), queryFn: () => api.exam(id), enabled: !!id });
+}
+
+export function useParseKarne() {
+  return useMutation({
+    mutationFn: ({ uri, onUploadProgress }: { uri: string; onUploadProgress?: (f: number) => void }) =>
+      api.parseKarne(uri, onUploadProgress),
+  });
+}
+
+function useExamWritten() {
+  const queryClient = useQueryClient();
+  return (exam: ExamResult | null, removedId?: string) => {
+    if (exam) queryClient.setQueryData(queryKeys.exam(exam.id), exam);
+    if (removedId) queryClient.removeQueries({ queryKey: queryKeys.exam(removedId) });
+    queryClient.invalidateQueries({ queryKey: queryKeys.exams });
+    queryClient.invalidateQueries({ queryKey: queryKeys.stats });
+  };
+}
+
+export function useCreateExam() {
+  const queryClient = useQueryClient();
+  const written = useExamWritten();
+  return useMutation({
+    mutationFn: (input: ExamInput) => api.createExam(input),
+    onSuccess: ({ exam, profile }) => {
+      queryClient.setQueryData(queryKeys.profile, profile);
+      written(exam);
+    },
+  });
+}
+
+export function useUpdateExam(id: string) {
+  const written = useExamWritten();
+  return useMutation({ mutationFn: (input: ExamInput) => api.updateExam(id, input), onSuccess: (exam) => written(exam) });
+}
+
+export function useDeleteExam() {
+  const written = useExamWritten();
+  return useMutation({ mutationFn: (id: string) => api.deleteExam(id), onSuccess: (_, id) => written(null, id) });
+}
+
+export function useOverview() {
+  return useQuery({ queryKey: queryKeys.overview, queryFn: api.overview });
+}
+
+/** Cached per week on the server; the first view of a week generates it (can take a while). */
+export function useWeeklySummary() {
+  return useQuery({ queryKey: queryKeys.weeklySummary, queryFn: () => api.weeklySummary(), staleTime: 10 * 60_000, retry: 0 });
+}
+
+export function useRefreshWeeklySummary() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.weeklySummary(true),
+    onSuccess: (summary) => queryClient.setQueryData(queryKeys.weeklySummary, summary),
   });
 }

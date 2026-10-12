@@ -1,16 +1,21 @@
-import { API_URL, APP_TOKEN, SOLVE_TIMEOUT_MS } from '../config';
+import { API_URL, APP_TOKEN, AI_UPLOAD_TIMEOUT_MS } from '../config';
 import type {
   AttemptInput,
   AttemptResponse,
   ChatMessage,
   ChatThread,
+  ExamInput,
+  ExamResult,
   Facets,
+  KarneDraft,
+  Overview,
   Profile,
   Question,
   QuestionFilter,
   QuestionPage,
   ReviewResultResponse,
   ReviewsToday,
+  WeeklySummary,
 } from './types';
 
 /** Error whose message is ready to show to the user (Turkish). */
@@ -50,13 +55,57 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   } catch {
     throw new ApiError('Sunucuya ulaşılamadı. İnternet bağlantını ve API adresini kontrol et.');
   }
-  const body: unknown = await res.json().catch(() => null);
+  const body: unknown = res.status === 204 ? null : await res.json().catch(() => null);
   if (!res.ok) throw errorFromBody(res.status, body);
   return body as T;
 }
 
 export function questionImageUrl(id: string): string {
   return `${API_URL}/questions/${id}/image`;
+}
+
+/**
+ * Uploads a JPEG as multipart "image" and waits for the JSON reply. Uses XMLHttpRequest
+ * instead of fetch so we can set a long timeout (iOS otherwise gives up after 60s of
+ * silence while the model thinks) and report upload progress.
+ */
+function postImage<T>(path: string, imageUri: string, onUploadProgress?: (fraction: number) => void): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    try {
+      assertConfigured();
+    } catch (e) {
+      reject(e);
+      return;
+    }
+    const form = new FormData();
+    // React Native's FormData accepts a { uri, name, type } file descriptor.
+    form.append('image', { uri: imageUri, name: 'image.jpg', type: 'image/jpeg' } as unknown as Blob);
+
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', `${API_URL}${path}`);
+    xhr.setRequestHeader('Authorization', authHeaders.Authorization);
+    xhr.timeout = AI_UPLOAD_TIMEOUT_MS;
+    xhr.responseType = 'text';
+    if (onUploadProgress) {
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable && e.total > 0) onUploadProgress(e.loaded / e.total);
+      };
+      xhr.upload.onload = () => onUploadProgress(1);
+    }
+    xhr.onload = () => {
+      let body: unknown = null;
+      try {
+        body = JSON.parse(xhr.responseText);
+      } catch {
+        // fall through with null body
+      }
+      if (xhr.status >= 200 && xhr.status < 300 && body) resolve(body as T);
+      else reject(errorFromBody(xhr.status, body));
+    };
+    xhr.onerror = () => reject(new ApiError('Sunucuya ulaşılamadı. İnternet bağlantını ve API adresini kontrol et.'));
+    xhr.ontimeout = () => reject(new ApiError('İşlem çok uzun sürdü. Tekrar dene.'));
+    xhr.send(form);
+  });
 }
 
 export const api = {
@@ -88,46 +137,20 @@ export const api = {
       body: JSON.stringify({ content }),
     }),
 
-  /**
-   * Uploads a JPEG and waits for the solution. Uses XMLHttpRequest instead of fetch so
-   * we can set a long timeout (iOS otherwise gives up after 60s of silence) and report
-   * upload progress.
-   */
+  /** Uploads a question photo and waits for the solution. */
   solve: (imageUri: string, onUploadProgress?: (fraction: number) => void) =>
-    new Promise<Question>((resolve, reject) => {
-      try {
-        assertConfigured();
-      } catch (e) {
-        reject(e);
-        return;
-      }
-      const form = new FormData();
-      // React Native's FormData accepts a { uri, name, type } file descriptor.
-      form.append('image', { uri: imageUri, name: 'question.jpg', type: 'image/jpeg' } as unknown as Blob);
+    postImage<Question>('/solve', imageUri, onUploadProgress),
 
-      const xhr = new XMLHttpRequest();
-      xhr.open('POST', `${API_URL}/solve`);
-      xhr.setRequestHeader('Authorization', authHeaders.Authorization);
-      xhr.timeout = SOLVE_TIMEOUT_MS;
-      xhr.responseType = 'text';
-      if (onUploadProgress) {
-        xhr.upload.onprogress = (e) => {
-          if (e.lengthComputable && e.total > 0) onUploadProgress(e.loaded / e.total);
-        };
-        xhr.upload.onload = () => onUploadProgress(1);
-      }
-      xhr.onload = () => {
-        let body: unknown = null;
-        try {
-          body = JSON.parse(xhr.responseText);
-        } catch {
-          // fall through with null body
-        }
-        if (xhr.status >= 200 && xhr.status < 300 && body) resolve(body as Question);
-        else reject(errorFromBody(xhr.status, body));
-      };
-      xhr.onerror = () => reject(new ApiError('Sunucuya ulaşılamadı. İnternet bağlantını ve API adresini kontrol et.'));
-      xhr.ontimeout = () => reject(new ApiError('Çözüm çok uzun sürdü. Tekrar dene.'));
-      xhr.send(form);
-    }),
+  exams: () => request<{ items: ExamResult[] }>('/exams'),
+  exam: (id: string) => request<ExamResult>(`/exams/${encodeURIComponent(id)}`),
+  /** Reads a karne photo into a draft; nothing is saved. */
+  parseKarne: (imageUri: string, onUploadProgress?: (fraction: number) => void) =>
+    postImage<KarneDraft>('/exams/parse', imageUri, onUploadProgress),
+  createExam: (input: ExamInput) =>
+    request<{ exam: ExamResult; xpGained: number; profile: Profile }>('/exams', { method: 'POST', body: JSON.stringify(input) }),
+  updateExam: (id: string, input: ExamInput) =>
+    request<ExamResult>(`/exams/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(input) }),
+  deleteExam: (id: string) => request<null>(`/exams/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  overview: () => request<Overview>('/stats/overview'),
+  weeklySummary: (refresh = false) => request<WeeklySummary>(`/stats/weekly-summary${refresh ? '?refresh=true' : ''}`),
 };

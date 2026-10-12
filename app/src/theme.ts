@@ -45,6 +45,19 @@ export interface ColorTokens {
   cropFrame: string;
 
   subject: Record<Subject, string>;
+
+  /** Chart roles. The accent passes the dataviz checks (band, chroma, ≥3:1) on both surfaces. */
+  chart: {
+    line: string;
+    /** Area wash under a line: the line hue at ~10%. */
+    area: string;
+    bar: string;
+    grid: string;
+    axisText: string;
+    crosshair: string;
+    /** Ring around markers so they stay legible over lines. */
+    markerRing: string;
+  };
 }
 
 const light: ColorTokens = {
@@ -93,6 +106,16 @@ const light: ColorTokens = {
     'Kimya': '#12A594',
     'Biyoloji': '#30A46C',
   },
+
+  chart: {
+    line: '#6C5CE7',
+    area: 'rgba(108, 92, 231, 0.10)',
+    bar: '#6C5CE7',
+    grid: '#E3E0F0',
+    axisText: '#6E6B85',
+    crosshair: '#6E6B85',
+    markerRing: '#FFFFFF',
+  },
 };
 
 const dark: ColorTokens = {
@@ -140,6 +163,16 @@ const dark: ColorTokens = {
     'Fizik': '#5B9DFF',
     'Kimya': '#2EC4B6',
     'Biyoloji': '#4CC98A',
+  },
+
+  chart: {
+    line: '#8B7CF6',
+    area: 'rgba(139, 124, 246, 0.12)',
+    bar: '#8B7CF6',
+    grid: '#2E2C40',
+    axisText: '#A09EB5',
+    crosshair: '#A09EB5',
+    markerRing: '#1A1926',
   },
 };
 
@@ -192,6 +225,17 @@ export const layout = {
   shutterSize: 76,
   cropHandle: 44,
   cropMinSize: 80,
+  chart: {
+    lineWidth: 2,
+    markerRadius: 4,
+    ringWidth: 2,
+    barThickness: 12,
+    barEndRadius: 4,
+    trendHeight: 180,
+    sparkHeight: 44,
+    axisWidth: 34,
+    endLabelWidth: 44,
+  },
 } as const;
 
 export interface Theme {

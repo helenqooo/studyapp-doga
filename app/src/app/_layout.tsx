@@ -52,6 +52,9 @@ export default function RootLayout() {
           <Stack.Screen name="question/[id]/chat" options={{ title: 'Anlamadım' }} />
           <Stack.Screen name="review-session" options={{ title: 'Tekrar' }} />
           <Stack.Screen name="topic-picker" options={{ presentation: 'modal', title: 'Konu seç' }} />
+          <Stack.Screen name="exam/new" options={{ title: 'Deneme ekle' }} />
+          <Stack.Screen name="exam/[id]/index" options={{ title: 'Deneme' }} />
+          <Stack.Screen name="exam/[id]/edit" options={{ title: 'Denemeyi düzenle' }} />
         </Stack>
       </ThemeProvider>
     </QueryClientProvider>

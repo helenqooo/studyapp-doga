@@ -1,5 +1,5 @@
-import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, View } from 'react-native';
 import { useFacets, useQuestionList, useReviewsToday } from '../../api/hooks';
 import { AppText } from '../../components/AppText';
@@ -166,7 +166,12 @@ function HistoryPanel() {
 }
 
 export default function ReviewScreen() {
-  const [tab, setTab] = useState<Tab>('today');
+  // Other screens can open the history directly (e.g. a tapped topic in Analiz).
+  const params = useLocalSearchParams<{ tab?: Tab }>();
+  const [tab, setTab] = useState<Tab>(params.tab ?? 'today');
+  useEffect(() => {
+    if (params.tab) setTab(params.tab);
+  }, [params.tab]);
   return (
     <Screen title="Tekrar">
       <SegmentedControl
