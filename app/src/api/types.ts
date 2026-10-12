@@ -1,6 +1,9 @@
 // Mirrors the server DTOs in server/src/dto.ts.
 
 import type { Exam } from '../data/topics';
+import type { Choice, ChoiceLabel } from '../lib/choices';
+
+export type { Choice, ChoiceLabel };
 
 export type AttemptResult = 'correct' | 'wrong' | 'blank';
 
@@ -32,7 +35,14 @@ export interface Question {
   subject: string;
   topicId: string;
   difficulty: number;
+  /** The stem; choices are listed separately. */
   questionText: string;
+  /** Null for an open-ended question. */
+  choices: Choice[] | null;
+  /** The model's answer letter. */
+  correctChoice: ChoiceLabel | null;
+  /** The student's answer key letter, if set; it wins over correctChoice. */
+  answerKey: ChoiceLabel | null;
   hints: string[];
   solutionSteps: string[];
   finalAnswer: string;
@@ -82,6 +92,13 @@ export interface ReviewResultResponse {
   profile: Profile;
 }
 
+export interface ReviewResultInput {
+  choice?: ChoiceLabel | null;
+  /** Needed without a gradable choice ("Bilmiyorum" is wrong). */
+  result?: 'correct' | 'wrong';
+  viewedSolution: boolean;
+}
+
 export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';
@@ -109,7 +126,10 @@ export interface Profile {
 }
 
 export interface AttemptInput {
-  result: AttemptResult;
+  /** The picked choice; the server grades it when the answer letter is known. */
+  choice?: ChoiceLabel | null;
+  /** Needed without a gradable choice (blank, or an open-ended question). */
+  result?: AttemptResult;
   userAnswer?: string | null;
   hintsUsed: number;
   viewedSolution: boolean;

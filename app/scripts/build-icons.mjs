@@ -19,6 +19,8 @@ const ICONS = [
   'coffee', 'crown', 'eye-off', 'graduation-cap', 'key-round', 'layers', 'library', 'lock', 'log-out', 'medal',
   'moon', 'pause', 'plus', 'settings', 'skip-forward', 'square', 'sunrise', 'target', 'ticket', 'user-round',
   'users', 'volume-2', 'volume-x',
+  // Multiple choice, assistant chat
+  'circle-question-mark', 'send', 'message-circle', 'heart', 'hand',
 ];
 
 const require = createRequire(import.meta.url);

@@ -1,3 +1,4 @@
+import { resolveChoices } from './choices';
 import type { attempts, profiles, questionMessages, questions, reviews } from './db/schema';
 import { effectiveStreak, levelFromXp } from './gamification';
 import { intervalDays } from './srs';
@@ -41,6 +42,7 @@ export interface QuestionExtras {
 }
 
 export function questionDto(q: QuestionRow, extras: QuestionExtras = {}) {
+  const mc = resolveChoices(q);
   return {
     id: q.id,
     createdAt: iso(q.createdAt),
@@ -48,7 +50,13 @@ export function questionDto(q: QuestionRow, extras: QuestionExtras = {}) {
     subject: q.subject,
     topicId: q.topicId,
     difficulty: q.difficulty,
-    questionText: q.questionText,
+    /** The stem; choices are listed separately. */
+    questionText: mc.stem,
+    choices: mc.choices,
+    /** The model's answer letter. */
+    correctChoice: mc.aiChoice,
+    /** The student's answer key letter, if they set one (it wins over correctChoice). */
+    answerKey: mc.answerKey,
     hints: q.hints,
     solutionSteps: q.solutionSteps,
     finalAnswer: q.finalAnswer,

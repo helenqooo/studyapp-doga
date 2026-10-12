@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { useReviewResult, useReviewsToday } from '../api/hooks';
-import type { Question, ReviewState } from '../api/types';
+import type { ChoiceLabel, Question, ReviewResultInput, ReviewState } from '../api/types';
 import { AppText } from '../components/AppText';
 import { Badge } from '../components/Badge';
 import { Button } from '../components/Button';
@@ -20,13 +20,15 @@ import { useResultCelebration } from '../lib/celebrate';
 import { reviewDueLabel } from '../lib/format';
 import { haptics } from '../lib/haptics';
 import { useWindowLayout } from '../lib/layout';
-import { answerMarkdown, solutionMarkdown } from '../lib/question';
+import { answerMarkdown, gradingKey, isGradedChoice, solutionMarkdown } from '../lib/question';
 import { subjectColor, useTheme } from '../theme';
 
 interface Outcome {
   correct: boolean;
   review: ReviewState;
   xpGained: number;
+  /** The picked choice, if any. */
+  pick: ChoiceLabel | null;
 }
 
 function Feedback({ outcome }: { outcome: Outcome }) {
@@ -76,6 +78,7 @@ export default function ReviewSessionScreen() {
   const [showSolution, setShowSolution] = useState(false);
   const [showText, setShowText] = useState(false);
   const [outcome, setOutcome] = useState<Outcome | null>(null);
+  const [picked, setPicked] = useState<ChoiceLabel | null>(null);
   const [tally, setTally] = useState({ correct: 0, wrong: 0, xp: 0 });
 
   useEffect(() => {
@@ -135,13 +138,19 @@ export default function ReviewSessionScreen() {
   const q = queue[index]!;
   const topic = getTopic(q.topicId);
 
-  const answer = (correct: boolean) => {
+  const graded = isGradedChoice(q);
+  const key = gradingKey(q);
+
+  const answer = (input: Pick<ReviewResultInput, 'choice' | 'result'>) => {
     submit.mutate(
-      { questionId: q.id, result: correct ? 'correct' : 'wrong', viewedSolution: showSolution },
+      { questionId: q.id, ...input, viewedSolution: showSolution },
       {
         onSuccess: (res) => {
+          // A picked choice is graded by the server.
+          const correct = res.attempt.result === 'correct';
           celebrate(correct ? 'correct' : 'wrong', res.rewards);
-          setOutcome({ correct, review: res.review, xpGained: res.xpGained });
+          setRevealed(true);
+          setOutcome({ correct, review: res.review, xpGained: res.xpGained, pick: input.choice ?? null });
           setTally((t) => ({
             correct: t.correct + (correct ? 1 : 0),
             wrong: t.wrong + (correct ? 0 : 1),
@@ -159,6 +168,7 @@ export default function ReviewSessionScreen() {
     setShowSolution(false);
     setShowText(false);
     setOutcome(null);
+    setPicked(null);
     submit.reset();
   };
 
@@ -199,11 +209,46 @@ export default function ReviewSessionScreen() {
             variant="ghost"
             onPress={() => setShowText((v) => !v)}
           />
+          {graded ? (
+            <MathView
+              markdown=""
+              choices={q.choices}
+              choiceState={
+                outcome
+                  ? { correct: key, wrong: outcome.pick && outcome.pick !== key ? outcome.pick : null, disabled: true }
+                  : { selected: picked, disabled: submit.isPending }
+              }
+              onChoice={(label) => {
+                if (outcome || submit.isPending) return;
+                haptics.select();
+                setPicked((p) => (p === label ? null : label));
+              }}
+            />
+          ) : null}
         </Card>
       </Appear>
     </>
   );
-  const answerPane = (
+  // Multiple choice: pick first, the app grades it, then the answer and solution open.
+  const pickFirst = graded && !outcome ? (
+    <>
+      <AppText color="textMuted" align="center">
+        {picked ? `${picked} şıkkını seçtin.` : 'Soruyu kağıtta çöz, bulduğun şıkkı seç.'}
+      </AppText>
+      {submit.isError ? <AppText color="danger">{submit.error.message}</AppText> : null}
+      <Button
+        label={picked ? `Cevabım ${picked}` : 'Önce bir şık seç'}
+        icon="check"
+        size="lg"
+        disabled={!picked || submit.isPending}
+        loading={submit.isPending && !!picked}
+        onPress={() => picked && answer({ choice: picked })}
+      />
+      <Button label="Bilmiyorum" icon="circle-question-mark" variant="ghost" disabled={submit.isPending} onPress={() => answer({ result: 'wrong' })} />
+    </>
+  ) : null;
+
+  const answerPane = pickFirst ?? (
     <>
       {!revealed ? (
         <>
@@ -267,7 +312,7 @@ export default function ReviewSessionScreen() {
                   icon="x"
                   variant="danger"
                   disabled={submit.isPending}
-                  onPress={() => answer(false)}
+                  onPress={() => answer({ result: 'wrong' })}
                   style={{ flex: 1 }}
                 />
                 <Button
@@ -275,7 +320,7 @@ export default function ReviewSessionScreen() {
                   icon="check"
                   variant="success"
                   loading={submit.isPending}
-                  onPress={() => answer(true)}
+                  onPress={() => answer({ result: 'correct' })}
                   style={{ flex: 1 }}
                 />
               </View>

@@ -2,7 +2,8 @@ import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { View } from 'react-native';
 import { useQuestion, useRecordAttempt } from '../../../api/hooks';
-import type { AttemptResult, Question } from '../../../api/types';
+import type { AttemptInput, AttemptResult, ChoiceLabel, Question } from '../../../api/types';
+import { AnswerKeyEditor } from '../../../components/AnswerKeyEditor';
 import { AppText } from '../../../components/AppText';
 import { Badge } from '../../../components/Badge';
 import { Button } from '../../../components/Button';
@@ -12,7 +13,6 @@ import { Icon } from '../../../components/Icon';
 import { MathView } from '../../../components/math/MathView';
 import { Appear } from '../../../components/motion/Appear';
 import { Loader } from '../../../components/motion/Loader';
-import { PressableScale } from '../../../components/motion/PressableScale';
 import { QuestionImage } from '../../../components/QuestionImage';
 import { Screen, SplitScreen } from '../../../components/Screen';
 import { LOW_CONFIDENCE_THRESHOLD } from '../../../config';
@@ -21,10 +21,8 @@ import { useResultCelebration } from '../../../lib/celebrate';
 import { reviewDueLabel, shortDate } from '../../../lib/format';
 import { haptics } from '../../../lib/haptics';
 import { useWindowLayout } from '../../../lib/layout';
-import { RESULT_LABELS, RESULT_SHORT, solutionMarkdown } from '../../../lib/question';
+import { gradingKey, isGradedChoice, RESULT_LABELS, RESULT_SHORT, solutionMarkdown } from '../../../lib/question';
 import { subjectColor, useTheme } from '../../../theme';
-
-const CHOICES = ['A', 'B', 'C', 'D', 'E'];
 
 function ReviewStatus({ q }: { q: Question }) {
   const theme = useTheme();
@@ -73,6 +71,37 @@ function AttemptHistory({ q }: { q: Question }) {
   );
 }
 
+/** What was saved: graded choice ("B dedin, doğrusu C") or the self-reported result. */
+function SavedResult({ q, result, pick }: { q: Question; result: AttemptResult; pick: ChoiceLabel | null }) {
+  const theme = useTheme();
+  const key = gradingKey(q);
+  const tone = { correct: theme.colors.success, wrong: theme.colors.danger, blank: theme.colors.neutral }[result];
+  const icon = ({ correct: 'circle-check', wrong: 'circle-x', blank: 'circle-minus' } as const)[result];
+  let title: string;
+  let detail: string | null = null;
+  if (isGradedChoice(q)) {
+    title = result === 'correct' ? `Doğru! Cevap ${key}.` : result === 'wrong' ? `${pick} dedin, doğrusu ${key}.` : `Boş bıraktın. Doğrusu ${key}.`;
+    if (result === 'wrong') detail = 'Yanlışlar tekrar listende; birkaç gün sonra yeniden deneyeceğiz.';
+  } else {
+    title = `Kaydedildi: ${RESULT_LABELS[result]}${pick ? ` (cevabın: ${pick})` : ''}`;
+  }
+  return (
+    <View style={{ gap: theme.spacing.xxs }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm }}>
+        <Icon name={icon} color={tone} />
+        <AppText weight="semibold" tint={tone} style={{ flex: 1 }}>
+          {title}
+        </AppText>
+      </View>
+      {detail ? (
+        <AppText variant="label" color="textMuted">
+          {detail}
+        </AppText>
+      ) : null}
+    </View>
+  );
+}
+
 export default function QuestionScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const theme = useTheme();
@@ -83,7 +112,7 @@ export default function QuestionScreen() {
 
   const [hintsShown, setHintsShown] = useState(0);
   const [solutionShown, setSolutionShown] = useState(false);
-  const [userAnswer, setUserAnswer] = useState<string | null>(null);
+  const [picked, setPicked] = useState<ChoiceLabel | null>(null);
   const [savedXp, setSavedXp] = useState<number | null>(null);
 
   if (query.isPending) {
@@ -121,17 +150,35 @@ export default function QuestionScreen() {
     setSolutionShown(true);
   };
 
-  const save = (result: AttemptResult) => {
+  const graded = isGradedChoice(q);
+  const key = gradingKey(q);
+
+  const save = (input: Pick<AttemptInput, 'choice' | 'result'>) => {
     record.mutate(
-      { result, userAnswer, hintsUsed: hintsShown, viewedSolution: solutionShown },
+      { ...input, hintsUsed: hintsShown, viewedSolution: solutionShown },
       {
         onSuccess: (res) => {
-          celebrate(result, res.rewards);
+          // The server decides right or wrong for a picked choice.
+          celebrate(res.attempt.result, res.rewards);
           setSavedXp(res.xpGained);
         },
         onError: () => haptics.error(),
       },
     );
+  };
+
+  // Choices under the question: pick your answer; once saved, the right one turns green
+  // and a wrong pick red.
+  const savedPick = saved?.userAnswer && q.choices?.some((c) => c.label === saved.userAnswer) ? (saved.userAnswer as ChoiceLabel) : null;
+  const choiceState = saved
+    ? graded
+      ? { correct: key, wrong: savedPick && savedPick !== key ? savedPick : null, disabled: true }
+      : { selected: savedPick, disabled: true }
+    : { selected: picked, disabled: record.isPending };
+  const pick = (label: ChoiceLabel) => {
+    if (saved || record.isPending) return;
+    haptics.select();
+    setPicked((p) => (p === label ? null : label));
   };
 
   const title = <Stack.Screen options={{ title: topic ? topic.topic : 'Çözüm' }} />;
@@ -159,12 +206,13 @@ export default function QuestionScreen() {
               </AppText>
             </View>
           </View>
+          <AnswerKeyEditor q={q} />
         </Card>
       ) : null}
 
       <Card title="Soru">
         <QuestionImage questionId={q.id} size={split ? 'large' : 'regular'} />
-        <MathView markdown={q.questionText} />
+        <MathView markdown={q.questionText} choices={q.choices} choiceState={choiceState} onChoice={pick} />
       </Card>
     </>
   );
@@ -209,16 +257,10 @@ export default function QuestionScreen() {
         />
       </View>
 
-      <Card title="Sen ne yaptın?">
+      <Card title="Senin cevabın">
         {saved ? (
           <Appear style={{ gap: theme.spacing.sm }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm }}>
-              <Icon name="circle-check" color={theme.colors.success} />
-              <AppText weight="semibold" style={{ flex: 1 }}>
-                Kaydedildi: {RESULT_LABELS[saved.result]}
-                {saved.userAnswer ? ` (cevabın: ${saved.userAnswer})` : ''}
-              </AppText>
-            </View>
+            <SavedResult q={q} result={saved.result} pick={savedPick} />
             {savedXp ? (
               <Badge label={`+${savedXp} XP`} icon="star" color={theme.colors.xpText} background={theme.colors.xpTrack} />
             ) : null}
@@ -227,47 +269,34 @@ export default function QuestionScreen() {
                 Bu soru tekrar listene eklendi. Yarın karşına çıkacak.
               </AppText>
             ) : null}
+            {!lowConfidence ? <AnswerKeyEditor q={q} /> : null}
           </Appear>
+        ) : graded ? (
+          <>
+            <AppText color="textMuted">
+              {picked ? `${picked} şıkkını seçtin. Emin misin?` : 'Kâğıtta bulduğun şıkkı yukarıdan seç.'}
+            </AppText>
+            {record.isError ? <AppText color="danger">{record.error.message}</AppText> : null}
+            <Button
+              label={picked ? `Cevabım ${picked}` : 'Önce bir şık seç'}
+              icon="check"
+              disabled={!picked || record.isPending}
+              loading={record.isPending && !!picked}
+              onPress={() => picked && save({ choice: picked })}
+            />
+            <Button label={RESULT_LABELS.blank} icon="minus" variant="neutral" disabled={record.isPending} onPress={() => save({ result: 'blank' })} />
+          </>
         ) : (
           <>
-            <AppText variant="label" color="textMuted">
-              Cevabın (isteğe bağlı)
-            </AppText>
-            <View style={{ flexDirection: 'row', gap: theme.spacing.sm }}>
-              {CHOICES.map((choice) => {
-                const active = userAnswer === choice;
-                return (
-                  <PressableScale
-                    key={choice}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Cevabım ${choice}`}
-                    accessibilityState={{ selected: active }}
-                    onPress={() => {
-                      haptics.select();
-                      setUserAnswer(active ? null : choice);
-                    }}
-                    style={{
-                      flex: 1,
-                      height: theme.layout.minTouch,
-                      borderRadius: theme.radius.md,
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      backgroundColor: active ? theme.colors.primary : theme.colors.surfaceAlt,
-                    }}
-                  >
-                    <AppText weight="semibold" tint={active ? theme.colors.textOnAccent : theme.colors.text}>
-                      {choice}
-                    </AppText>
-                  </PressableScale>
-                );
-              })}
-            </View>
-
+            {q.choices?.length ? (
+              <AppText variant="label" color="textMuted">
+                {picked ? `Cevabın: ${picked}. Doğru mu yaptın?` : 'İstersen cevabını yukarıdan seç, sonra sonucu işaretle.'}
+              </AppText>
+            ) : null}
             {record.isError ? <AppText color="danger">{record.error.message}</AppText> : null}
-
-            <Button label={RESULT_LABELS.correct} icon="check" variant="success" loading={record.isPending} onPress={() => save('correct')} />
-            <Button label={RESULT_LABELS.wrong} icon="x" variant="danger" disabled={record.isPending} onPress={() => save('wrong')} />
-            <Button label={RESULT_LABELS.blank} icon="minus" variant="neutral" disabled={record.isPending} onPress={() => save('blank')} />
+            <Button label={RESULT_LABELS.correct} icon="check" variant="success" loading={record.isPending} onPress={() => save({ choice: picked, result: 'correct' })} />
+            <Button label={RESULT_LABELS.wrong} icon="x" variant="danger" disabled={record.isPending} onPress={() => save({ choice: picked, result: 'wrong' })} />
+            <Button label={RESULT_LABELS.blank} icon="minus" variant="neutral" disabled={record.isPending} onPress={() => save({ result: 'blank' })} />
           </>
         )}
       </Card>

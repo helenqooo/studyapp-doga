@@ -1,4 +1,5 @@
 import { index, integer, primaryKey, real, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
+import type { Choice, ChoiceLabel } from '../choices';
 
 // Timestamps are unix epoch milliseconds. Calendar days ("YYYY-MM-DD") are in APP_TIMEZONE.
 //
@@ -55,6 +56,14 @@ export const questions = sqliteTable(
     confidence: real('confidence').notNull(),
     model: text('model').notNull(),
     userId: text('user_id').references(() => users.id, { onDelete: 'cascade' }),
+    // Answer choices read by the model, apart from the stem in question_text. Null for an
+    // open-ended question and for questions saved before choices were stored (their
+    // choices are still inside question_text; see src/choices.ts).
+    choices: text('choices', { mode: 'json' }).$type<Choice[]>(),
+    /** The model's answer letter. */
+    correctChoice: text('correct_choice').$type<ChoiceLabel>(),
+    /** The letter from the student's answer key; overrides correct_choice. */
+    answerKey: text('answer_key').$type<ChoiceLabel>(),
   },
   (t) => [
     index('questions_created_at_idx').on(t.createdAt),

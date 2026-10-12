@@ -3,6 +3,7 @@ import { and, asc, count, eq, gte, lte } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import type { AppDeps } from '../app';
+import { CHOICE_LABELS, gradeAnswer } from '../choices';
 import { currentUser } from '../auth';
 import { hydrateQuestions } from '../db/hydrate';
 import { attempts, questions, reviews } from '../db/schema';
@@ -13,7 +14,9 @@ import { localDate } from '../time';
 import type { IdParams } from './questions';
 
 const ResultBody = z.object({
-  result: z.enum(['correct', 'wrong']),
+  /** Ignored when `choice` can be graded against the answer letter. */
+  result: z.enum(['correct', 'wrong']).optional(),
+  choice: z.enum(CHOICE_LABELS).nullish(),
   viewedSolution: z.boolean().default(false),
 });
 
@@ -53,7 +56,6 @@ export function reviewRoutes(app: FastifyInstance, { env, db, now }: AppDeps): v
     const user = currentUser(req);
     const ts = now();
     const today = localDate(ts, env.APP_TIMEZONE);
-    const correct = body.data.result === 'correct';
 
     const outcome = db.transaction((tx) => {
       const review = tx
@@ -65,6 +67,12 @@ export function reviewRoutes(app: FastifyInstance, { env, db, now }: AppDeps): v
       if (review.status !== 'active' || review.dueDate > today) {
         return { error: 409 as const, message: 'Bu sorunun tekrar zamanı henüz gelmedi.' };
       }
+      const question = tx.select().from(questions).where(eq(questions.id, review.questionId)).get()!;
+      const graded = gradeAnswer(question, { choice: body.data.choice, result: body.data.result });
+      if ('error' in graded) return { error: 400 as const, message: graded.error };
+      // A review is right or wrong; not knowing counts as wrong.
+      const correct = graded.result === 'correct';
+      const result = correct ? 'correct' : 'wrong';
 
       const schedule = nextSchedule(review.stage, correct, today);
       const updated = tx
@@ -74,7 +82,7 @@ export function reviewRoutes(app: FastifyInstance, { env, db, now }: AppDeps): v
           dueDate: schedule.dueDate,
           status: schedule.status,
           correctCount: correct ? review.correctCount + 1 : review.correctCount,
-          lastResult: body.data.result,
+          lastResult: result,
           lastReviewedAt: ts,
         })
         .where(eq(reviews.questionId, review.questionId))
@@ -88,7 +96,8 @@ export function reviewRoutes(app: FastifyInstance, { env, db, now }: AppDeps): v
           questionId: review.questionId,
           createdAt: ts,
           source: 'review',
-          result: body.data.result,
+          result,
+          userAnswer: graded.choice,
           viewedSolution: body.data.viewedSolution,
           userId: user.id,
         })

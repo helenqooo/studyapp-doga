@@ -2,6 +2,7 @@
 // EXPO_PUBLIC_DEMO=1). Same shape as the HTTP client; data resets when the app reloads.
 
 import { getTopic, SUBJECTS_BY_EXAM, topicLabel, type Exam, type Subject } from '../../data/topics';
+import { gradeAnswer, isChoiceLabel, resolveChoices } from '../../lib/choices';
 import { ApiError } from '../errors';
 import type {
   Attempt,
@@ -13,6 +14,7 @@ import type {
   AvatarKey,
   ChatMessage,
   ChatThread,
+  ChoiceLabel,
   ExamInput,
   ExamResult,
   ExamSectionInput,
@@ -25,6 +27,7 @@ import type {
   QuestionFilter,
   QuestionPage,
   RegisterInput,
+  ReviewResultInput,
   ReviewResultResponse,
   ReviewsToday,
   ReviewState,
@@ -68,6 +71,8 @@ interface QuestionRow {
   id: string;
   createdAt: number;
   data: DemoQuestion;
+  /** The student's answer key letter, if set. */
+  answerKey: ChoiceLabel | null;
 }
 interface AttemptRow extends Omit<Attempt, 'createdAt'> {
   questionId: string;
@@ -151,7 +156,7 @@ function seed() {
     if (!data) continue;
     const createdAt = daysAgo(sq.daysAgo, 18);
     const id = `demo-${sq.key}`;
-    db.questions.push({ id, createdAt, data });
+    db.questions.push({ id, createdAt, data, answerKey: null });
     db.attempts.push({
       id: `${id}-a0`,
       questionId: id,
@@ -322,9 +327,15 @@ function reviewDto(r: ReviewRow): ReviewState {
   };
 }
 
+/** Demo questions keep their choices inside the text, like questions saved before choices. */
+function choicesOf(q: QuestionRow) {
+  return { questionText: q.data.questionText, finalAnswer: q.data.finalAnswer, choices: null, correctChoice: null, answerKey: q.answerKey };
+}
+
 function questionDto(q: QuestionRow): Question {
   const { data } = q;
   const review = db.reviews.find((r) => r.questionId === q.id);
+  const mc = resolveChoices(choicesOf(q));
   return {
     id: q.id,
     createdAt: iso(q.createdAt),
@@ -332,7 +343,10 @@ function questionDto(q: QuestionRow): Question {
     subject: data.subject,
     topicId: data.topicId,
     difficulty: data.difficulty,
-    questionText: data.questionText,
+    questionText: mc.stem,
+    choices: mc.choices,
+    correctChoice: mc.aiChoice,
+    answerKey: mc.answerKey,
     hints: [...data.hints],
     solutionSteps: [...data.solutionSteps],
     finalAnswer: data.finalAnswer,
@@ -667,19 +681,21 @@ export const demoApi = {
     if (db.attempts.some((a) => a.questionId === id && a.source === 'solve')) {
       throw new ApiError('Bu soru zaten işaretlendi.', 409);
     }
+    const graded = gradeAnswer(choicesOf(q), { choice: input.choice, result: input.result });
+    if ('error' in graded) throw new ApiError(graded.error, 400);
     const now = Date.now();
     const attempt: AttemptRow = {
       id: newId('att'),
       questionId: q.id,
       createdAt: now,
       source: 'solve',
-      result: input.result,
-      userAnswer: input.userAnswer || null,
+      result: graded.result,
+      userAnswer: graded.choice ?? (input.userAnswer || null),
       hintsUsed: input.hintsUsed,
       viewedSolution: input.viewedSolution,
     };
     db.attempts.push(attempt);
-    if (input.result !== 'correct' && !db.reviews.some((r) => r.questionId === q.id)) {
+    if (graded.result !== 'correct' && !db.reviews.some((r) => r.questionId === q.id)) {
       const schedule = initialSchedule(localDate(now));
       db.reviews.push({ questionId: q.id, ...schedule, correctCount: 0, lastResult: null, lastReviewedAt: null, createdAt: now });
     }
@@ -724,17 +740,21 @@ export const demoApi = {
       completedToday: db.reviews.filter((r) => r.lastReviewedAt !== null && localDate(r.lastReviewedAt) === today).length,
     };
   },
-  reviewResult: async (id: string, input: { result: 'correct' | 'wrong'; viewedSolution: boolean }): Promise<ReviewResultResponse> => {
+  reviewResult: async (id: string, input: ReviewResultInput): Promise<ReviewResultResponse> => {
     await wait(QUICK_MS * 2);
     const now = Date.now();
     const today = localDate(now);
     const review = db.reviews.find((r) => r.questionId === id);
     if (!review) throw new ApiError('Bu soru tekrar listende değil.', 404);
     if (review.status !== 'active' || review.dueDate > today) throw new ApiError('Bu sorunun tekrar zamanı henüz gelmedi.', 409);
-    const correct = input.result === 'correct';
+    const graded = gradeAnswer(choicesOf(findQuestion(id)), { choice: input.choice, result: input.result });
+    if ('error' in graded) throw new ApiError(graded.error, 400);
+    // A review is right or wrong; not knowing counts as wrong.
+    const correct = graded.result === 'correct';
+    const result = correct ? 'correct' : 'wrong';
     Object.assign(review, nextSchedule(review.stage, correct, today), {
       correctCount: correct ? review.correctCount + 1 : review.correctCount,
-      lastResult: input.result,
+      lastResult: result,
       lastReviewedAt: now,
     });
     const attempt: AttemptRow = {
@@ -742,8 +762,8 @@ export const demoApi = {
       questionId: id,
       createdAt: now,
       source: 'review',
-      result: input.result,
-      userAnswer: null,
+      result,
+      userAnswer: graded.choice,
       hintsUsed: 0,
       viewedSolution: input.viewedSolution,
     };
@@ -752,6 +772,31 @@ export const demoApi = {
     const stillDue = db.reviews.some((r) => r.status === 'active' && r.dueDate <= today);
     const rewards = applyRewards(correct ? XP.reviewCorrect : 0, now, !stillDue);
     return { review: reviewDto(review), attempt: attemptDto(attempt), xpGained: rewards.xpGained, rewards, profile: profileDto() };
+  },
+  setAnswerKey: async (id: string, answerKey: ChoiceLabel | null): Promise<Question> => {
+    await wait(QUICK_MS);
+    const q = findQuestion(id);
+    const mc = resolveChoices(choicesOf(q));
+    if (!mc.choices) throw new ApiError('Bu sorunun şıkları yok.', 400);
+    if (answerKey && !mc.choices.some((c) => c.label === answerKey)) throw new ApiError('Bu soruda böyle bir şık yok.', 400);
+    q.answerKey = answerKey;
+    // Like the server: re-grade the first answer, and the review queue follows.
+    const key = resolveChoices(choicesOf(q)).key;
+    const first = db.attempts.find((a) => a.questionId === id && a.source === 'solve');
+    if (first && key && isChoiceLabel(first.userAnswer)) {
+      const result = first.userAnswer === key ? 'correct' : 'wrong';
+      if (result !== first.result) {
+        first.result = result;
+        const review = db.reviews.find((r) => r.questionId === id);
+        if (result === 'correct' && review && review.lastReviewedAt === null) {
+          db.reviews = db.reviews.filter((r) => r.questionId !== id);
+        } else if (result === 'wrong' && !review) {
+          const now = Date.now();
+          db.reviews.push({ questionId: id, ...initialSchedule(localDate(now)), correctCount: 0, lastResult: null, lastReviewedAt: null, createdAt: now });
+        }
+      }
+    }
+    return questionDto(q);
   },
   messages: async (id: string): Promise<ChatThread> => {
     await wait(QUICK_MS);
@@ -783,7 +828,7 @@ export const demoApi = {
     await wait(2600);
     const key = db.armedKey ?? nextSampleKey();
     db.armedKey = null;
-    const row: QuestionRow = { id: newId('q'), createdAt: Date.now(), data: byKey.get(key)! };
+    const row: QuestionRow = { id: newId('q'), createdAt: Date.now(), data: byKey.get(key)!, answerKey: null };
     db.questions.push(row);
     return questionDto(row);
   },

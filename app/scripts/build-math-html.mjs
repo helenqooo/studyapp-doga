@@ -35,7 +35,10 @@ const fontCss = [loraFace('400Regular/Lora_400Regular.ttf', '400 500'), loraFace
 
 // Defaults only; the app passes its theme colors in on every render.
 const pageCss = `
-:root { --text: #141413; --muted: #6B6962; --accent: #A84F33; --answer-bg: #F6E8E1; --border: #E4E1D8; --code-bg: #EEECE4; --font-size: 16px; }
+:root {
+  --text: #141413; --muted: #6B6962; --accent: #A84F33; --answer-bg: #F6E8E1; --border: #E4E1D8; --code-bg: #EEECE4; --font-size: 16px;
+  --surface: #FFFFFF; --on-accent: #FFFFFF; --success: #566F3D; --success-soft: #E9EEDF; --danger: #A8443A; --danger-soft: #F9EAE6;
+}
 html, body { margin: 0; padding: 0; background: transparent; }
 body {
   color: var(--text);
@@ -61,6 +64,37 @@ th, td { border: 1px solid var(--border); padding: 0.25em 0.5em; }
 blockquote { margin: 0.6em 0 0; padding: 0.6em 0.85em; border-left: 4px solid var(--accent); background: var(--answer-bg); border-radius: 8px; }
 blockquote p:last-child { margin-bottom: 0; }
 .katex { font-size: 1.08em; }
+/* Answer choices: whole-width buttons; the app passes the state in. */
+.choices { display: flex; flex-direction: column; gap: 8px; margin: 0.4em 0 0; }
+.choice {
+  display: flex; align-items: center; gap: 12px; width: 100%; min-height: 48px; box-sizing: border-box;
+  padding: 8px 12px 8px 8px; margin: 0; text-align: left; font: inherit; color: var(--text);
+  background: var(--surface); border: 1.5px solid var(--border); border-radius: 14px; cursor: pointer;
+  -webkit-tap-highlight-color: transparent; transition: transform 140ms ease, background-color 160ms ease, border-color 160ms ease, opacity 160ms ease;
+}
+.choice:active { transform: scale(0.98); }
+.choice[disabled] { cursor: default; }
+.choice[disabled]:active { transform: none; }
+.choice .letter {
+  flex: none; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  background: var(--code-bg); color: var(--text); font-family: -apple-system, 'Poppins', system-ui, sans-serif; font-weight: 600; font-size: 0.92em;
+}
+.choice .ctext { flex: 1; min-width: 0; }
+.choice .mark { flex: none; font-weight: 700; font-family: -apple-system, system-ui, sans-serif; }
+.choice.selected { border-color: var(--accent); background: var(--answer-bg); }
+.choice.selected .letter { background: var(--accent); color: var(--on-accent); }
+.choice.correct { border-color: var(--success); background: var(--success-soft); }
+.choice.correct .letter { background: var(--success); color: var(--on-accent); }
+.choice.correct .mark { color: var(--success); }
+.choice.wrong { border-color: var(--danger); background: var(--danger-soft); }
+.choice.wrong .letter { background: var(--danger); color: var(--on-accent); }
+.choice.wrong .mark { color: var(--danger); }
+.choice.dim { opacity: 0.55; }
+/* Typing: words not yet "typed" take no space; the caret blinks at the end. */
+.tw-hidden { display: none !important; }
+.caret { display: inline-block; width: 0.5em; height: 1.05em; margin-left: 1px; vertical-align: -0.15em; border-radius: 2px; background: var(--accent); animation: blink 1s steps(2, start) infinite; }
+@keyframes blink { to { visibility: hidden; } }
+@media (prefers-reduced-motion: reduce) { .choice { transition: none; } .caret { animation: none; } }
 .katex-display { margin: 0.5em 0; overflow-x: auto; overflow-y: hidden; padding: 2px 0; }
 `;
 

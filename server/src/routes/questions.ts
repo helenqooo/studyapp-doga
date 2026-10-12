@@ -6,6 +6,7 @@ import { and, count, desc, eq } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import type { AppDeps } from '../app';
+import { CHOICE_LABELS, gradeAnswer, isChoiceLabel, resolveChoices } from '../choices';
 import { currentUser } from '../auth';
 import { hydrateQuestions } from '../db/hydrate';
 import type { Db } from '../db/client';
@@ -23,7 +24,9 @@ const ListQuery = z.object({
 });
 
 const AttemptBody = z.object({
-  result: z.enum(['correct', 'wrong', 'blank']),
+  /** Ignored when `choice` can be graded against the answer letter. */
+  result: z.enum(['correct', 'wrong', 'blank']).optional(),
+  choice: z.enum(CHOICE_LABELS).nullish(),
   userAnswer: z.string().trim().max(200).nullish(),
   hintsUsed: z.number().int().min(0).max(10).default(0),
   viewedSolution: z.boolean().default(false),
@@ -116,6 +119,9 @@ export function questionRoutes(app: FastifyInstance, { env, db, now }: AppDeps):
     const q = ownedQuestion(db, req.params.id, user.id);
     if (!q) return reply.code(404).send({ error: 'Soru bulunamadı.' });
 
+    const graded = gradeAnswer(q, { choice: body.data.choice, result: body.data.result });
+    if ('error' in graded) return reply.code(400).send({ error: graded.error });
+
     const ts = now();
     const today = localDate(ts, env.APP_TIMEZONE);
     const result = db.transaction((tx) => {
@@ -133,8 +139,8 @@ export function questionRoutes(app: FastifyInstance, { env, db, now }: AppDeps):
           questionId: q.id,
           createdAt: ts,
           source: 'solve',
-          result: body.data.result,
-          userAnswer: body.data.userAnswer || null,
+          result: graded.result,
+          userAnswer: graded.choice ?? (body.data.userAnswer || null),
           hintsUsed: body.data.hintsUsed,
           viewedSolution: body.data.viewedSolution,
           userId: user.id,
@@ -142,7 +148,7 @@ export function questionRoutes(app: FastifyInstance, { env, db, now }: AppDeps):
         .returning()
         .get();
 
-      if (body.data.result !== 'correct') {
+      if (graded.result !== 'correct') {
         const schedule = initialSchedule(today);
         tx.insert(reviews)
           .values({
@@ -170,4 +176,52 @@ export function questionRoutes(app: FastifyInstance, { env, db, now }: AppDeps):
       profile: profileDto(result.profile, today),
     });
   });
+
+  // The student's answer key says another letter (or clears their override). The first
+  // answer is graded again, and the review queue follows: a question that turns out right
+  // leaves it (if not reviewed yet), one that turns out wrong joins it.
+  app.put<IdParams>('/questions/:id/answer-key', async (req, reply) => {
+    const body = AnswerKeyBody.safeParse(req.body);
+    if (!body.success) return reply.code(400).send({ error: 'Geçersiz şık.' });
+
+    const user = currentUser(req);
+    const q = ownedQuestion(db, req.params.id, user.id);
+    if (!q) return reply.code(404).send({ error: 'Soru bulunamadı.' });
+    const mc = resolveChoices(q);
+    if (!mc.choices) return reply.code(400).send({ error: 'Bu sorunun şıkları yok.' });
+    const answerKey = body.data.answerKey;
+    if (answerKey && !mc.choices.some((c) => c.label === answerKey)) {
+      return reply.code(400).send({ error: 'Bu soruda böyle bir şık yok.' });
+    }
+
+    const ts = now();
+    const today = localDate(ts, env.APP_TIMEZONE);
+    db.transaction((tx) => {
+      const updated = tx.update(questions).set({ answerKey }).where(eq(questions.id, q.id)).returning().get()!;
+      const key = resolveChoices(updated).key;
+      const first = tx
+        .select()
+        .from(attempts)
+        .where(and(eq(attempts.questionId, q.id), eq(attempts.source, 'solve')))
+        .get();
+      if (!first || !key || !isChoiceLabel(first.userAnswer)) return;
+      const result = first.userAnswer === key ? 'correct' : 'wrong';
+      if (result === first.result) return;
+      tx.update(attempts).set({ result }).where(eq(attempts.id, first.id)).run();
+
+      const review = tx.select().from(reviews).where(eq(reviews.questionId, q.id)).get();
+      if (result === 'correct' && review && review.lastReviewedAt === null) {
+        tx.delete(reviews).where(eq(reviews.questionId, q.id)).run();
+      } else if (result === 'wrong' && !review) {
+        const schedule = initialSchedule(today);
+        tx.insert(reviews)
+          .values({ questionId: q.id, stage: schedule.stage, dueDate: schedule.dueDate, status: schedule.status, createdAt: ts, userId: user.id })
+          .run();
+      }
+    });
+
+    return hydrateQuestions(db, [ownedQuestion(db, q.id, user.id)!])[0];
+  });
 }
+
+const AnswerKeyBody = z.object({ answerKey: z.enum(CHOICE_LABELS).nullable() });

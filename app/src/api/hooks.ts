@@ -1,7 +1,20 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from './client';
 import { useAuthStore } from '../store/authStore';
-import type { AttemptInput, ChatThread, ExamInput, ExamResult, Profile, Question, QuestionFilter, RegisterInput, StudySessionInput, User } from './types';
+import type {
+  AttemptInput,
+  ChatThread,
+  ChoiceLabel,
+  ExamInput,
+  ExamResult,
+  Profile,
+  Question,
+  QuestionFilter,
+  RegisterInput,
+  ReviewResultInput,
+  StudySessionInput,
+  User,
+} from './types';
 
 export const queryKeys = {
   profile: ['profile'] as const,
@@ -87,8 +100,7 @@ export function useReviewsToday() {
 export function useReviewResult() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ questionId, result, viewedSolution }: { questionId: string; result: 'correct' | 'wrong'; viewedSolution: boolean }) =>
-      api.reviewResult(questionId, { result, viewedSolution }),
+    mutationFn: ({ questionId, ...input }: ReviewResultInput & { questionId: string }) => api.reviewResult(questionId, input),
     onSuccess: ({ review, attempt, profile }, { questionId }) => {
       queryClient.setQueryData(queryKeys.profile, profile);
       queryClient.setQueryData<Question>(queryKeys.question(questionId), (q) =>
@@ -98,6 +110,21 @@ export function useReviewResult() {
       queryClient.invalidateQueries({ queryKey: queryKeys.questions });
       queryClient.invalidateQueries({ queryKey: queryKeys.stats });
       queryClient.invalidateQueries({ queryKey: queryKeys.leaderboard });
+    },
+  });
+}
+
+/** Sets (or clears, with null) the letter from the student's answer key. */
+export function useSetAnswerKey(questionId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (answerKey: ChoiceLabel | null) => api.setAnswerKey(questionId, answerKey),
+    onSuccess: (question) => {
+      queryClient.setQueryData(queryKeys.question(questionId), question);
+      // The first answer may have been re-graded and the review queue changed.
+      queryClient.invalidateQueries({ queryKey: queryKeys.questions });
+      queryClient.invalidateQueries({ queryKey: queryKeys.reviewsToday });
+      queryClient.invalidateQueries({ queryKey: queryKeys.stats });
     },
   });
 }

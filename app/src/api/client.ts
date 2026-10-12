@@ -8,6 +8,7 @@ import type {
   AttemptResponse,
   AuthConfig,
   AuthResponse,
+  ChoiceLabel,
   ChatMessage,
   ChatThread,
   ExamInput,
@@ -21,6 +22,7 @@ import type {
   QuestionFilter,
   QuestionPage,
   RegisterInput,
+  ReviewResultInput,
   ReviewResultResponse,
   ReviewsToday,
   Rewards,
@@ -169,10 +171,15 @@ const httpApi = {
   },
   facets: () => request<Facets>('/questions/facets'),
   reviewsToday: () => request<ReviewsToday>('/reviews/today'),
-  reviewResult: (id: string, input: { result: 'correct' | 'wrong'; viewedSolution: boolean }) =>
+  reviewResult: (id: string, input: ReviewResultInput) =>
     request<ReviewResultResponse>(`/reviews/${encodeURIComponent(id)}/result`, {
       method: 'POST',
       body: JSON.stringify(input),
+    }),
+  setAnswerKey: (id: string, answerKey: ChoiceLabel | null) =>
+    request<Question>(`/questions/${encodeURIComponent(id)}/answer-key`, {
+      method: 'PUT',
+      body: JSON.stringify({ answerKey }),
     }),
   messages: (id: string) => request<ChatThread>(`/questions/${encodeURIComponent(id)}/messages`),
   sendMessage: (id: string, content: string) =>

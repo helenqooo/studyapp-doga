@@ -1,4 +1,5 @@
 import type Anthropic from '@anthropic-ai/sdk';
+import { resolveChoices } from '../choices';
 import type { questions } from '../db/schema';
 import type { ImageMime } from '../images';
 import { getTopic, topicLabel } from '../topics';
@@ -26,12 +27,18 @@ function questionContext(q: QuestionRow): string {
   const topic = getTopic(q.topicId);
   const steps = q.solutionSteps.map((s, i) => `${i + 1}. ${s}`).join('\n');
   const hints = q.hints.map((h, i) => `${i + 1}. ${h}`).join('\n');
+  const mc = resolveChoices(q);
+  const choices = mc.choices ? mc.choices.map((c) => `${c.label}) ${c.text}`).join('\n') : '';
   return [
     `Topic: ${q.exam} · ${q.subject}${topic ? ` · ${topicLabel(topic)}` : ''}`,
-    `Question (transcribed):\n${q.questionText}`,
+    `Question (transcribed):\n${mc.stem}`,
+    ...(choices ? [`Choices:\n${choices}`] : []),
     `Hints shown to the student on request:\n${hints}`,
     `Stored solution:\n${steps}`,
     `Final answer: ${q.finalAnswer}`,
+    ...(mc.answerKey && mc.answerKey !== mc.aiChoice
+      ? [`The student's answer key says ${mc.answerKey}, not ${mc.aiChoice ?? 'the stored answer'}. Trust the answer key and look for the mistake in the stored solution.`]
+      : []),
   ].join('\n\n');
 }
 

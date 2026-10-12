@@ -32,14 +32,14 @@ test('a wrong answer goes through the full review ladder', async () => {
   assert.equal(today.json.items.length, 1);
   assert.equal(today.json.items[0].id, id);
 
-  let res = await call('POST', `/reviews/${id}/result`, { result: 'correct' });
+  let res = await call('POST', `/reviews/${id}/result`, { choice: 'C' });
   assert.equal(res.status, 200);
   assert.deepEqual([res.json.review.stage, res.json.review.intervalDays, res.json.review.dueDate], [1, 3, '2026-10-16']);
   assert.equal(res.json.xpGained, 15);
   assert.equal(res.json.profile.xp, 25);
 
   // Answering again before it is due is refused.
-  res = await call('POST', `/reviews/${id}/result`, { result: 'correct' });
+  res = await call('POST', `/reviews/${id}/result`, { choice: 'C' });
   assert.equal(res.status, 409);
 
   today = await call('GET', '/reviews/today');
@@ -55,7 +55,7 @@ test('a wrong answer goes through the full review ladder', async () => {
   const due: string[] = [];
   for (let i = 0; i < 5; i++) {
     t.clock.now = Date.parse(`${res.json.review.dueDate}T09:00:00Z`);
-    res = await call('POST', `/reviews/${id}/result`, { result: 'correct' });
+    res = await call('POST', `/reviews/${id}/result`, { choice: 'C' });
     assert.equal(res.status, 200);
     due.push(res.json.review.status === 'graduated' ? 'graduated' : res.json.review.dueDate);
   }

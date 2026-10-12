@@ -87,7 +87,7 @@ test('clearing the review queue counts the day for the streak', async () => {
     t.clock.now += DAY;
     const first = await t.call('POST', `/reviews/${a}/result`, { result: 'wrong' });
     assert.equal(first.json.rewards.streak, null);
-    const last = await t.call('POST', `/reviews/${b}/result`, { result: 'correct' });
+    const last = await t.call('POST', `/reviews/${b}/result`, { choice: 'C' });
     assert.equal(last.json.rewards.streak, 1);
   } finally {
     await t.close();
