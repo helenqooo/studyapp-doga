@@ -80,6 +80,13 @@ export default function CropScreen() {
     });
   }, [bounds]);
 
+  // Fall back to the solving messages if the platform never reports upload completion.
+  useEffect(() => {
+    if (phase !== 'uploading') return;
+    const id = setTimeout(() => setPhase((p) => (p === 'uploading' ? 'solving' : p)), 8000);
+    return () => clearTimeout(id);
+  }, [phase]);
+
   // Rotate the "still working" messages while Claude solves.
   useEffect(() => {
     if (phase !== 'solving') return;
@@ -147,7 +154,7 @@ export default function CropScreen() {
         uri: upload.uri,
         onUploadProgress: (f) => {
           setUploadPct(Math.round(f * 100));
-          if (f >= 1) setPhase('solving');
+          if (f >= 1) setPhase((p) => (p === 'uploading' ? 'solving' : p));
         },
       });
       rememberImage(question.id, upload);
@@ -286,7 +293,9 @@ export default function CropScreen() {
                 {phase === 'preparing'
                   ? 'Görsel hazırlanıyor…'
                   : phase === 'uploading'
-                    ? `Yükleniyor… %${uploadPct}`
+                    ? uploadPct > 0
+                      ? `Yükleniyor… %${uploadPct}`
+                      : 'Yükleniyor…'
                     : WAIT_MESSAGES[waitIndex]}
               </AppText>
             </View>

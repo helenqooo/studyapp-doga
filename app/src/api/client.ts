@@ -83,6 +83,7 @@ export const api = {
         xhr.upload.onprogress = (e) => {
           if (e.lengthComputable && e.total > 0) onUploadProgress(e.loaded / e.total);
         };
+        xhr.upload.onload = () => onUploadProgress(1);
       }
       xhr.onload = () => {
         let body: unknown = null;
