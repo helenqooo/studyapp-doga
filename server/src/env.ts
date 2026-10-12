@@ -18,7 +18,7 @@ const EnvSchema = z
       .string()
       .optional()
       .transform((v) => (v?.trim() ? v.trim() : undefined))
-      .refine((v) => v === undefined || v.length >= 6, 'INVITE_CODE must be at least 6 characters'),
+      .refine((v) => v === undefined || v.length >= 12, 'INVITE_CODE must be at least 12 characters'),
     ANTHROPIC_API_KEY: z.string().optional(),
     AI_MODEL: z.string().min(1).default('claude-sonnet-5-5'),
     AI_EFFORT: z

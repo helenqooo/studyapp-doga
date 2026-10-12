@@ -32,7 +32,7 @@ const RegisterBody = z.object({
   avatar: z.enum(AVATARS).optional(),
 });
 
-const LoginBody = z.object({ username: z.string(), password: z.string().max(200) });
+const LoginBody = z.object({ username: z.string().max(64), password: z.string().max(200) });
 
 const sameSecret = (a: string, b: string) => {
   const x = Buffer.from(a);
@@ -42,6 +42,8 @@ const sameSecret = (a: string, b: string) => {
 
 export function authRoutes(app: FastifyInstance, { env, db, now }: AppDeps): void {
   const limiter = new LoginLimiter();
+  const inviteLimiter = new LoginLimiter();
+  const TOO_MANY = 'Çok fazla deneme yapıldı. 15 dakika sonra tekrar dene.';
 
   /** Who may register: the first account always; later ones only with INVITE_CODE. */
   const registration = () => {
@@ -67,8 +69,14 @@ export function authRoutes(app: FastifyInstance, { env, db, now }: AppDeps): voi
     }
     const r = registration();
     if (!r.open) return reply.code(403).send({ error: 'Kayıt kapalı. Sunucu sahibinden davet kodu iste.' });
-    if (r.inviteRequired && !sameSecret(body.data.inviteCode ?? '', env.INVITE_CODE ?? '')) {
-      return reply.code(403).send({ error: 'Davet kodu yanlış.' });
+    if (r.inviteRequired) {
+      const key = `invite|${req.ip}`;
+      const ts = now();
+      if (inviteLimiter.blocked(key, ts)) return reply.code(429).send({ error: TOO_MANY });
+      if (!sameSecret(body.data.inviteCode ?? '', env.INVITE_CODE ?? '')) {
+        inviteLimiter.fail(key, ts);
+        return reply.code(403).send({ error: 'Davet kodu yanlış.' });
+      }
     }
     if (db.select({ id: users.id }).from(users).where(eq(users.username, username)).get()) {
       return reply.code(409).send({ error: 'Bu kullanıcı adı alınmış.' });
@@ -88,18 +96,18 @@ export function authRoutes(app: FastifyInstance, { env, db, now }: AppDeps): voi
     const body = LoginBody.safeParse(req.body);
     if (!body.success) return reply.code(400).send({ error: 'Kullanıcı adı ve şifre gerekli.' });
     const username = normalizeUsername(body.data.username);
+    const wrong = { error: 'Kullanıcı adı ya da şifre yanlış.' };
+    // No account can have such a name; answer without tracking it, so keys stay short.
+    if (!USERNAME_RE.test(username)) return reply.code(401).send(wrong);
     const key = `${req.ip}|${username}`;
     const ts = now();
-    if (limiter.blocked(key, ts)) {
-      return reply.code(429).send({ error: 'Çok fazla deneme yapıldı. 15 dakika sonra tekrar dene.' });
-    }
+    if (limiter.blocked(key, ts)) return reply.code(429).send({ error: TOO_MANY });
+    // Counted before the slow password check, so parallel guesses can't all slip through.
+    limiter.fail(key, ts);
 
     const user = db.select().from(users).where(eq(users.username, username)).get();
     const ok = await verifyPassword(body.data.password, user?.passwordHash ?? (await dummyPasswordHash()));
-    if (!user || !ok) {
-      limiter.fail(key, ts);
-      return reply.code(401).send({ error: 'Kullanıcı adı ya da şifre yanlış.' });
-    }
+    if (!user || !ok) return reply.code(401).send(wrong);
     limiter.reset(key);
     return { token: issueToken(db, user.id, ts), user: userDto(user) };
   });

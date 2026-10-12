@@ -839,8 +839,15 @@ export const demoApi = {
   },
   deleteExam: async (id: string): Promise<null> => {
     await wait(QUICK_MS);
-    findExam(id);
+    const row = findExam(id);
     db.exams = db.exams.filter((e) => e.id !== id);
+    // Like the server: deleting a deneme takes its entry XP back; badges stay.
+    const date = localDate(row.createdAt);
+    const i = db.xpEvents.findIndex((e) => e.amount === XP.examEntry && e.date === date);
+    if (i >= 0) {
+      db.xpEvents.splice(i, 1);
+      db.profile.xp = Math.max(0, db.profile.xp - XP.examEntry);
+    }
     return null;
   },
   overview: async (): Promise<Overview> => {

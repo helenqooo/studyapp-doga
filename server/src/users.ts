@@ -145,21 +145,32 @@ export function userDto(u: UserRow) {
   return { id: u.id, username: u.username, displayName: u.displayName, avatar: u.avatar };
 }
 
-/** Failed sign-ins per key (ip + username), to slow down password guessing. */
+/** Failed attempts per key (e.g. ip + username), to slow down guessing. */
 export class LoginLimiter {
   private failures = new Map<string, number[]>();
   constructor(
     private readonly max = 10,
     private readonly windowMs = 15 * 60 * 1000,
+    /** Above this many keys, expired ones are swept on the next failure. */
+    private readonly sweepAbove = 10_000,
   ) {}
 
   blocked(key: string, now: number): boolean {
     const recent = (this.failures.get(key) ?? []).filter((t) => now - t < this.windowMs);
+    if (recent.length === 0) {
+      this.failures.delete(key);
+      return false;
+    }
     this.failures.set(key, recent);
     return recent.length >= this.max;
   }
 
   fail(key: string, now: number): void {
+    if (this.failures.size > this.sweepAbove) {
+      for (const [k, list] of this.failures) {
+        if (now - (list.at(-1) ?? 0) >= this.windowMs) this.failures.delete(k);
+      }
+    }
     const list = this.failures.get(key) ?? [];
     list.push(now);
     this.failures.set(key, list);
@@ -167,5 +178,10 @@ export class LoginLimiter {
 
   reset(key: string): void {
     this.failures.delete(key);
+  }
+
+  /** Keys being tracked, for tests. */
+  get size(): number {
+    return this.failures.size;
   }
 }

@@ -209,7 +209,8 @@ export function useRegister() {
 export function useLogout() {
   const signOut = useAuthStore((s) => s.signOut);
   return useMutation({
-    mutationFn: () => api.logout().catch(() => null),
+    // Signing out never waits on an unreachable server for long.
+    mutationFn: () => Promise.race([api.logout().catch(() => null), new Promise((r) => setTimeout(r, 4000))]),
     onSettled: () => signOut(),
   });
 }

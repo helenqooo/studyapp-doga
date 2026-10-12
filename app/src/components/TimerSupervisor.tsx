@@ -4,7 +4,8 @@ import { ApiError } from '../api/errors';
 import { useProfile, useSaveSession } from '../api/hooks';
 import { useRewardCelebration } from '../lib/celebrate';
 import { haptics } from '../lib/haptics';
-import { readOutbox, writeOutbox } from '../store/sessionOutbox';
+import { useAuthStore } from '../store/authStore';
+import { addToOutbox, readOutbox, writeOutbox } from '../store/sessionOutbox';
 import { remainingMs, useTimerStore, type FinishedPhase } from '../store/timerStore';
 
 const DEFAULT_SETTINGS = { focusMinutes: 25, breakMinutes: 5 };
@@ -26,18 +27,22 @@ export function TimerSupervisor() {
   /** Saves finished phases, keeping the ones that couldn't reach the server. */
   const flush = useCallback(
     async (extra?: FinishedPhase) => {
-      const items = [...(await readOutbox()), ...(extra ? [extra] : [])];
+      const userId = useAuthStore.getState().user?.id;
+      if (!userId) return;
+      const items = [...(await readOutbox(userId)), ...(extra ? [extra] : [])];
       const left: FinishedPhase[] = [];
       for (const item of items) {
         try {
           const res = await save.mutateAsync(item);
           if (item === extra) celebrate(res.rewards);
         } catch (e) {
-          // A rejected session (400) won't succeed later; anything else is retried.
-          if (!(e instanceof ApiError && e.status && e.status >= 400 && e.status < 500)) left.push(item);
+          // A rejected session (400) won't succeed later; anything else is retried, including
+          // a 401: the sign-in ran out, and the session waits for this account's next sign-in.
+          const rejected = e instanceof ApiError && !!e.status && e.status >= 400 && e.status < 500 && e.status !== 401;
+          if (!rejected) left.push(item);
         }
       }
-      await writeOutbox(left);
+      await writeOutbox(userId, left);
     },
     [save, celebrate],
   );
@@ -89,7 +94,8 @@ export function useStopTimer() {
     try {
       await save.mutateAsync(done);
     } catch {
-      await writeOutbox([...(await readOutbox()), done]);
+      const userId = useAuthStore.getState().user?.id;
+      if (userId) await addToOutbox(userId, done);
     }
   }, [save]);
 }

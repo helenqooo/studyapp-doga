@@ -103,6 +103,15 @@ test('badges: first deneme', async () => {
     const second = await t.call('POST', '/exams', exam);
     assert.deepEqual(second.json.rewards.badges, []);
     assert.equal((await t.call('GET', '/profile')).json.badges.length, 1);
+    assert.equal((await t.call('GET', '/profile')).json.xp, 100);
+
+    // Deleting a deneme takes its XP back (no create/delete farming); the badge stays.
+    assert.equal((await t.call('DELETE', `/exams/${second.json.exam.id}`)).status, 204);
+    const after = (await t.call('GET', '/profile')).json;
+    assert.equal(after.xp, 50);
+    assert.equal(after.badges.length, 1);
+    const board = await t.call('GET', '/leaderboard?period=week');
+    assert.equal(board.json.items.find((r: { isMe: boolean }) => r.isMe).xp, 50);
   } finally {
     await t.close();
   }

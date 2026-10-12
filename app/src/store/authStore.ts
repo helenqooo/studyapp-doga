@@ -2,6 +2,8 @@ import { create } from 'zustand';
 import type { AuthResponse, User } from '../api/types';
 import { DEMO_MODE } from '../config';
 import { secureStorage } from '../lib/secureStorage';
+import { addToOutbox } from './sessionOutbox';
+import { useTimerStore } from './timerStore';
 
 const TOKEN_KEY = 'derece.token';
 const USER_KEY = 'derece.user';
@@ -43,6 +45,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   signOut: async () => {
     if (DEMO_MODE) return;
+    // A running pomodoro belongs to this account: stop it (and its notification) and keep
+    // it for this account's next sign-in instead of handing it to whoever signs in next.
+    const userId = get().user?.id;
+    const timer = useTimerStore.getState();
+    await timer.hydrate();
+    const running = await timer.finish(false).catch(() => null);
+    if (running && userId) await addToOutbox(userId, running);
     set({ status: 'signedOut', token: null, user: null });
     await Promise.all([secureStorage.remove(TOKEN_KEY), secureStorage.remove(USER_KEY)]);
   },

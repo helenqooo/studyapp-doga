@@ -9,7 +9,7 @@ import { openDb } from './db/client';
 import { loadEnv } from './env';
 
 export const DAY = 24 * 60 * 60 * 1000;
-export const INVITE = 'davet-123';
+export const INVITE = 'davet-kodu-123';
 
 export async function createTestApp(startIso = '2026-10-12T09:00:00Z', opts: { dataDir?: string } = {}) {
   const dataDir = opts.dataDir ?? fs.mkdtempSync(path.join(os.tmpdir(), 'derece-test-'));

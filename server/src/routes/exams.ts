@@ -1,11 +1,11 @@
 import { randomUUID } from 'node:crypto';
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, sql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import type { AppDeps } from '../app';
 import { currentUser } from '../auth';
 import { AiError } from '../claude/client';
-import { exams } from '../db/schema';
+import { exams, profiles, xpEvents } from '../db/schema';
 import { profileDto } from '../dto';
 import { examDto, mergeTopics, orderSections, validateSections } from '../exams';
 import { applyRewards, XP } from '../gamification';
@@ -124,8 +124,27 @@ export function examRoutes(app: FastifyInstance, { env, db, ai, now }: AppDeps):
   });
 
   app.delete<IdParams>('/exams/:id', async (req, reply) => {
-    const row = db.delete(exams).where(owned(req.params.id, currentUser(req).id)).returning({ id: exams.id }).get();
-    if (!row) return reply.code(404).send({ error: 'Deneme bulunamadı.' });
+    const user = currentUser(req);
+    const found = db.transaction((tx) => {
+      const row = tx.delete(exams).where(owned(req.params.id, user.id)).returning().get();
+      if (!row) return false;
+      // Take back the entry XP (logged with the exam's own timestamp), so a create/delete
+      // loop can't farm the leaderboard. Badges already earned stay.
+      const event = tx
+        .select({ id: xpEvents.id, amount: xpEvents.amount })
+        .from(xpEvents)
+        .where(and(eq(xpEvents.userId, user.id), eq(xpEvents.reason, 'exam'), eq(xpEvents.createdAt, row.createdAt)))
+        .get();
+      if (event) {
+        tx.delete(xpEvents).where(eq(xpEvents.id, event.id)).run();
+        tx.update(profiles)
+          .set({ xp: sql`max(0, ${profiles.xp} - ${event.amount})` })
+          .where(eq(profiles.userId, user.id))
+          .run();
+      }
+      return true;
+    });
+    if (!found) return reply.code(404).send({ error: 'Deneme bulunamadı.' });
     return reply.code(204).send();
   });
 }

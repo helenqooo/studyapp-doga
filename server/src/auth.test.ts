@@ -8,6 +8,7 @@ import { test } from 'node:test';
 import { openDb } from './db/client';
 import { legacyProfile, questions } from './db/schema';
 import { createTestApp, INVITE } from './testing';
+import { LoginLimiter } from './users';
 
 test('sign-up needs the invite after the first account; sign-in and logout', async () => {
   const t = await createTestApp();
@@ -53,6 +54,51 @@ test('too many wrong passwords are slowed down', async () => {
   } finally {
     await t.close();
   }
+});
+
+test('parallel guesses are counted before the password check; odd names are not tracked', async () => {
+  const t = await createTestApp();
+  try {
+    const guesses = await Promise.all(
+      Array.from({ length: 14 }, (_, i) => t.callAs(null, 'POST', '/auth/login', { username: 'ogrenci', password: `yanlis-${i}` })),
+    );
+    assert.equal(guesses.filter((r) => r.status === 401).length, 10);
+    assert.equal(guesses.filter((r) => r.status === 429).length, 4);
+
+    const long = await t.callAs(null, 'POST', '/auth/login', { username: 'x'.repeat(65), password: 'p' });
+    assert.equal(long.status, 400);
+    const odd = await t.callAs(null, 'POST', '/auth/login', { username: 'bir iki', password: 'p' });
+    assert.equal(odd.status, 401);
+  } finally {
+    await t.close();
+  }
+});
+
+test('guessing the invite code is slowed down', async () => {
+  const t = await createTestApp();
+  try {
+    const body = { username: 'tahminci', displayName: 'Tahmin', password: 'parola-1234' };
+    for (let i = 0; i < 10; i++) {
+      assert.equal((await t.callAs(null, 'POST', '/auth/register', { ...body, inviteCode: `yanlis-${i}` })).status, 403);
+    }
+    assert.equal((await t.callAs(null, 'POST', '/auth/register', { ...body, inviteCode: INVITE })).status, 429);
+  } finally {
+    await t.close();
+  }
+});
+
+test('the limiter forgets keys whose window has passed', () => {
+  const limiter = new LoginLimiter(10, 1000, 2);
+  assert.equal(limiter.blocked('never-failed', 0), false);
+  assert.equal(limiter.size, 0);
+  limiter.fail('a', 0);
+  limiter.fail('b', 0);
+  limiter.fail('c', 0);
+  assert.equal(limiter.size, 3);
+  limiter.fail('d', 5000); // over the sweep threshold: a, b and c have expired
+  assert.equal(limiter.size, 1);
+  assert.equal(limiter.blocked('d', 7000), false);
+  assert.equal(limiter.size, 0);
 });
 
 test("one user can't see or change another user's data", async () => {
