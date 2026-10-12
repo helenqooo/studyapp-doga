@@ -14,7 +14,7 @@ export interface ChatTurn {
 
 export interface Tutor {
   /** `history` is the earlier conversation; `message` is the student's new question. */
-  reply(input: { question: QuestionRow; image: Buffer; history: ChatTurn[]; message: string }): Promise<string>;
+  reply(input: { question: QuestionRow; image: Buffer; history: ChatTurn[]; message: string; onText?: (delta: string) => void }): Promise<string>;
 }
 
 const SYSTEM_PROMPT = `You are a patient, encouraging YKS tutor. A Turkish high-school student is working on the question in the attached photo. You already produced the stored solution shown below; the student may have read some hints or the full solution, and now says they did not understand something.
@@ -44,7 +44,7 @@ function questionContext(q: QuestionRow): string {
 
 export function createClaudeTutor(claude: Claude): Tutor {
   return {
-    async reply({ question, image, history, message }) {
+    async reply({ question, image, history, message, onText }) {
       const turns: ChatTurn[] = [...history, { role: 'user', content: message }];
       const last = turns.length - 1;
 
@@ -76,6 +76,7 @@ export function createClaudeTutor(claude: Claude): Tutor {
         refusalMessage: 'Bu soruya yanıt verilemedi. Farklı şekilde sormayı dene.',
         system: [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
         messages,
+        onText,
       });
       return reply.trim();
     },
@@ -85,9 +86,11 @@ export function createClaudeTutor(claude: Claude): Tutor {
 /** Canned tutor for UI testing without API cost (MOCK_SOLVER=true). */
 export function createMockTutor({ delayMs = 800 } = {}): Tutor {
   return {
-    async reply({ message }) {
+    async reply({ message, onText }) {
       await new Promise((r) => setTimeout(r, delayMs));
-      return `Güzel soru! "${message}" diye sormuşsun.\n\nŞöyle düşün: $a^2 + b^2$ ifadesini doğrudan bulmak zor, ama $(a+b)^2 = a^2 + 2ab + b^2$ özdeşliğinden\n\n$$a^2 + b^2 = (a+b)^2 - 2ab$$\n\nyazabiliriz. Böylece sadece $a+b$ ve $ab$ değerlerine ihtiyacımız kalır.`;
+      const text = `Güzel soru! "${message}" diye sormuşsun.\n\nŞöyle düşün: $a^2 + b^2$ ifadesini doğrudan bulmak zor, ama $(a+b)^2 = a^2 + 2ab + b^2$ özdeşliğinden\n\n$$a^2 + b^2 = (a+b)^2 - 2ab$$\n\nyazabiliriz. Böylece sadece $a+b$ ve $ab$ değerlerine ihtiyacımız kalır.`;
+      for (const word of onText ? (text.match(/\S+\s*/g) ?? []) : []) onText!(word);
+      return text;
     },
   };
 }

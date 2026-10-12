@@ -9,6 +9,7 @@ import { currentUser } from '../auth';
 import { AiError } from '../claude/client';
 import { questionMessages } from '../db/schema';
 import { messageDto } from '../dto';
+import { openStream, wantsStream } from '../stream';
 import { ownedQuestion, type IdParams } from './questions';
 
 /** "Kısa bir sohbet": cap follow-up questions per solved question. */
@@ -61,14 +62,24 @@ export function messageRoutes(app: FastifyInstance, { env, db, ai, now }: AppDep
       return reply.code(404).send({ error: 'Sorunun görseli bulunamadı.' });
     }
 
+    const stream = wantsStream(req) ? openStream(reply) : null;
     let answer: string;
     try {
-      answer = await ai.tutor.reply({ question: q, image, history, message: body.data.content });
+      answer = await ai.tutor.reply({
+        question: q,
+        image,
+        history,
+        message: body.data.content,
+        onText: stream ? (text) => stream.send({ type: 'delta', text }) : undefined,
+      });
     } catch (err) {
-      if (err instanceof AiError) {
-        req.log.warn({ err }, 'tutor failed');
-        return reply.code(502).send({ error: err.message });
+      req.log.warn({ err }, 'tutor failed');
+      if (stream) {
+        stream.send({ type: 'error', error: err instanceof AiError ? err.message : 'Sunucu hatası.' });
+        stream.end();
+        return reply;
       }
+      if (err instanceof AiError) return reply.code(502).send({ error: err.message });
       throw err;
     }
 
@@ -87,6 +98,12 @@ export function messageRoutes(app: FastifyInstance, { env, db, ai, now }: AppDep
         .get(),
     ]);
 
-    return reply.code(201).send({ userMessage: messageDto(userMessage!), assistantMessage: messageDto(assistantMessage!) });
+    const result = { userMessage: messageDto(userMessage!), assistantMessage: messageDto(assistantMessage!) };
+    if (stream) {
+      stream.send({ type: 'done', ...result });
+      stream.end();
+      return reply;
+    }
+    return reply.code(201).send(result);
   });
 }

@@ -130,6 +130,21 @@ export const questionMessages = sqliteTable(
   (t) => [index('question_messages_question_idx').on(t.questionId, t.createdAt)],
 );
 
+// The general assistant chat (not tied to a question), one thread per student.
+export const assistantMessages = sqliteTable(
+  'assistant_messages',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    role: text('role', { enum: ['user', 'assistant'] }).notNull(),
+    content: text('content').notNull(),
+    createdAt: integer('created_at').notNull(),
+  },
+  (t) => [index('assistant_messages_user_idx').on(t.userId, t.createdAt)],
+);
+
 export interface ExamTopicResult {
   topicId: string;
   correct: number;

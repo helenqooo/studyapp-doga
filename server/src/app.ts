@@ -5,6 +5,7 @@ import { registerAuth } from './auth';
 import type { Ai } from './claude/ai';
 import type { Db } from './db/client';
 import type { Env } from './env';
+import { assistantRoutes } from './routes/assistant';
 import { authRoutes } from './routes/auth';
 import { examRoutes } from './routes/exams';
 import { leaderboardRoutes } from './routes/leaderboard';
@@ -53,6 +54,7 @@ export async function buildApp(input: Omit<AppDeps, 'now'> & { now?: AppDeps['no
   statsRoutes(app, deps);
   sessionRoutes(app, deps);
   leaderboardRoutes(app, deps);
+  assistantRoutes(app, deps);
 
   return app;
 }

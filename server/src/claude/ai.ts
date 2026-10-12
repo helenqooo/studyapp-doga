@@ -1,4 +1,5 @@
 import type { Env } from '../env';
+import { createClaudeAssistant, createMockAssistant, type Assistant } from './assistant';
 import { createClaude } from './client';
 import { createClaudeCoach, createMockCoach, type Coach } from './coach';
 import { createClaudeKarneParser, createMockKarneParser, type KarneParser } from './karne';
@@ -12,6 +13,7 @@ export interface Ai {
   tutor: Tutor;
   karne: KarneParser;
   coach: Coach;
+  assistant: Assistant;
 }
 
 export function createAi(env: Env): Ai {
@@ -22,6 +24,7 @@ export function createAi(env: Env): Ai {
     tutor: createClaudeTutor(claude),
     karne: createClaudeKarneParser(claude),
     coach: createClaudeCoach(claude),
+    assistant: createClaudeAssistant(claude),
   };
 }
 
@@ -34,5 +37,6 @@ export function createMockAi({ delayMs }: { delayMs?: number } = {}): Ai {
     tutor: createMockTutor(opts),
     karne: createMockKarneParser(opts),
     coach: createMockCoach(opts),
+    assistant: createMockAssistant(opts),
   };
 }

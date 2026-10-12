@@ -13,6 +13,8 @@ export interface ClaudeRequest {
   outputFormat?: NonNullable<StreamParams['output_config']>['format'];
   /** Shown to the student if the model declines. */
   refusalMessage: string;
+  /** Receives the reply's text as it is written (for streaming it to the app). */
+  onText?: (delta: string) => void;
 }
 
 /** Thin wrapper around one Claude call: shared settings, error mapping, text extraction. */
@@ -39,6 +41,7 @@ export function createClaude(env: Env) {
         system: req.system,
         messages: req.messages,
       });
+      if (req.onText) stream.on('text', (delta) => req.onText!(delta));
       message = await stream.finalMessage();
     } catch (err) {
       if (err instanceof Anthropic.AuthenticationError) {
