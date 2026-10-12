@@ -1,5 +1,5 @@
-import { useEffect, type ReactNode } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { Pressable, StyleSheet, View } from 'react-native';
 import Animated, {
   cancelAnimation,
   Easing,
@@ -14,6 +14,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import Svg, { G } from 'react-native-svg';
+import { haptics } from '../../lib/haptics';
 import { useTheme, type MascotColors } from '../../theme';
 import {
   ANTENNA_BASE,
@@ -48,23 +49,60 @@ interface Props {
   size?: number;
   /** No motion (e.g. small avatars in a long list). Reduced motion also keeps it still. */
   still?: boolean;
+  /** Reacts to a tap (a little jump and a happy face). On by default from note size up. */
+  interactive?: boolean;
 }
+
+/** What Lumi does when tapped, in turn. */
+const TAP_REACTIONS: MascotMood[] = ['happy', 'wink', 'love', 'surprised', 'celebrate'];
+const REACTION_MS = 1600;
 
 /**
  * Lumi, the assistant: a little flat light-creature with a glowing antenna. Each mood has
  * a pose (eyes, mouth, arms, props) and a loop (breathing, waving, hopping…); switching
- * moods springs the arms over to the new pose. Decorative: what it "says" is in text.
+ * moods springs the arms over to the new pose. Between those, Lumi fidgets on its own:
+ * looks around, blinks twice, hops, flicks its antenna, waves. Tapping it gets a reaction.
+ * Decorative: what it "says" is in text.
  */
-export function Mascot({ mood = 'idle', size, still = false }: Props) {
+export function Mascot({ mood = 'idle', size, still = false, interactive }: Props) {
   const theme = useTheme();
   const reduceMotion = useReducedMotion();
   const s = size ?? theme.layout.mascot.note;
-  const pose = POSES[mood];
   const c = theme.colors.mascot;
+  const [reaction, setReaction] = useState<MascotMood | null>(null);
+  const taps = useRef(0);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => {
+    if (timer.current) clearTimeout(timer.current);
+  }, []);
+
+  const shown = reaction ?? mood;
+  const body =
+    still || reduceMotion ? <StillMascot pose={POSES[shown]} size={s} c={c} /> : <LiveMascot mood={shown} size={s} c={c} />;
+  const canTap = interactive ?? s >= theme.layout.mascot.note;
+  if (!canTap) {
+    return (
+      <View aria-hidden pointerEvents="none" style={{ width: s, height: s }}>
+        {body}
+      </View>
+    );
+  }
   return (
-    <View aria-hidden pointerEvents="none" style={{ width: s, height: s }}>
-      {still || reduceMotion ? <StillMascot pose={pose} size={s} c={c} /> : <LiveMascot mood={mood} size={s} c={c} />}
-    </View>
+    <Pressable
+      aria-hidden
+      accessible={false}
+      onPress={() => {
+        haptics.tap();
+        setReaction(TAP_REACTIONS[taps.current++ % TAP_REACTIONS.length]!);
+        if (timer.current) clearTimeout(timer.current);
+        timer.current = setTimeout(() => setReaction(null), REACTION_MS);
+      }}
+      style={{ width: s, height: s }}
+    >
+      <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+        {body}
+      </View>
+    </Pressable>
   );
 }
 
@@ -203,10 +241,33 @@ function startBody(motion: BodyMotion, y: SharedValue<number>, sx: SharedValue<n
       loop(sy, 1.02, 650);
       return;
     default:
-      loop(sy, 1.025, 1600);
-      loop(sx, 0.99, 1600);
+      // Breathing: rise a little, stretch up, settle.
+      loop(sy, 1.045, 1300);
+      loop(sx, 0.975, 1300);
+      loop(y, -3, 1300);
   }
 }
+
+/** Little things Lumi does on its own now and then, by mood. */
+type Fidget = 'look' | 'blink2' | 'hop' | 'flick' | 'tilt' | 'wiggle' | 'wave' | 'lookUp';
+const FIDGETS: Partial<Record<MascotMood, Fidget[]>> = {
+  idle: ['look', 'blink2', 'hop', 'flick', 'tilt', 'wave', 'look'],
+  listening: ['look', 'tilt', 'blink2'],
+  reading: ['blink2', 'flick', 'tilt', 'look'],
+  study: ['look', 'blink2', 'flick'],
+  focus: ['blink2', 'flick'],
+  happy: ['look', 'flick', 'wiggle'],
+  proud: ['look', 'flick', 'wiggle', 'hop'],
+  wink: ['look', 'flick', 'hop'],
+  love: ['wiggle', 'flick'],
+  sad: ['blink2', 'look'],
+  thinking: ['lookUp', 'flick', 'look'],
+  talking: ['flick', 'tilt'],
+  sleepy: ['flick'],
+  break: ['look', 'blink2'],
+  confused: ['look', 'flick'],
+  graduate: ['flick', 'look'],
+};
 
 function startArm(motion: ArmMotion | undefined, osc: SharedValue<number>, side: 'l' | 'r') {
   const dir = side === 'l' ? 1 : -1;
@@ -268,6 +329,91 @@ function LiveMascot({ mood, size, c }: { mood: MascotMood; size: number; c: Masc
   const fxA = useSharedValue(0);
   const fxB = useSharedValue(0);
   const pop = useSharedValue(0);
+  // Fidgets and reactions, added on top of the pose and its loop.
+  const faceX = useSharedValue(0);
+  const faceY = useSharedValue(0);
+  const hopY = useSharedValue(0);
+  const hopS = useSharedValue(1);
+  const tiltX = useSharedValue(0);
+  const kickAntenna = useSharedValue(0);
+  const kickArmR = useSharedValue(0);
+  const idleArm = useSharedValue(0);
+  // Pops in on first show; squashes a little on every mood change.
+  const enter = useSharedValue(0);
+  const bump = useSharedValue(1);
+  const first = useRef(true);
+
+  useEffect(() => {
+    enter.value = withSpring(1, { damping: 9, stiffness: 150, mass: 0.7 });
+  }, [enter]);
+
+  // Fidget scheduler: every few seconds, one small action that suits the mood.
+  useEffect(() => {
+    const list = FIDGETS[mood];
+    if (!list?.length) return;
+    let alive = true;
+    let t: ReturnType<typeof setTimeout>;
+    const spring = { damping: 12, stiffness: 160 };
+    const act = (f: Fidget) => {
+      switch (f) {
+        case 'look': {
+          const dir = Math.random() < 0.5 ? -1 : 1;
+          faceX.value = withSequence(withSpring(5 * dir, spring), withDelay(700, withSpring(-3 * dir, spring)), withDelay(500, withSpring(0, spring)));
+          faceY.value = withSequence(withSpring(-1, spring), withDelay(1200, withSpring(0, spring)));
+          return;
+        }
+        case 'lookUp':
+          faceY.value = withSequence(withSpring(-4, spring), withDelay(900, withSpring(0, spring)));
+          faceX.value = withSequence(withSpring(4, spring), withDelay(900, withSpring(0, spring)));
+          return;
+        case 'blink2':
+          blink.value = withSequence(
+            withTiming(0.1, { duration: 60 }),
+            withTiming(1, { duration: 80 }),
+            withTiming(0.1, { duration: 60 }),
+            withTiming(1, { duration: 90 }),
+            withRepeat(withSequence(withDelay(3400, withTiming(0.1, { duration: 70 })), withTiming(1, { duration: 100 })), -1),
+          );
+          return;
+        case 'hop':
+          hopY.value = withSequence(withTiming(-14, { duration: 200, easing: Easing.out(Easing.quad) }), withTiming(0, { duration: 190, easing: Easing.in(Easing.quad) }));
+          hopS.value = withSequence(withTiming(1.05, { duration: 200 }), withTiming(1, { duration: 190 }), withTiming(0.9, { duration: 90 }), withSpring(1, spring));
+          return;
+        case 'flick':
+          kickAntenna.value = withSequence(withTiming(-22, { duration: 120 }), withSpring(0, { damping: 5, stiffness: 180 }));
+          return;
+        case 'tilt': {
+          const dir = Math.random() < 0.5 ? -1 : 1;
+          tiltX.value = withSequence(withSpring(7 * dir, spring), withDelay(900, withSpring(0, spring)));
+          return;
+        }
+        case 'wiggle':
+          tiltX.value = withSequence(withTiming(-5, { duration: 90 }), withTiming(5, { duration: 120 }), withTiming(-4, { duration: 120 }), withSpring(0, spring));
+          return;
+        case 'wave':
+          // A quick hello with the right arm (from its rest angle up to about -150°).
+          kickArmR.value = withSequence(
+            withSpring(-122, spring),
+            withRepeat(withSequence(withTiming(-104, { duration: 170 }), withTiming(-136, { duration: 170 })), 3, true),
+            withDelay(150, withSpring(0, spring)),
+          );
+          faceX.value = withSequence(withSpring(-2, spring), withDelay(1300, withSpring(0, spring)));
+          return;
+      }
+    };
+    const schedule = () => {
+      t = setTimeout(() => {
+        if (!alive) return;
+        act(list[Math.floor(Math.random() * list.length)]!);
+        schedule();
+      }, 2200 + Math.random() * 3200);
+    };
+    schedule();
+    return () => {
+      alive = false;
+      clearTimeout(t);
+    };
+  }, [mood, faceX, faceY, blink, hopY, hopS, kickAntenna, tiltX, kickArmR]);
 
   useEffect(() => {
     const p = POSES[mood];
@@ -306,29 +452,46 @@ function LiveMascot({ mood, size, c }: { mood: MascotMood; size: number; c: Masc
     fxA.value = withRepeat(withTiming(1, { duration: 1500, easing: Easing.linear }), -1);
     fxB.value = withDelay(750, withRepeat(withTiming(1, { duration: 1500, easing: Easing.linear }), -1));
     pop.value = withSpring(1, { damping: 7, stiffness: 160 });
-  }, [mood, lift, tilt, armL, armR, glowDim, bodyY, bodyRot, oscL, oscR, talk, fxA, fxB, pop, glow, bodySX, bodySY, blink, sway]);
+    // Arms swing gently with the breath when they have nothing else to do.
+    cancelAnimation(idleArm);
+    idleArm.value = 0;
+    if (!p.armMotionL && !p.armMotionR && p.body === 'breathe') loop(idleArm, 5, 1300);
+    // Fidgets from the previous mood settle.
+    for (const v of [faceX, faceY, hopY, tiltX, kickAntenna, kickArmR]) v.value = withSpring(0, spring);
+    hopS.value = withSpring(1, spring);
+    if (first.current) first.current = false;
+    else bump.value = withSequence(withTiming(1.08, { duration: 110 }), withTiming(0.95, { duration: 120 }), withSpring(1, { damping: 8, stiffness: 200 }));
+  }, [
+    mood, lift, tilt, armL, armR, glowDim, bodyY, bodyRot, oscL, oscR, talk, fxA, fxB, pop, glow, bodySX, bodySY, blink, sway,
+    idleArm, faceX, faceY, hopY, hopS, tiltX, kickAntenna, kickArmR, bump,
+  ]);
 
   const shadowStyle = useAnimatedStyle(() => {
-    const up = Math.min(0, lift.value + bodyY.value);
-    return { transform: [{ scaleX: 1 + up / 70 }], opacity: 1 + up / 60 };
+    const up = Math.min(0, lift.value + bodyY.value + hopY.value);
+    return { transform: [{ scaleX: (1 + up / 70) * (0.4 + 0.6 * enter.value) }], opacity: (1 + up / 60) * enter.value };
   });
-  const rootStyle = useAnimatedStyle(() => ({
-    transform: [
-      { translateY: (lift.value + bodyY.value) * k },
-      { rotate: `${tilt.value + bodyRot.value}deg` },
-      { scaleX: bodySX.value },
-      { scaleY: bodySY.value },
-    ],
-  }));
-  const antennaStyle = useAnimatedStyle(() => ({ transform: [{ rotate: `${sway.value}deg` }] }));
+  const rootStyle = useAnimatedStyle(() => {
+    const grow = 0.4 + 0.6 * enter.value;
+    return {
+      opacity: Math.min(1, enter.value * 2),
+      transform: [
+        { translateY: (lift.value + bodyY.value + hopY.value + (1 - enter.value) * 18) * k },
+        { rotate: `${tilt.value + bodyRot.value + tiltX.value}deg` },
+        { scaleX: bodySX.value * (2 - hopS.value) * grow * bump.value },
+        { scaleY: bodySY.value * hopS.value * grow * (2 - bump.value) },
+      ],
+    };
+  });
+  const faceStyle = useAnimatedStyle(() => ({ transform: [{ translateX: faceX.value * k }, { translateY: faceY.value * k }] }));
+  const antennaStyle = useAnimatedStyle(() => ({ transform: [{ rotate: `${sway.value + kickAntenna.value}deg` }] }));
   const lightStyle = useAnimatedStyle(() => ({ transform: [{ scale: glow.value }], opacity: glowDim.value }));
   const eyesStyle = useAnimatedStyle(() => ({ transform: [{ scaleY: blink.value }] }));
   const mouthStyle = useAnimatedStyle(() => ({ transform: [{ scaleY: talk.value }] }));
-  const armLStyle = useAnimatedStyle(() => ({ transform: [{ rotate: `${armL.value + oscL.value}deg` }] }));
-  const armRStyle = useAnimatedStyle(() => ({ transform: [{ rotate: `${armR.value + oscR.value}deg` }] }));
+  const armLStyle = useAnimatedStyle(() => ({ transform: [{ rotate: `${armL.value + oscL.value + idleArm.value}deg` }] }));
+  const armRStyle = useAnimatedStyle(() => ({ transform: [{ rotate: `${armR.value + oscR.value + kickArmR.value - idleArm.value}deg` }] }));
   const cupStyle = useAnimatedStyle(() => {
     // The cup follows the hand (it is drawn upright, so it moves rather than turns).
-    const a = ((armR.value + oscR.value) * Math.PI) / 180;
+    const a = ((armR.value + oscR.value + kickArmR.value - idleArm.value) * Math.PI) / 180;
     const rest = (pose.armR * Math.PI) / 180;
     const dx = (-Math.sin(a) + Math.sin(rest)) * ARM_LEN;
     const dy = (Math.cos(a) - Math.cos(rest)) * ARM_LEN;
@@ -361,17 +524,19 @@ function LiveMascot({ mood, size, c }: { mood: MascotMood; size: number; c: Masc
         <Layer size={size}>
           <Body c={c} blush={pose.blush} />
         </Layer>
-        <Layer size={size} origin={{ x: 100, y: EYE_Y }} style={blinks ? eyesStyle : undefined}>
-          <Eyes c={c} kind={pose.eyes} />
-        </Layer>
-        {pose.brows ? (
-          <Layer size={size}>
-            <Brows c={c} kind={pose.brows} />
+        <Animated.View style={[StyleSheet.absoluteFill, faceStyle]}>
+          <Layer size={size} origin={{ x: 100, y: EYE_Y }} style={blinks ? eyesStyle : undefined}>
+            <Eyes c={c} kind={pose.eyes} />
           </Layer>
-        ) : null}
-        <Layer size={size} origin={MOUTH} style={pose.talk ? mouthStyle : undefined}>
-          <Mouth c={c} kind={pose.mouth} />
-        </Layer>
+          {pose.brows ? (
+            <Layer size={size}>
+              <Brows c={c} kind={pose.brows} />
+            </Layer>
+          ) : null}
+          <Layer size={size} origin={MOUTH} style={pose.talk ? mouthStyle : undefined}>
+            <Mouth c={c} kind={pose.mouth} />
+          </Layer>
+        </Animated.View>
         {(pose.worn ?? []).length ? (
           <Layer size={size}>
             {(pose.worn ?? []).map((w) => (
