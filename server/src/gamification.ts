@@ -5,9 +5,6 @@ export const XP = {
   examEntry: 50,
 } as const;
 
-// Spaced-repetition intervals in days; `reviews.stage` indexes into this.
-export const REVIEW_INTERVALS = [1, 3, 7, 14, 30] as const;
-
 const BASE_LEVEL_XP = 100;
 const LEVEL_GROWTH = 1.2;
 

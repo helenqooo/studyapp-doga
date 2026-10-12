@@ -4,20 +4,27 @@ import { eq } from 'drizzle-orm';
 import Fastify, { type FastifyServerOptions } from 'fastify';
 import { registerAuth } from './auth';
 import type { Solver } from './claude/solver';
+import type { Tutor } from './claude/tutor';
 import type { Db } from './db/client';
 import { profile } from './db/schema';
 import { profileDto } from './dto';
 import type { Env } from './env';
+import { messageRoutes } from './routes/messages';
 import { questionRoutes } from './routes/questions';
+import { reviewRoutes } from './routes/reviews';
 import { solveRoutes } from './routes/solve';
 
 export interface AppDeps {
   env: Env;
   db: Db;
   solver: Solver;
+  tutor: Tutor;
+  /** Current time in ms; injectable so tests can move across days. */
+  now: () => number;
 }
 
-export async function buildApp(deps: AppDeps, opts: FastifyServerOptions = {}) {
+export async function buildApp(input: Omit<AppDeps, 'now'> & { now?: AppDeps['now'] }, opts: FastifyServerOptions = {}) {
+  const deps: AppDeps = { ...input, now: input.now ?? Date.now };
   fs.mkdirSync(deps.env.imagesDir, { recursive: true });
 
   const app = Fastify({ logger: true, ...opts });
@@ -43,6 +50,8 @@ export async function buildApp(deps: AppDeps, opts: FastifyServerOptions = {}) {
 
   solveRoutes(app, deps);
   questionRoutes(app, deps);
+  reviewRoutes(app, deps);
+  messageRoutes(app, deps);
 
   return app;
 }

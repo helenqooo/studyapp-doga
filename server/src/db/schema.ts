@@ -44,8 +44,8 @@ export const attempts = sqliteTable(
   (t) => [index('attempts_question_idx').on(t.questionId), index('attempts_created_at_idx').on(t.createdAt)],
 );
 
-// Spaced-repetition queue (Phase 2). One row per question that entered the queue.
-// `stage` indexes into the interval list [1, 3, 7, 14, 30] days.
+// Spaced-repetition queue. One row per question that entered the queue.
+// `stage` indexes into REVIEW_INTERVALS (src/srs.ts).
 export const reviews = sqliteTable(
   'reviews',
   {
@@ -61,6 +61,21 @@ export const reviews = sqliteTable(
     createdAt: integer('created_at').notNull(),
   },
   (t) => [index('reviews_due_idx').on(t.status, t.dueDate)],
+);
+
+// "Anlamadım" follow-up chat about a solved question.
+export const questionMessages = sqliteTable(
+  'question_messages',
+  {
+    id: text('id').primaryKey(),
+    questionId: text('question_id')
+      .notNull()
+      .references(() => questions.id, { onDelete: 'cascade' }),
+    role: text('role', { enum: ['user', 'assistant'] }).notNull(),
+    content: text('content').notNull(),
+    createdAt: integer('created_at').notNull(),
+  },
+  (t) => [index('question_messages_question_idx').on(t.questionId, t.createdAt)],
 );
 
 export interface ExamTopicResult {

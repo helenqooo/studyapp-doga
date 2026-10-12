@@ -1,8 +1,7 @@
-import Anthropic from '@anthropic-ai/sdk';
 import { z } from 'zod';
-import type { Env } from '../env';
 import type { ImageMime } from '../images';
 import { getTopic, SUBJECTS_BY_EXAM, TOPICS, topicLabel, type Exam, type Subject } from '../topics';
+import { AiError, type Claude } from './client';
 
 export interface Solution {
   exam: Exam;
@@ -20,9 +19,6 @@ export interface Solver {
   solve(image: Buffer, mime: ImageMime): Promise<Solution>;
   readonly model: string;
 }
-
-/** A failure whose message is safe (and meant) to show to the student. */
-export class SolveError extends Error {}
 
 const ALL_SUBJECTS = [...SUBJECTS_BY_EXAM.TYT, ...SUBJECTS_BY_EXAM.AYT];
 
@@ -116,72 +112,35 @@ function normalize(raw: z.infer<typeof OutputSchema>): Solution {
   };
 }
 
-export function createClaudeSolver(env: Env): Solver {
-  const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY, maxRetries: 2 });
-  const model = env.AI_MODEL;
-
+export function createClaudeSolver(claude: Claude): Solver {
   return {
-    model,
+    model: claude.model,
     async solve(image, mime) {
-      let message: Anthropic.Beta.BetaMessage;
-      try {
-        // Streaming avoids HTTP timeouts when a hard question needs a long think.
-        const stream = client.beta.messages.stream({
-          model,
-          max_tokens: 32000,
-          betas: ['server-side-fallback-2026-07-01'],
-          fallbacks: 'default',
-          thinking: { type: 'adaptive' },
-          output_config: {
-            format: { type: 'json_schema', schema: OUTPUT_SCHEMA },
-            ...(env.AI_EFFORT ? { effort: env.AI_EFFORT } : {}),
+      const text = await claude.run({
+        maxTokens: 32000,
+        outputFormat: { type: 'json_schema', schema: OUTPUT_SCHEMA },
+        refusalMessage: 'Bu görsel için çözüm üretilemedi. Farklı bir fotoğraf dene.',
+        system: [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
+        messages: [
+          {
+            role: 'user',
+            content: [
+              { type: 'image', source: { type: 'base64', media_type: mime, data: image.toString('base64') } },
+              { type: 'text', text: 'Bu soruyu çöz.' },
+            ],
           },
-          system: [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
-          messages: [
-            {
-              role: 'user',
-              content: [
-                { type: 'image', source: { type: 'base64', media_type: mime, data: image.toString('base64') } },
-                { type: 'text', text: 'Bu soruyu çöz.' },
-              ],
-            },
-          ],
-        });
-        message = await stream.finalMessage();
-      } catch (err) {
-        if (err instanceof Anthropic.AuthenticationError) {
-          throw new SolveError('Sunucudaki Anthropic API anahtarı geçersiz.');
-        }
-        if (err instanceof Anthropic.RateLimitError) {
-          throw new SolveError('API limiti doldu, biraz sonra tekrar dene.');
-        }
-        if (err instanceof Anthropic.APIError) {
-          throw new SolveError(`Claude API hatası (${err.status ?? 'bağlantı'}). Tekrar dene.`, { cause: err });
-        }
-        throw err;
-      }
-
-      if (message.stop_reason === 'refusal') {
-        throw new SolveError('Bu görsel için çözüm üretilemedi. Farklı bir fotoğraf dene.');
-      }
-      if (message.stop_reason === 'max_tokens') {
-        throw new SolveError('Çözüm yarıda kesildi. Tekrar dene.');
-      }
-
-      const text = message.content
-        .filter((b): b is Anthropic.Beta.BetaTextBlock => b.type === 'text')
-        .map((b) => b.text)
-        .join('');
+        ],
+      });
 
       let json: unknown;
       try {
         json = JSON.parse(text);
       } catch {
-        throw new SolveError('Claude geçersiz bir yanıt döndürdü. Tekrar dene.');
+        throw new AiError('Claude geçersiz bir yanıt döndürdü. Tekrar dene.');
       }
       const parsed = OutputSchema.safeParse(json);
       if (!parsed.success) {
-        throw new SolveError('Claude beklenmeyen bir yanıt döndürdü. Tekrar dene.');
+        throw new AiError('Claude beklenmeyen bir yanıt döndürdü. Tekrar dene.');
       }
       return normalize(parsed.data);
     },
@@ -189,11 +148,11 @@ export function createClaudeSolver(env: Env): Solver {
 }
 
 /** Canned solution for UI testing without API cost (MOCK_SOLVER=true). */
-export function createMockSolver(): Solver {
+export function createMockSolver({ delayMs = 1500 } = {}): Solver {
   return {
     model: 'mock',
     async solve() {
-      await new Promise((r) => setTimeout(r, 1500));
+      await new Promise((r) => setTimeout(r, delayMs));
       return {
         exam: 'TYT',
         subject: 'Temel Matematik',

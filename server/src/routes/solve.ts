@@ -2,13 +2,13 @@ import { randomUUID } from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import type { FastifyInstance } from 'fastify';
-import { SolveError } from '../claude/solver';
+import { AiError } from '../claude/client';
 import { questions } from '../db/schema';
 import { questionDto } from '../dto';
 import { sniffImage } from '../images';
 import type { AppDeps } from '../app';
 
-export function solveRoutes(app: FastifyInstance, { env, db, solver }: AppDeps): void {
+export function solveRoutes(app: FastifyInstance, { env, db, solver, now }: AppDeps): void {
   // multipart/form-data with a single "image" file field.
   app.post('/solve', async (req, reply) => {
     const file = await req.file();
@@ -31,7 +31,7 @@ export function solveRoutes(app: FastifyInstance, { env, db, solver }: AppDeps):
       solution = await solver.solve(buf, kind.mime);
     } catch (err) {
       await fs.rm(imagePath, { force: true });
-      if (err instanceof SolveError) {
+      if (err instanceof AiError) {
         req.log.warn({ err }, 'solve failed');
         return reply.code(502).send({ error: err.message });
       }
@@ -42,7 +42,7 @@ export function solveRoutes(app: FastifyInstance, { env, db, solver }: AppDeps):
       .insert(questions)
       .values({
         id,
-        createdAt: Date.now(),
+        createdAt: now(),
         imageFile,
         imageMime: kind.mime,
         model: solver.model,

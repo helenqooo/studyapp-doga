@@ -2,19 +2,21 @@ import { randomUUID } from 'node:crypto';
 import { createReadStream } from 'node:fs';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, count, desc, eq, sql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import type { AppDeps } from '../app';
+import { hydrateQuestions } from '../db/hydrate';
 import { attempts, profile, questions, reviews } from '../db/schema';
-import { attemptDto, profileDto, questionDto } from '../dto';
-import { REVIEW_INTERVALS, XP } from '../gamification';
-import { addDays, localDate } from '../time';
+import { attemptDto, profileDto } from '../dto';
+import { XP } from '../gamification';
+import { initialSchedule } from '../srs';
+import { localDate } from '../time';
 
 const ListQuery = z.object({
   subject: z.string().optional(),
   topicId: z.string().optional(),
-  limit: z.coerce.number().int().min(1).max(200).default(50),
+  limit: z.coerce.number().int().min(1).max(200).default(30),
   offset: z.coerce.number().int().min(0).default(0),
 });
 
@@ -25,9 +27,10 @@ const AttemptBody = z.object({
   viewedSolution: z.boolean().default(false),
 });
 
-type IdParams = { Params: { id: string } };
+export type IdParams = { Params: { id: string } };
 
-export function questionRoutes(app: FastifyInstance, { env, db }: AppDeps): void {
+export function questionRoutes(app: FastifyInstance, { env, db, now }: AppDeps): void {
+  // History list, newest first, filterable by subject and topic.
   app.get('/questions', async (req, reply) => {
     const query = ListQuery.safeParse(req.query);
     if (!query.success) return reply.code(400).send({ error: 'Geçersiz filtre.' });
@@ -36,44 +39,40 @@ export function questionRoutes(app: FastifyInstance, { env, db }: AppDeps): void
     const filters = [];
     if (subject) filters.push(eq(questions.subject, subject));
     if (topicId) filters.push(eq(questions.topicId, topicId));
+    const where = filters.length ? and(...filters) : undefined;
 
     const rows = db
       .select()
       .from(questions)
-      .where(filters.length ? and(...filters) : undefined)
+      .where(where)
       .orderBy(desc(questions.createdAt))
       .limit(limit)
       .offset(offset)
       .all();
+    const total = db.select({ n: count() }).from(questions).where(where).get()?.n ?? 0;
 
-    const attemptsByQuestion = new Map<string, (typeof attempts.$inferSelect)[]>();
-    if (rows.length) {
-      const ids = rows.map((r) => r.id);
-      const all = db
-        .select()
-        .from(attempts)
-        .where(inArray(attempts.questionId, ids))
-        .orderBy(asc(attempts.createdAt))
-        .all();
-      for (const a of all) {
-        const list = attemptsByQuestion.get(a.questionId) ?? [];
-        list.push(a);
-        attemptsByQuestion.set(a.questionId, list);
-      }
-    }
-    return { items: rows.map((r) => questionDto(r, attemptsByQuestion.get(r.id))) };
+    return { items: hydrateQuestions(db, rows), total, nextOffset: offset + rows.length < total ? offset + rows.length : null };
+  });
+
+  // Question counts per subject and topic, for the history filters.
+  app.get('/questions/facets', async () => {
+    const subjects = db
+      .select({ subject: questions.subject, count: count() })
+      .from(questions)
+      .groupBy(questions.subject)
+      .all();
+    const topics = db
+      .select({ topicId: questions.topicId, count: count() })
+      .from(questions)
+      .groupBy(questions.topicId)
+      .all();
+    return { total: subjects.reduce((sum, s) => sum + s.count, 0), subjects, topics };
   });
 
   app.get<IdParams>('/questions/:id', async (req, reply) => {
     const q = db.select().from(questions).where(eq(questions.id, req.params.id)).get();
     if (!q) return reply.code(404).send({ error: 'Soru bulunamadı.' });
-    const list = db
-      .select()
-      .from(attempts)
-      .where(eq(attempts.questionId, q.id))
-      .orderBy(asc(attempts.createdAt))
-      .all();
-    return questionDto(q, list);
+    return hydrateQuestions(db, [q])[0];
   });
 
   app.get<IdParams>('/questions/:id/image', async (req, reply) => {
@@ -105,7 +104,7 @@ export function questionRoutes(app: FastifyInstance, { env, db }: AppDeps): void
     const q = db.select({ id: questions.id }).from(questions).where(eq(questions.id, req.params.id)).get();
     if (!q) return reply.code(404).send({ error: 'Soru bulunamadı.' });
 
-    const now = Date.now();
+    const ts = now();
     const result = db.transaction((tx) => {
       const existing = tx
         .select({ id: attempts.id })
@@ -119,7 +118,7 @@ export function questionRoutes(app: FastifyInstance, { env, db }: AppDeps): void
         .values({
           id: randomUUID(),
           questionId: q.id,
-          createdAt: now,
+          createdAt: ts,
           source: 'solve',
           result: body.data.result,
           userAnswer: body.data.userAnswer || null,
@@ -130,13 +129,9 @@ export function questionRoutes(app: FastifyInstance, { env, db }: AppDeps): void
         .get();
 
       if (body.data.result !== 'correct') {
+        const schedule = initialSchedule(localDate(ts, env.APP_TIMEZONE));
         tx.insert(reviews)
-          .values({
-            questionId: q.id,
-            stage: 0,
-            dueDate: addDays(localDate(now, env.APP_TIMEZONE), REVIEW_INTERVALS[0]),
-            createdAt: now,
-          })
+          .values({ questionId: q.id, stage: schedule.stage, dueDate: schedule.dueDate, status: schedule.status, createdAt: ts })
           .onConflictDoNothing()
           .run();
       }
