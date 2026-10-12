@@ -1,0 +1,121 @@
+# Derece — YKS çalışma uygulaması (proje spesifikasyonu)
+
+> İlk adım: Bu metnin tamamını proje kökünde `CLAUDE.md` olarak kaydet. Sonraki bütün oturumlarda referans bu dosya olacak. Ardından aşağıdaki **Faz 1**'i uygula ve dur.
+
+## Ne yapıyoruz
+YKS'ye (TYT + AYT Sayısal) hazırlanan tek bir öğrenci için kişisel iOS uygulaması. App Store'a çıkmayacak. Geliştirme Expo Go'da yapılıyor, ileride .ipa olarak sideload edilecek.
+Kullanıcı arayüzü dili: **Türkçe**. Kod, yorumlar ve commit mesajları: İngilizce.
+
+## Stack
+- **App:** `app/` klasörü. Expo (son SDK), TypeScript, expo-router (tabs), zustand, @tanstack/react-query.
+- **Expo Go uyumluluğu ŞART:** Sadece Expo Go içinde gelen kütüphaneler kullanılacak. Prebuild veya custom native modül gerektiren hiçbir şey eklenmeyecek. Bağımlılıklar her zaman `npx expo install` ile kurulacak.
+  - Kamera ve galeri: `expo-camera`, `expo-image-picker`, `expo-image-manipulator` (yüklemeden önce uzun kenarı ~1600px'e indir, JPEG kalitesi 0.8).
+  - Grafikler: `react-native-svg` tabanlı.
+  - Animasyon: `react-native-reanimated`. Titreşim: `expo-haptics`. Bildirim: `expo-notifications` (sadece local).
+  - Matematik gösterimi: `react-native-webview` içinde KaTeX ile markdown + LaTeX render. KaTeX dosyaları uygulamanın içinde, CDN'e bağımlı olmadan gelecek.
+- **Backend:** `server/` klasörü. VDS'te çalışacak. Node + TypeScript, Fastify, SQLite (better-sqlite3 + Drizzle). Görseller diskte `server/data/images/` altında tutulacak.
+  - Anthropic SDK, model: `claude-sonnet-5-5`. Model adı `.env` dosyasından okunacak.
+  - Yapılandırılmış çıktı için tool use / JSON schema kullanılacak, serbest metin parse edilmeyecek.
+  - Tek kullanıcı: bütün istekler `Authorization: Bearer <APP_TOKEN>` ile korunacak.
+- **Güvenlik:** `ANTHROPIC_API_KEY` sadece `server/.env` içinde durur. Mobil koda ASLA girmez. App, `EXPO_PUBLIC_API_URL` ve `EXPO_PUBLIC_APP_TOKEN` değişkenlerini kullanır.
+
+## Konu taksonomisi
+- `app/src/data/topics.ts` ve `server/src/topics.ts` dosyaları aynı, elle düzenlenebilir bir liste olacak. Kullanıcı bu listeyi kendisi düzenleyecek.
+- Yapı: `{ id, exam: 'TYT'|'AYT', subject, topic, subtopic? }`.
+- Kapsam:
+  - TYT: Türkçe, Sosyal, Temel Matematik (geometri dahil), Fen.
+  - AYT Sayısal: Matematik (geometri dahil), Fizik, Kimya, Biyoloji.
+- Başlangıç olarak güncel ÖSYM/MEB konu başlıklarıyla doldur.
+- AI sınıflandırması yaparken sadece bu listedeki `id`'leri seçebilir (enum olarak verilecek).
+
+## Özellikler
+
+### 1. Soru çöz (Faz 1)
+- Kamera veya galeriden görsel seçilir, kırpılır, `POST /solve` ile gönderilir.
+- Backend Claude'a görseli ve topic enum'unu gönderir. Tek çağrıda şu JSON döner:
+  `{ exam, subject, topicId, difficulty (1-5), questionText, hints: [3 kademeli ipucu], solutionSteps: [], finalAnswer, confidence }`
+- Ekranda iki buton olacak: **"İpucu"** (her basışta bir sonraki ipucunu açar) ve **"Tam çözüm"**. Hangisini kullanacağına kullanıcı her seferinde kendisi karar verir.
+- Sonra kullanıcı şunları işaretler: **Doğru yaptım / Yanlış yaptım / Boş bıraktım**, isteğe bağlı olarak kendi verdiği cevap. Kayıt geçmişe düşer.
+- Düşük `confidence` gelirse uyarı gösterilir: "Cevap anahtarıyla kontrol et".
+- (Faz 2) "Anlamadım" butonu: aynı soru üzerinden takip sorusu sorulabilen kısa bir sohbet.
+
+### 2. Tekrar sistemi (Faz 2)
+- Yanlış veya boş işaretlenen sorular tekrar kuyruğuna girer.
+- Aralıklar: 1, 3, 7, 14, 30 gün. Doğru yapılırsa bir sonraki aralığa geçer, yanlış yapılırsa başa döner. Mantık sade bir SM-2 benzeri.
+- Ana sayfada "Bugünün tekrarı (N soru)" gösterilir.
+- Tekrar akışı: görsel gösterilir, kullanıcı kağıtta çözer, cevabı açar, Doğru/Yanlış işaretler.
+- Geçmiş ekranı: ders ve konuya göre filtrelenebilen soru listesi.
+
+### 3. Deneme (Faz 3)
+- İki giriş yolu var, ikisi de aynı düzenlenebilir forma düşer:
+  - **Karne fotoğrafı:** `POST /exams/parse` ile Claude ders bazında (varsa konu bazında da) D/Y/B değerlerini okur.
+  - **Manuel giriş.**
+- Soru sayıları:
+  - TYT: Türkçe 40, Sosyal 20, Temel Matematik 40, Fen 20.
+  - AYT Sayısal: Matematik 40, Fizik 14, Kimya 13, Biyoloji 13.
+- Net hesabı: D − Y/4.
+- Analiz ekranı:
+  - Ders bazında net trend grafiği.
+  - En çok net kaybedilen konular: deneme verisi ve soru geçmişi birleştirilerek hesaplanır.
+  - Haftalık AI özeti: "Bu hafta öncelik verilecek 3 konu" ve gerekçesi.
+
+### 4. Çalışma sayacı (Faz 4)
+- Pomodoro: varsayılan 25/5, ayarlanabilir. Her oturuma ders etiketi seçilir.
+- Sayaç timestamp tabanlı olacak. Uygulama arka plana geçse de doğru saymalı.
+- Süre bitince local bildirim gönderilir.
+- Günlük toplam süre ve ders dağılımı gösterilir.
+
+### 5. Oyunlaştırma (Faz 4, tasarım baştan buna göre kurulacak)
+- XP kazanma:
+  - Soru çözme: +10
+  - Tekrarda doğru: +15
+  - Pomodoro tamamlama: +20
+  - Deneme girişi: +50
+- Seviye eğrisi: her seviye bir öncekinden ~%20 daha fazla XP ister.
+- **Streak:** gün içinde en az 1 pomodoro veya tekrar kuyruğunun tamamlanması.
+- Rozetler: ilk deneme, 7 / 30 günlük streak, 100 / 500 soru, konu ustası (bir konuda 10 doğru tekrar).
+- Kutlama animasyonları ve haptics: seviye atlama, rozet kazanma, streak artışı.
+
+## Ekranlar (tab bar)
+1. **Ana Sayfa:** streak alevi, XP barı ve seviye, bugünün tekrar sayısı, bugünkü çalışma süresi, büyük "Soru Çöz" butonu.
+2. **Çöz:** kamera ve çözüm akışı.
+3. **Tekrar:** kuyruk ve geçmiş.
+4. **Deneme:** liste, giriş ve analiz.
+5. **Profil:** istatistikler, rozetler, ayarlar (pomodoro süreleri, API URL kontrolü).
+
+## Tasarım kuralları
+- Tarz: oyunlaştırılmış, canlı renkli ama göz yormayan. Koyu ve açık tema otomatik.
+- **Bütün renkler, font boyutları, boşluklar ve köşe yarıçapları tek dosyada:** `app/src/theme.ts`. Bileşenler bu dosyadaki token'ları kullanır, hardcoded renk yazılmaz. Tasarım değişikliği istendiğinde önce theme, sonra ilgili bileşen değiştirilir.
+- Ortak bileşenler `app/src/components/` altında: Card, Button, ProgressBar, StatTile, Badge vb.
+- Dokunma alanları en az 44pt. Safe area'ya uyulur.
+
+## Backend endpoint'leri
+- `POST /solve`
+- `POST /questions/:id/attempt`
+- `GET /questions?subject=&topicId=`
+- `GET /questions/:id/image`
+- `GET /reviews/today`
+- `POST /reviews/:id/result`
+- `POST /exams/parse`
+- `POST /exams`
+- `GET /exams`
+- `GET /stats/overview`
+- `GET /stats/weekly-summary`
+- `POST /sessions`
+- `GET /sessions?date=`
+- `GET /profile`: XP, seviye, streak, rozetler.
+
+## Çalışma kuralları (Claude Code için)
+- Dev server'lar tmux'ta açık duruyor: `npx expo start --tunnel` ve backend. Bunları kapatma veya yeniden başlatma; gerekirse bana söyle.
+- Her değişiklikten sonra `npx tsc --noEmit` çalıştır. Hata kalmasın.
+- Çalışan her özellikten sonra git commit at.
+- Her fazın sonunda dur. Telefonda neyi test etmem gerektiğini kısa bir liste olarak yaz.
+- Belirsiz bir karar çıkarsa makul olanı seç ve fazın sonunda belirt. Küçük şeyler için durup soru sorma.
+
+## Faz 1 (şimdi bunu yap)
+1. Monorepo yapısı: `app/` + `server/`, `.gitignore` (`.env`, `server/data/` dahil), `.env.example` dosyaları.
+2. Backend: Fastify, SQLite şeması (questions, attempts, reviews, exams, sessions, profile), auth middleware, `POST /solve` ve `GET /questions/:id/image`.
+3. App: expo-router ile 5 tab (Çöz dışındakiler şimdilik placeholder olabilir), `theme.ts`, temel bileşenler, Ana Sayfa iskeleti.
+4. Soru çöz akışının tamamı: kamera/galeri → yükleme → ipucu ve tam çözüm → KaTeX render → Doğru/Yanlış/Boş işaretleme → kayıt.
+5. `topics.ts` ilk sürümü.
+6. Kurulum için kısa bir README: `.env` değişkenleri, backend nasıl çalıştırılır, Expo nasıl açılır.

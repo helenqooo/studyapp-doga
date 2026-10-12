@@ -1,0 +1,20 @@
+# Dependencies
+node_modules/
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Server runtime data (SQLite DB + question images)
+server/data/
+
+# Expo / build output
+.expo/
+dist/
+web-build/
+*.tsbuildinfo
+
+# OS / editor
+.DS_Store
+*.log
