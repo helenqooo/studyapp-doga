@@ -69,6 +69,9 @@ export interface ColorTokens {
   /** Badge medallions by tier, plus the muted look of a badge not earned yet. */
   badge: { bronze: string; silver: string; gold: string; ink: string; locked: string; lockedInk: string };
 
+  /** Lumi, the assistant character (components/mascot): its own flat palette. */
+  mascot: MascotColors;
+
   /** Avatar circle fills (initial in `textOnAccent`, all ≥ 4.5:1 under white). */
   avatar: Record<'clay' | 'kraft' | 'olive' | 'sky' | 'plum' | 'sand' | 'slate' | 'rose', string>;
 
@@ -87,6 +90,63 @@ export interface ColorTokens {
     markerRing: string;
   };
 }
+
+export interface MascotColors {
+  body: string;
+  shade: string;
+  highlight: string;
+  arm: string;
+  foot: string;
+  ink: string;
+  eyeShine: string;
+  cheek: string;
+  /** The light on its antenna, its halo and highlight. */
+  glow: string;
+  glowSoft: string;
+  glowShine: string;
+  /** Props: headphones, caps; gold for crowns and pom-poms; paper for books and cups. */
+  gear: string;
+  gearSoft: string;
+  gold: string;
+  goldDeep: string;
+  paper: string;
+  paperShade: string;
+  ruling: string;
+  heart: string;
+  water: string;
+  steam: string;
+  flame: string;
+  accentBlue: string;
+  accentGreen: string;
+  shadow: string;
+}
+
+const MASCOT_BASE = {
+  body: '#E07B54',
+  shade: '#C9623F',
+  highlight: '#F4A27F',
+  arm: '#D96F4B',
+  foot: '#B4553A',
+  ink: '#2A1C17',
+  eyeShine: '#FFFFFF',
+  cheek: '#F59C93',
+  glow: '#FFC94D',
+  glowSoft: 'rgba(255, 201, 77, 0.28)',
+  glowShine: '#FFF3C4',
+  gear: '#3B3633',
+  gearSoft: '#5A524C',
+  gold: '#E9B23E',
+  goldDeep: '#D39B2A',
+  paper: '#FFF8EC',
+  paperShade: '#F4ECDD',
+  ruling: '#C9BDA8',
+  heart: '#E5544B',
+  water: '#7FB8E6',
+  steam: '#B9B2A6',
+  flame: '#F08A3C',
+  accentBlue: '#6A9BCC',
+  accentGreen: '#7FA36A',
+};
 
 const light: ColorTokens = {
   background: '#F5F4EE',
@@ -134,6 +194,7 @@ const light: ColorTokens = {
   confetti: ['#D97757', '#C9954C', '#788C5D', '#6A9BCC', '#E4B9A3'],
   celebrationScrim: 'rgba(245, 244, 238, 0.72)',
   badge: { bronze: '#B87A45', silver: '#7D8794', gold: '#B8862F', ink: '#FFFFFF', locked: '#E4E1D8', lockedInk: '#8F8C84' },
+  mascot: { ...MASCOT_BASE, shadow: 'rgba(0, 0, 0, 0.10)' },
   avatar: {
     clay: '#B5573A',
     kraft: '#8F6328',
@@ -213,6 +274,7 @@ const dark: ColorTokens = {
   confetti: ['#E08B6D', '#D4A27F', '#A3B886', '#8DB4DE', '#F0C6B3'],
   celebrationScrim: 'rgba(31, 30, 29, 0.72)',
   badge: { bronze: '#B87A45', silver: '#7D8794', gold: '#B8862F', ink: '#FFFFFF', locked: '#3B3A36', lockedInk: '#85827A' },
+  mascot: { ...MASCOT_BASE, shadow: 'rgba(0, 0, 0, 0.45)' },
   avatar: {
     clay: '#B5573A',
     kraft: '#8F6328',
@@ -382,8 +444,11 @@ export const layout = {
   timerStroke: 10,
   /** Avatar circle on the leaderboard. */
   avatar: 40,
-  /** Damla, the assistant: in a note (home, empty states) and large (sign-in, celebrations). */
-  mascot: { note: 72, hero: 132 },
+  /** Lumi, the assistant: in a note (home, empty states) and large (sign-in, celebrations). */
+  mascot: { note: 84, hero: 150 },
+  /** Lumi next to a chat reply, and the size of the "typing" dots. */
+  chatAvatar: 36,
+  chatDot: 7,
   chart: {
     lineWidth: 2,
     markerRadius: 4,

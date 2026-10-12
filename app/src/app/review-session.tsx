@@ -7,7 +7,7 @@ import { AppText } from '../components/AppText';
 import { Badge } from '../components/Badge';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
-import { Damla } from '../components/Damla';
+import { Mascot } from '../components/mascot/Mascot';
 import { Icon } from '../components/Icon';
 import { MathView } from '../components/math/MathView';
 import { Appear } from '../components/motion/Appear';
@@ -108,14 +108,14 @@ export default function ReviewSessionScreen() {
         <Appear>
           <Card>
             <View style={{ alignItems: 'center', gap: theme.spacing.md, paddingVertical: theme.spacing.lg }}>
-              <Damla size={theme.layout.mascot.hero} />
+              <Mascot size={theme.layout.mascot.hero} mood={!total ? 'wink' : tally.wrong === 0 ? 'celebrate' : 'cheer'} />
               <AppText variant="title" align="center">
                 {total ? 'Tekrar bitti!' : 'Bugün tekrar yok'}
               </AppText>
               {total ? (
                 <AppText color="textMuted" align="center">
                   {tally.correct} doğru · {tally.wrong} yanlış.{' '}
-                  {tally.wrong ? 'Yanlışlar baştan sıraya girdi; damlaya damlaya göl olur.' : 'Hepsi yerinde, harika.'}
+                  {tally.wrong ? 'Yanlışlar baştan sıraya girdi; her tekrar biraz daha ışık.' : 'Hepsi yerinde, harika.'}
                 </AppText>
               ) : (
                 <AppText color="textMuted" align="center">

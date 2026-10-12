@@ -10,7 +10,7 @@ import { Card } from '../../components/Card';
 import { emptyForm, ExamForm, formFrom } from '../../components/ExamForm';
 import { Icon } from '../../components/Icon';
 import { Screen } from '../../components/Screen';
-import { ThinkingSpark } from '../../components/motion/ThinkingSpark';
+import { Mascot } from '../../components/mascot/Mascot';
 import { LOW_CONFIDENCE_THRESHOLD } from '../../config';
 import { haptics } from '../../lib/haptics';
 import { prepareDocument } from '../../lib/image';
@@ -92,7 +92,7 @@ export default function NewExamScreen() {
       <Screen safeTop={false} width="readable">
         <Card>
           <View style={{ alignItems: 'center', gap: theme.spacing.md, paddingVertical: theme.spacing.xl }}>
-            <ThinkingSpark />
+            <Mascot mood="reading" size={theme.layout.mascot.note} />
             <AppText variant="heading" align="center">
               Karne okunuyor…
             </AppText>

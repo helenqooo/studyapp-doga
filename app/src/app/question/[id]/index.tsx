@@ -10,6 +10,7 @@ import { Button } from '../../../components/Button';
 import { Card } from '../../../components/Card';
 import { Difficulty } from '../../../components/Difficulty';
 import { Icon } from '../../../components/Icon';
+import { Mascot } from '../../../components/mascot/Mascot';
 import { MathView } from '../../../components/math/MathView';
 import { Appear } from '../../../components/motion/Appear';
 import { Loader } from '../../../components/motion/Loader';
@@ -81,23 +82,28 @@ function SavedResult({ q, result, pick }: { q: Question; result: AttemptResult; 
   let detail: string | null = null;
   if (isGradedChoice(q)) {
     title = result === 'correct' ? `Doğru! Cevap ${key}.` : result === 'wrong' ? `${pick} dedin, doğrusu ${key}.` : `Boş bıraktın. Doğrusu ${key}.`;
-    if (result === 'wrong') detail = 'Yanlışlar tekrar listende; birkaç gün sonra yeniden deneyeceğiz.';
+    if (result === 'wrong') detail = 'Üzülme, birlikte toparlarız: bu soru tekrar listende, yarın yeniden deneyeceğiz.';
   } else {
     title = `Kaydedildi: ${RESULT_LABELS[result]}${pick ? ` (cevabın: ${pick})` : ''}`;
   }
+  // Lumi cheers a right answer, is sad with you about a wrong one, ponders a blank.
+  const mood = result === 'correct' ? 'celebrate' : result === 'wrong' ? 'sad' : 'thinking';
   return (
-    <View style={{ gap: theme.spacing.xxs }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm }}>
-        <Icon name={icon} color={tone} />
-        <AppText weight="semibold" tint={tone} style={{ flex: 1 }}>
-          {title}
-        </AppText>
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md }}>
+      <Mascot mood={mood} size={theme.layout.mascot.note} />
+      <View style={{ flex: 1, gap: theme.spacing.xxs }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm }}>
+          <Icon name={icon} color={tone} />
+          <AppText weight="semibold" tint={tone} style={{ flex: 1 }}>
+            {title}
+          </AppText>
+        </View>
+        {detail ? (
+          <AppText variant="label" color="textMuted">
+            {detail}
+          </AppText>
+        ) : null}
       </View>
-      {detail ? (
-        <AppText variant="label" color="textMuted">
-          {detail}
-        </AppText>
-      ) : null}
     </View>
   );
 }
@@ -222,7 +228,7 @@ export default function QuestionScreen() {
       {q.hints.slice(0, hintsShown).map((hint, i) => (
         <Appear key={i}>
           <Card title={`İpucu ${i + 1}`} background={theme.colors.hintBackground}>
-            <MathView markdown={hint} />
+            <MathView markdown={hint} typing="type" />
           </Card>
         </Appear>
       ))}
@@ -230,7 +236,7 @@ export default function QuestionScreen() {
       {solutionShown ? (
         <Appear>
           <Card title="Tam çözüm">
-            <MathView markdown={solutionMarkdown(q)} />
+            <MathView markdown={solutionMarkdown(q)} typing="type" />
           </Card>
         </Appear>
       ) : null}

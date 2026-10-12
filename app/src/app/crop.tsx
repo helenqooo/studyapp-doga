@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSolve } from '../api/hooks';
 import { AppText } from '../components/AppText';
 import { Button } from '../components/Button';
-import { ThinkingSpark } from '../components/motion/ThinkingSpark';
+import { Mascot } from '../components/mascot/Mascot';
 import { DEMO_MODE } from '../config';
 import { haptics } from '../lib/haptics';
 import { prepareUpload, type LocalImage } from '../lib/image';
@@ -291,7 +291,7 @@ export default function CropScreen() {
                 gap: theme.spacing.md,
               }}
             >
-              <ThinkingSpark color={c.cameraForeground} />
+              <Mascot mood={phase === 'preparing' || phase === 'uploading' ? 'thinking' : 'reading'} size={theme.layout.mascot.hero} />
               <AppText variant="heading" tint={c.cameraForeground} align="center">
                 {phase === 'preparing'
                   ? 'Görsel hazırlanıyor…'

@@ -15,7 +15,7 @@ interface Props {
   safeTop?: boolean;
   /** `wide` for dashboards and lists, `readable` for single-column reading and forms. */
   width?: 'wide' | 'readable';
-  /** Small accent mark before the title; `logo` is the Netlik mark. */
+  /** Small accent mark before the title; `logo` is the Lumi mark. */
   titleIcon?: IconName | 'logo';
   /** Small capitals above the title (pass them already uppercase, see upperTr). */
   eyebrow?: string;

@@ -1,6 +1,6 @@
-# Netlik
+# Lumi
 
-*Her gün biraz daha net.* YKS (TYT + AYT Sayısal) için kişisel çalışma uygulaması; asistanın adı Damla. (İlk çalışma adı: Derece.) Proje spesifikasyonu: [`CLAUDE.md`](CLAUDE.md).
+*Her gün biraz daha net.* YKS (TYT + AYT Sayısal) için kişisel çalışma uygulaması; asistanın adı da Lumi. (Önceki çalışma adları: Derece, Netlik.) Proje spesifikasyonu: [`CLAUDE.md`](CLAUDE.md).
 
 ```
 app/     Expo (SDK 57) iOS uygulaması: expo-router, TypeScript
@@ -73,6 +73,13 @@ iPhone'da kamerayla QR kodu okut, Expo Go'da açılır.
 - **Sayaç (pomodoro):** Ana sayfadaki "Bugünkü çalışma" kartından açılır. Varsayılan 25/5 dakika; süreler sayaç ekranından değişir. Uygulama arka plandayken de doğru sayar, süre bitince bildirim gelir. 5 dakikadan uzun tamamlanan her odak +20 XP kazandırır.
 - **Seri:** Gün içinde en az bir tamamlanmış pomodoro ya da bugünün tekrar listesinin bitirilmesi günü seriye sayar.
 - **Rozetler:** İlk deneme, 7 ve 30 günlük seri, 100 ve 500 soru, konu ustası (bir konuda 10 doğru tekrar). Profil ekranında görünür.
+
+## Şıklar ve Lumi
+
+- **Şıklar:** Çözülen sorunun şıkları sorunun altında düğme olarak çıkar. Kendi cevabını seçersin, doğru mu yanlış mı olduğuna uygulama karar verir. Tekrarda şıkkı en başta seçersin; "Bilmiyorum" yanlış sayılır.
+- **Cevap anahtarı:** Çözüm yanlışsa "Cevap anahtarı farklı mı?" ile doğru şıkkı gir. İlk cevabın yeniden değerlendirilir, tekrar listesi de ona göre güncellenir.
+- **Lumi'ye sor:** Ana sayfadaki Lumi kartından açılan sohbet. Lumi serini, tekrarlarını, denemelerini ve en çok net kaybettiğin konuları bilir; cevaplar yazılarak akar. Günde 60 mesaj. "Anlamadım" sohbeti de aynı şekilde akar.
+- **Lumi'nin hâlleri:** El sallar, sevinir, üzülür, düşünür, okur, uyur, odaklanır, mola verir, tezahürat yapar… Hangi anda hangisinin görüneceği `app/src/components/mascot/poses.ts` dosyasında.
 
 ## Demo modu (sunucusuz)
 

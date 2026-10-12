@@ -1,4 +1,4 @@
-"""Renders the Netlik mark (assets/brand/logo.svg) into the app icon, splash, favicon,
+"""Renders the Lumi mark (assets/brand/logo.svg) into the app icon, splash, favicon,
 Android adaptive icon layers and the web app icons.
 
     python3 scripts/build-brand-assets.py      (needs Pillow)

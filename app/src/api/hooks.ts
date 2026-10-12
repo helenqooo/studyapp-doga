@@ -1,8 +1,11 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useCallback } from 'react';
 import { api } from './client';
 import { useAuthStore } from '../store/authStore';
 import type {
+  AssistantThread,
   AttemptInput,
+  ChatExchange,
   ChatThread,
   ChoiceLabel,
   ExamInput,
@@ -25,6 +28,7 @@ export const queryKeys = {
   facets: ['questions', 'facets'] as const,
   reviewsToday: ['reviews', 'today'] as const,
   messages: (id: string) => ['messages', id] as const,
+  assistant: ['assistant'] as const,
   exams: ['exams'] as const,
   exam: (id: string) => ['exam', id] as const,
   /** Overview and weekly summary both depend on exams and practice. */
@@ -133,11 +137,11 @@ export function useMessages(questionId: string) {
   return useQuery({ queryKey: queryKeys.messages(questionId), queryFn: () => api.messages(questionId) });
 }
 
-export function useSendMessage(questionId: string) {
+/** Puts a finished "Anlamadım" exchange into the cached thread. */
+export function useAddMessages(questionId: string) {
   const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (content: string) => api.sendMessage(questionId, content),
-    onSuccess: ({ userMessage, assistantMessage }) => {
+  return useCallback(
+    ({ userMessage, assistantMessage }: ChatExchange) => {
       queryClient.setQueryData<ChatThread>(queryKeys.messages(questionId), (t) =>
         t ? { ...t, items: [...t.items, userMessage, assistantMessage] } : t,
       );
@@ -145,6 +149,32 @@ export function useSendMessage(questionId: string) {
         q ? { ...q, messageCount: q.messageCount + 2 } : q,
       );
     },
+    [queryClient, questionId],
+  );
+}
+
+export function useAssistantThread() {
+  return useQuery({ queryKey: queryKeys.assistant, queryFn: api.assistantThread });
+}
+
+/** Puts a finished assistant exchange into the cached thread. */
+export function useAddAssistantMessages() {
+  const queryClient = useQueryClient();
+  return useCallback(
+    ({ userMessage, assistantMessage }: ChatExchange) => {
+      queryClient.setQueryData<AssistantThread>(queryKeys.assistant, (t) =>
+        t ? { items: [...t.items, userMessage, assistantMessage], remainingToday: Math.max(0, t.remainingToday - 1) } : t,
+      );
+    },
+    [queryClient],
+  );
+}
+
+export function useClearAssistant() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: api.clearAssistant,
+    onSuccess: () => queryClient.setQueryData<AssistantThread>(queryKeys.assistant, (t) => (t ? { ...t, items: [] } : t)),
   });
 }
 

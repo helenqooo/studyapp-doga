@@ -5,7 +5,7 @@ import { useFacets, useQuestionList, useReviewsToday } from '../../api/hooks';
 import { AppText } from '../../components/AppText';
 import { Button } from '../../components/Button';
 import { Card } from '../../components/Card';
-import { DamlaNote } from '../../components/Damla';
+import { MascotNote } from '../../components/mascot/MascotNote';
 import { Grid } from '../../components/Grid';
 import { Chip } from '../../components/Chip';
 import { Icon } from '../../components/Icon';
@@ -155,7 +155,7 @@ function HistoryPanel() {
           </AppText>
         ) : (
           <Card>
-            <DamlaNote title="Henüz soru yok.">Takıldığın ilk soruyu Çöz sekmesinden çek; yanlışların burada tekrar sırasına girer.</DamlaNote>
+            <MascotNote mood="study" title="Henüz soru yok.">Takıldığın ilk soruyu Çöz sekmesinden çek; yanlışların burada tekrar sırasına girer.</MascotNote>
           </Card>
         )
       ) : null}

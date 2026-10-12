@@ -1,7 +1,7 @@
 import Svg, { Circle, Path } from 'react-native-svg';
 import { useTheme } from '../theme';
 
-// Netlik's mark, "Odak halkası": an open ring with its gap at the top right and a dot
+// Lumi's mark, "Odak halkası": an open ring with its gap at the top right and a dot
 // drifting toward the gap, the moment something comes into focus. 100-unit grid, same
 // geometry as assets/brand/logo.svg.
 export const LOGO_RING = 'M78.19 39.74 A30 30 0 1 1 60.26 21.81';

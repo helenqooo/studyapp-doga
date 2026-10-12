@@ -13,7 +13,7 @@ import { useTheme } from '../../theme';
 import { LOGO_DOT, LOGO_RING } from '../Logo';
 
 /**
- * The Netlik mark, slowly turning and breathing, shown while the AI reads or writes
+ * The Lumi mark, slowly turning and breathing, shown while the AI reads or writes
  * (solving a question, reading a karne, answering in chat): the ring "focusing".
  */
 export function ThinkingSpark({ size, color }: { size?: number; color?: string }) {

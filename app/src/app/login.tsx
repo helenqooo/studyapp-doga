@@ -9,10 +9,12 @@ import { Button } from '../components/Button';
 import { Card } from '../components/Card';
 import { Icon } from '../components/Icon';
 import { LogoMark } from '../components/Logo';
+import { Mascot } from '../components/mascot/Mascot';
 import { Appear } from '../components/motion/Appear';
 import { PressableScale } from '../components/motion/PressableScale';
 import { SegmentedControl } from '../components/SegmentedControl';
 import { TextField } from '../components/TextField';
+import { APP_NAME, SLOGAN } from '../brand';
 import { API_URL } from '../config';
 import { haptics } from '../lib/haptics';
 import { useTheme } from '../theme';
@@ -88,12 +90,15 @@ export default function LoginScreen() {
       >
         <View style={{ width: '100%', maxWidth: theme.layout.readableWidth * 0.62, alignSelf: 'center', gap: theme.spacing.xl }}>
           <Appear style={{ alignItems: 'center', gap: theme.spacing.sm }}>
-            <LogoMark size={theme.layout.resultBadge} />
-            <AppText variant="display" align="center">
-              Netlik
-            </AppText>
+            <Mascot mood="wave" size={theme.layout.mascot.hero} />
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm }}>
+              <LogoMark size={theme.layout.iconSize.xl} />
+              <AppText variant="display" align="center">
+                {APP_NAME}
+              </AppText>
+            </View>
             <AppText color="textMuted" align="center">
-              Her gün biraz daha net.
+              {SLOGAN}
             </AppText>
           </Appear>
 

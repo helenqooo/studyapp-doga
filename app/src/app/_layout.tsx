@@ -118,6 +118,7 @@ export default function RootLayout() {
               <Stack.Screen name="exam/[id]/edit" options={{ title: 'Denemeyi düzenle' }} />
               <Stack.Screen name="timer" options={{ title: 'Sayaç' }} />
               <Stack.Screen name="leaderboard" options={{ title: 'Sıralama' }} />
+              <Stack.Screen name="assistant" options={{ title: 'Lumi' }} />
             </Stack.Protected>
             <Stack.Protected guard={!signedIn}>
               <Stack.Screen name="login" options={{ headerShown: false, animation: 'fade' }} />

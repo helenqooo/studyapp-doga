@@ -4,7 +4,9 @@
 import { getTopic, SUBJECTS_BY_EXAM, topicLabel, type Exam, type Subject } from '../../data/topics';
 import { gradeAnswer, isChoiceLabel, resolveChoices } from '../../lib/choices';
 import { ApiError } from '../errors';
+import type { OnDelta } from '../client';
 import type {
+  AssistantThread,
   Attempt,
   AttemptInput,
   AttemptResponse,
@@ -12,6 +14,7 @@ import type {
   AuthConfig,
   AuthResponse,
   AvatarKey,
+  ChatExchange,
   ChatMessage,
   ChatThread,
   ChoiceLabel,
@@ -109,6 +112,8 @@ const iso = (ts: number) => new Date(ts).toISOString();
 const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 /** Typical round trip, so loading states are visible but brief. */
 const QUICK_MS = 160;
+/** Same cap as the server's assistant. */
+const ASSISTANT_DAILY_LIMIT = 60;
 
 let counter = 0;
 const newId = (prefix: string) => `${prefix}-${Date.now().toString(36)}-${(counter++).toString(36)}`;
@@ -143,6 +148,8 @@ const db = {
   attempts: [] as AttemptRow[],
   reviews: [] as ReviewRow[],
   messages: [] as MessageRow[],
+  /** The general assistant thread. */
+  assistant: [] as { id: string; role: 'user' | 'assistant'; content: string; createdAt: number }[],
   exams: [] as ExamRow[],
   summaryGeneratedAt: daysAgo(1, 8),
   /** Sample chosen with "Örnek soruyu çöz"; the next solve returns it. */
@@ -546,6 +553,62 @@ async function fakeUpload(onUploadProgress?: (fraction: number) => void) {
 }
 
 /** The next sample that isn't in the history yet (cycles once all are used). */
+/**
+ * Demo assistant: picks a reply by keywords and fills it with the demo student's own
+ * numbers, like the real assistant does with the student data it is given.
+ */
+function assistantReply(message: string): string {
+  const now = Date.now();
+  const today = localDate(now);
+  const m = message.toLocaleLowerCase('tr');
+  const name = db.user.displayName === 'Sen' ? '' : `, ${db.user.displayName.split(' ')[0]}`;
+  const due = db.reviews.filter((r) => r.status === 'active' && r.dueDate <= today).length;
+  const losses = topicLosses(now).slice(0, 3).map((t) => {
+    const topic = getTopic(t.topicId);
+    return { label: topic ? topicLabel(topic) : t.topicId, lost: t.lostNet };
+  });
+  const focusToday = Math.round(db.sessions.filter((x) => x.kind === 'focus' && x.date === today).reduce((sum, x) => sum + x.durationSec, 0) / 60);
+  const tyt = examSummary('TYT').trend.filter((t) => t.complete);
+  const lastTyt = tyt.at(-1);
+  const prevTyt = tyt.at(-2);
+  const has = (...words: string[]) => words.some((w) => m.includes(w));
+
+  if (has('motivasyon', 'yoruldum', 'sıkıldım', 'stres', 'bunaldım', 'moral')) {
+    return `Bunu söylemen çok değerli${name}. Aylardır aynı hedefe yürümek yorucu, düşüşler de yolun parçası.\n\nBugün küçük tutalım: **tek bir pomodoro** yeter. Bitirince serin yine büyür, gerisi bonus.${due ? ` İstersen önce ${due} tekrar sorusundan birkaçını hallet; hızlı bir başarı iyi gelir.` : ''}\n\nÇok bunaldığın günlerde güvendiğin biriyle konuşmayı da unutma.`;
+  }
+  if (has('türev')) {
+    return `Türev, bir fonksiyonun **anlık değişim hızı**. Grafikte bir noktadaki teğetin eğimi.\n\n$$f'(x) = \\lim_{h \\to 0} \\frac{f(x+h) - f(x)}{h}$$\n\nEn çok kullanacağın kural: $(x^n)' = n x^{n-1}$. Mesela $f(x) = x^3$ ise $f'(x) = 3x^2$, $x = 2$ noktasında eğim $12$.\n\nİstersen kısa bir alıştırma sorusu vereyim?`;
+  }
+  if (has('net', 'deneme')) {
+    if (!lastTyt) return 'Henüz tam bir TYT denemen yok. İlk denemeni Deneme sekmesine girersen netlerini birlikte yorumlarız.';
+    const diff = prevTyt ? Math.round((lastTyt.totalNet - prevTyt.totalNet) * 100) / 100 : null;
+    return `Son TYT denemende **${lastTyt.totalNet} net** yapmışsın${diff !== null ? ` (bir öncekine göre ${diff >= 0 ? '+' : ''}${diff})` : ''}.${losses.length ? `\n\nEn çok net kaybettiğin konular:\n${losses.map((l) => `- ${l.label} (−${l.lost})`).join('\n')}\n\nBu hafta önce **${losses[0]!.label}** üzerine gidelim; 2 pomodoro ve 10 soru iyi bir başlangıç.` : ''}`;
+  }
+  if (has('ne çalış', 'plan', 'bugün', 'program', 'nereden başla')) {
+    const steps = [
+      due ? `**Tekrar:** ${due} soru seni bekliyor, önce onları bitir (10–15 dk).` : '**Tekrar:** bugün tekrar sorun yok, harika.',
+      losses[0] ? `**Odak konu:** ${losses[0].label}. 2 pomodoro konu + soru.` : '**Odak konu:** zayıf hissettiğin bir konuyu seç, 2 pomodoro çalış.',
+      '**Kapanış:** takıldığın 2–3 soruyu Çöz sekmesinde çek, ipucuyla dene.',
+    ];
+    return `Bugün için kısa bir plan${name}:\n\n${steps.map((x, i) => `${i + 1}. ${x}`).join('\n')}\n\n${focusToday ? `Bugün şimdiden ${focusToday} dakika çalışmışsın, devam!` : 'İlk pomodoroyu başlatınca seri de korunur.'}`;
+  }
+  if (has('merhaba', 'selam', 'naber', 'nasılsın')) {
+    return `Selam${name}! Buradayım. Bugün ne yapalım: plan mı çıkaralım, bir konu mu anlatayım, yoksa netlerine mi bakalım?`;
+  }
+  return `Güzel soru${name}. Bunu birlikte netleştirelim: hangi derste ve hangi konuda takıldığını biraz daha anlatır mısın? Elinde basılı bir soru varsa Çöz sekmesinden fotoğrafını çek; adım adım ipucu veririm.`;
+}
+
+/** Plays a finished reply out in small pieces, like a streamed one. */
+async function streamOut(text: string, onDelta: (t: string) => void, signal?: AbortSignal) {
+  await wait(700);
+  const pieces = text.match(/\S+\s*/g) ?? [text];
+  for (let i = 0; i < pieces.length; i += 2) {
+    if (signal?.aborted) throw new ApiError('İptal edildi.');
+    onDelta(pieces.slice(i, i + 2).join(''));
+    await wait(40);
+  }
+}
+
 function nextSampleKey(): string {
   const used = new Set(db.questions.map((q) => q.data.key));
   const fresh = DEMO_QUESTIONS.find((q) => !used.has(q.key));
@@ -809,17 +872,45 @@ export const demoApi = {
       limit: MAX_USER_MESSAGES,
     };
   },
-  sendMessage: async (id: string, content: string): Promise<{ userMessage: ChatMessage; assistantMessage: ChatMessage }> => {
+  sendMessage: async (id: string, content: string, onDelta: OnDelta = () => {}, signal?: AbortSignal): Promise<ChatExchange> => {
     const q = findQuestion(id);
     const sent = db.messages.filter((m) => m.questionId === id && m.role === 'user').length;
     if (sent >= MAX_USER_MESSAGES) throw new ApiError(`Bu soru için en fazla ${MAX_USER_MESSAGES} soru sorabilirsin.`, 409);
-    await wait(1800);
+    const reply = tutorReply(q.data, content);
+    await streamOut(reply, onDelta, signal);
     const now = Date.now();
     const user: MessageRow = { id: newId('msg'), questionId: id, role: 'user', content: content.trim(), createdAt: now };
-    const assistant: MessageRow = { id: newId('msg'), questionId: id, role: 'assistant', content: tutorReply(q.data, content), createdAt: now + 1 };
+    const assistant: MessageRow = { id: newId('msg'), questionId: id, role: 'assistant', content: reply, createdAt: now + 1 };
     db.messages.push(user, assistant);
     const dto = (m: MessageRow): ChatMessage => ({ id: m.id, role: m.role, content: m.content, createdAt: iso(m.createdAt) });
     return { userMessage: dto(user), assistantMessage: dto(assistant) };
+  },
+
+  assistantThread: async (): Promise<AssistantThread> => {
+    await wait(QUICK_MS);
+    const since = Date.now() - 24 * 60 * 60 * 1000;
+    const sent = db.assistant.filter((m) => m.role === 'user' && m.createdAt >= since).length;
+    return {
+      items: db.assistant.slice(-50).map((m) => ({ id: m.id, role: m.role, content: m.content, createdAt: iso(m.createdAt) })),
+      remainingToday: Math.max(0, ASSISTANT_DAILY_LIMIT - sent),
+    };
+  },
+  sendAssistantMessage: async (content: string, onDelta: OnDelta = () => {}, signal?: AbortSignal): Promise<ChatExchange> => {
+    const text = content.trim();
+    if (!text) throw new ApiError('Mesaj boş olamaz.', 400);
+    const reply = assistantReply(text);
+    await streamOut(reply, onDelta, signal);
+    const now = Date.now();
+    const user = { id: newId('am'), role: 'user' as const, content: text, createdAt: now };
+    const assistant = { id: newId('am'), role: 'assistant' as const, content: reply, createdAt: now + 1 };
+    db.assistant.push(user, assistant);
+    const dto = (m: typeof user | typeof assistant): ChatMessage => ({ id: m.id, role: m.role, content: m.content, createdAt: iso(m.createdAt) });
+    return { userMessage: dto(user), assistantMessage: dto(assistant) };
+  },
+  clearAssistant: async (): Promise<null> => {
+    await wait(QUICK_MS);
+    db.assistant = [];
+    return null;
   },
 
   /** Returns a sample question (the one picked with "Örnek soruyu çöz", or the next unused one). */

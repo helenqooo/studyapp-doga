@@ -7,7 +7,8 @@ import { AppText } from '../../components/AppText';
 import { Button } from '../../components/Button';
 import { Avatar } from '../../components/Avatar';
 import { Card } from '../../components/Card';
-import { DamlaNote } from '../../components/Damla';
+import { MascotNote } from '../../components/mascot/MascotNote';
+import type { MascotMood } from '../../components/mascot/Mascot';
 import { DemoBanner } from '../../components/DemoBanner';
 import { Icon } from '../../components/Icon';
 import { PressableScale } from '../../components/motion/PressableScale';
@@ -17,6 +18,7 @@ import { ProgressBar } from '../../components/ProgressBar';
 import { Screen } from '../../components/Screen';
 import { StatTile } from '../../components/StatTile';
 import { StreakFlame } from '../../components/StreakFlame';
+import { ASSISTANT_NAME } from '../../brand';
 import { DEMO_MODE } from '../../config';
 import { YKS_DATE } from '../../data/exam';
 import { dayTitle, daysBetween, localToday, upperTr } from '../../lib/format';
@@ -130,14 +132,21 @@ function PressableCard({ children, onPress, label }: { children: React.ReactNode
   );
 }
 
-/** What Damla says on the home screen, from the most useful next step down. */
-function damlaLine(o: { phase: 'idle' | 'focus' | 'break'; due?: number; streak: number; streakToday: boolean }) {
-  if (o.phase === 'focus') return { title: 'Odaktasın.', body: 'Bitince haber veririm, molayı ben başlatırım.' };
-  if (o.phase === 'break') return { title: 'Mola zamanı.', body: 'Biraz su iç, gözlerini dinlendir.' };
-  if (o.due) return { title: `Bugün ${o.due} soru tekrar bekliyor.`, body: 'Unutmadan önce bir bakalım; birkaç dakika sürer.' };
-  if (o.streak > 0 && !o.streakToday) return { title: `Serin ${o.streak} gün.`, body: 'Bugün bir pomodoro ya da tekrar seriyi korur.' };
-  if (o.streakToday) return { title: 'Bugünlük harikasın.', body: 'Takıldığın bir soru olursa çek, birlikte bakalım.' };
-  return { title: 'Merhaba, ben Damla.', body: 'Takıldığın soruyu çek: önce ipucu veririm, istersen tam çözümü.' };
+/** What Lumi says (and how it looks) on the home screen, from the most useful next step down. */
+function lumiLine(o: {
+  phase: 'idle' | 'focus' | 'break';
+  due?: number;
+  streak: number;
+  streakToday: boolean;
+  hour: number;
+}): { mood: MascotMood; title: string; body: string } {
+  if (o.phase === 'focus') return { mood: 'focus', title: 'Odaktasın.', body: 'Bitince haber veririm, molayı ben başlatırım.' };
+  if (o.phase === 'break') return { mood: 'break', title: 'Mola zamanı.', body: 'Biraz su iç, gözlerini dinlendir.' };
+  if (o.hour >= 0 && o.hour < 5) return { mood: 'sleepy', title: 'Geç oldu…', body: 'Uykusuz beyin unutkan olur. Yarın taze kafayla devam edelim.' };
+  if (o.due) return { mood: 'reading', title: `Bugün ${o.due} soru tekrar bekliyor.`, body: 'Unutmadan önce bir bakalım; birkaç dakika sürer.' };
+  if (o.streak > 0 && !o.streakToday) return { mood: 'cheer', title: `Serin ${o.streak} gün!`, body: 'Bugün bir pomodoro ya da tekrar seriyi korur.' };
+  if (o.streakToday) return { mood: 'proud', title: 'Bugünlük harikasın.', body: 'Takıldığın bir soru olursa çek, birlikte bakalım.' };
+  return { mood: 'wave', title: 'Merhaba, ben Lumi!', body: 'Takıldığın soruyu çek: önce ipucu veririm, istersen tam çözümü.' };
 }
 
 function HomeContent() {
@@ -173,10 +182,16 @@ function HomeContent() {
 
   const p = profile.data;
   const streak = p?.streak ?? 0;
-  const line = damlaLine({ phase: timer.phase, due: dueCount, streak, streakToday: !!p?.streakToday });
+  const line = lumiLine({ phase: timer.phase, due: dueCount, streak, streakToday: !!p?.streakToday, hour: new Date().getHours() });
   const note = (
     <Card>
-      <DamlaNote title={line.title}>{line.body}</DamlaNote>
+      <MascotNote
+        mood={line.mood}
+        title={line.title}
+        action={<Button label={`${ASSISTANT_NAME}'ye sor`} icon="message-circle" variant="secondary" onPress={() => router.push('/assistant')} />}
+      >
+        {line.body}
+      </MascotNote>
     </Card>
   );
 

@@ -14,6 +14,7 @@ import { Icon } from '../../components/Icon';
 import { Appear } from '../../components/motion/Appear';
 import { ProgressBar } from '../../components/ProgressBar';
 import { Screen } from '../../components/Screen';
+import { ASSISTANT_NAME } from '../../brand';
 import { API_URL, DEMO_MODE } from '../../config';
 import { BADGES, badgeInfo } from '../../data/badges';
 import { shortDate } from '../../lib/format';
@@ -120,6 +121,7 @@ export default function ProfileScreen() {
         <Button label="Sıralama" icon="trophy" variant="secondary" onPress={() => router.push('/leaderboard')} style={{ flex: 1 }} />
         <Button label="Sayaç" icon="timer" variant="secondary" onPress={() => router.push('/timer')} style={{ flex: 1 }} />
       </View>
+      <Button label={`${ASSISTANT_NAME}'ye sor`} icon="message-circle" variant="ghost" onPress={() => router.push('/assistant')} />
     </Card>
   );
 

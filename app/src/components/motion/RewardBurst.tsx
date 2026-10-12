@@ -16,6 +16,7 @@ import Animated, {
 import { badgeInfo } from '../../data/badges';
 import { useTheme } from '../../theme';
 import { AppText } from '../AppText';
+import { Mascot } from '../mascot/Mascot';
 import { BadgeSeal } from '../BadgeSeal';
 import { Icon } from '../Icon';
 
@@ -151,6 +152,7 @@ export function RewardBurst({ reward, onDone }: Props) {
         <Animated.View style={heroStyle}>{hero}</Animated.View>
       </View>
       <Animated.View style={[{ alignItems: 'center', gap: theme.spacing.xs, marginTop: theme.spacing.xl, maxWidth: theme.layout.readableWidth / 2 }, textStyle]}>
+        <Mascot mood={reward.kind === 'badge' ? 'love' : 'cheer'} size={theme.layout.mascot.note} />
         <AppText variant="caption" weight="semibold" color="primaryText" style={{ letterSpacing: 1.2 }}>
           {eyebrow}
         </AppText>

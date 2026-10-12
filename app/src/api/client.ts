@@ -1,15 +1,17 @@
+import { fetch as streamingFetch } from 'expo/fetch';
 import type { ImageSourcePropType } from 'react-native';
 import { API_URL, AI_UPLOAD_TIMEOUT_MS, DEMO_MODE } from '../config';
 import { useAuthStore } from '../store/authStore';
 import { demoApi, demoQuestionImage } from './demo/demoApi';
 import { ApiError } from './errors';
 import type {
+  AssistantThread,
   AttemptInput,
   AttemptResponse,
   AuthConfig,
   AuthResponse,
   ChoiceLabel,
-  ChatMessage,
+  ChatExchange,
   ChatThread,
   ExamInput,
   ExamResult,
@@ -79,6 +81,73 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     throw errorFromBody(res.status, body);
   }
   return body as T;
+}
+
+/** Receives a chat reply's text as it is written. */
+export type OnDelta = (text: string) => void;
+
+/**
+ * Sends a chat message and reads the reply as it streams (NDJSON, see the server's
+ * src/stream.ts): every piece goes to `onDelta`, the stored messages come back at the end.
+ * expo/fetch can read the body while it arrives; without that, the whole reply comes at once.
+ */
+async function streamChat(path: string, content: string, onDelta: OnDelta, signal?: AbortSignal): Promise<ChatExchange> {
+  assertConfigured();
+  const auth = authHeaders();
+  let res: Awaited<ReturnType<typeof streamingFetch>>;
+  try {
+    res = await streamingFetch(`${API_URL}${path}`, {
+      method: 'POST',
+      headers: { ...auth, 'Content-Type': 'application/json', Accept: 'application/x-ndjson' },
+      body: JSON.stringify({ content }),
+      signal,
+    });
+  } catch (e) {
+    if (signal?.aborted) throw e;
+    throw new ApiError('Sunucuya ulaşılamadı. İnternet bağlantını ve API adresini kontrol et.');
+  }
+  if (!res.ok) {
+    const body: unknown = await res.json().catch(() => null);
+    handleUnauthorized(res.status, !!auth.Authorization);
+    throw errorFromBody(res.status, body);
+  }
+
+  let result: ChatExchange | null = null;
+  const handle = (line: string) => {
+    if (!line.trim()) return;
+    let msg: { type?: string; text?: string; error?: string } & Partial<ChatExchange>;
+    try {
+      msg = JSON.parse(line);
+    } catch {
+      return;
+    }
+    if (msg.type === 'delta' && msg.text) onDelta(msg.text);
+    else if (msg.type === 'done' && msg.userMessage && msg.assistantMessage) {
+      result = { userMessage: msg.userMessage, assistantMessage: msg.assistantMessage };
+    } else if (msg.type === 'error') throw new ApiError(msg.error ?? 'Yanıt alınamadı.', 502);
+  };
+
+  let buffer = '';
+  const reader = res.body?.getReader();
+  if (reader) {
+    const decoder = new TextDecoder();
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      let newline: number;
+      while ((newline = buffer.indexOf('\n')) >= 0) {
+        handle(buffer.slice(0, newline));
+        buffer = buffer.slice(newline + 1);
+      }
+    }
+    buffer += decoder.decode();
+  } else {
+    buffer = await res.text();
+  }
+  for (const line of buffer.split('\n')) handle(line);
+  if (!result) throw new ApiError('Yanıt yarıda kesildi. Tekrar dene.');
+  return result;
 }
 
 /** Image source for a saved question (authorized request, or the bundled sample in demo mode). */
@@ -182,11 +251,14 @@ const httpApi = {
       body: JSON.stringify({ answerKey }),
     }),
   messages: (id: string) => request<ChatThread>(`/questions/${encodeURIComponent(id)}/messages`),
-  sendMessage: (id: string, content: string) =>
-    request<{ userMessage: ChatMessage; assistantMessage: ChatMessage }>(`/questions/${encodeURIComponent(id)}/messages`, {
-      method: 'POST',
-      body: JSON.stringify({ content }),
-    }),
+  sendMessage: (id: string, content: string, onDelta: OnDelta = () => {}, signal?: AbortSignal) =>
+    streamChat(`/questions/${encodeURIComponent(id)}/messages`, content, onDelta, signal),
+
+  /** The general assistant chat. */
+  assistantThread: () => request<AssistantThread>('/assistant/messages'),
+  sendAssistantMessage: (content: string, onDelta: OnDelta = () => {}, signal?: AbortSignal) =>
+    streamChat('/assistant/messages', content, onDelta, signal),
+  clearAssistant: () => request<null>('/assistant/messages', { method: 'DELETE' }),
 
   /** Uploads a question photo and waits for the solution. */
   solve: (imageUri: string, onUploadProgress?: (fraction: number) => void) =>

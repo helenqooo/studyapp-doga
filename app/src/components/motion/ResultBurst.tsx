@@ -17,6 +17,7 @@ import Animated, {
 import Svg, { Path } from 'react-native-svg';
 import { useTheme } from '../../theme';
 import { AppText } from '../AppText';
+import { Mascot } from '../mascot/Mascot';
 
 export type BurstKind = 'correct' | 'wrong' | 'blank';
 
@@ -248,9 +249,12 @@ export function ResultBurst({ kind, xp, levelUp, onDone }: Props) {
             </View>
           ) : null}
           {levelUp ? (
-            <AppText variant="title" tint={theme.colors.primaryText}>
-              Seviye {levelUp}!
-            </AppText>
+            <>
+              <Mascot mood="proud" size={theme.layout.mascot.note} />
+              <AppText variant="title" tint={theme.colors.primaryText}>
+                Seviye {levelUp}!
+              </AppText>
+            </>
           ) : null}
         </Animated.View>
       ) : null}

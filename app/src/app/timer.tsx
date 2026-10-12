@@ -6,6 +6,7 @@ import { useProfile, useStudyDay, useStudyDays, useUpdateSettings } from '../api
 import { AppText } from '../components/AppText';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
+import { Mascot } from '../components/mascot/Mascot';
 import { Chip } from '../components/Chip';
 import { Columns } from '../components/Grid';
 import { Icon } from '../components/Icon';
@@ -273,6 +274,7 @@ export default function TimerScreen() {
           <View style={{ position: 'absolute' }}>
             <Ring fraction={fraction} color={ringColor} />
           </View>
+          <Mascot mood={timer.phase === 'focus' ? (paused ? 'sleepy' : 'focus') : timer.phase === 'break' ? 'break' : 'study'} size={theme.layout.mascot.note} />
           <AppText variant="caption" weight="semibold" color={focus ? 'primaryText' : timer.phase === 'break' ? 'success' : 'textMuted'} style={{ letterSpacing: 1.2 }}>
             {eyebrow}
           </AppText>

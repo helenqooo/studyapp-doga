@@ -106,6 +106,18 @@ export interface ChatMessage {
   createdAt: string;
 }
 
+/** A sent message and the reply it got. */
+export interface ChatExchange {
+  userMessage: ChatMessage;
+  assistantMessage: ChatMessage;
+}
+
+export interface AssistantThread {
+  items: ChatMessage[];
+  /** Messages left today. */
+  remainingToday: number;
+}
+
 export interface ChatThread {
   items: ChatMessage[];
   /** Max follow-up questions per solved question. */
