@@ -1,8 +1,12 @@
 // Builds a single self-contained HTML file of the app in demo mode (no server needed),
 // for previewing in a browser, e.g. on an iPad. Everything is inlined: the JS bundle,
-// fonts and images. Output: web-build/derece-preview.html (a page body, for hosts that
-// add the document skeleton) and derece-preview-full.html (a complete document). Open
-// them over http, e.g. `python3 -m http.server -d web-build`; from file:// the router
+// fonts and images. Output in web-build/:
+//   derece-preview.html       page body, for hosts that add the document skeleton
+//   derece-preview-full.html  a complete document
+//   pwa/                      an installable web app (manifest, icons, offline service
+//                             worker): host the folder at the ROOT of an https site, open
+//                             it in Safari, Share → Add to Home Screen.
+// Open them over http, e.g. `python3 -m http.server -d web-build`; from file:// the router
 // can't reset the path and shows "Unmatched Route".
 //
 //   node scripts/build-web-preview.mjs
@@ -12,6 +16,7 @@
 // from a dev build can end up in the file.
 
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -78,7 +83,8 @@ const fontCss = FONTS.map(([pkg, dir, family]) => {
   return `@font-face{font-family:'${family}';src:url(${dataUri(file, 'font/ttf')}) format('truetype');font-display:block}`;
 }).join('\n');
 
-const page = `<title>Derece</title>
+const appName = JSON.parse(fs.readFileSync(path.join(appDir, 'app.json'), 'utf8')).expo.name;
+const page = `<title>${appName}</title>
 <style>
 /* react-native-web root: one full-height app view. */
 html { height: 100%; box-sizing: border-box; }
@@ -120,5 +126,77 @@ fs.writeFileSync(
 fs.rmSync(path.join(outDir, 'derece-preview-local.html'), { force: true });
 fs.rmSync(exportDir, { recursive: true, force: true });
 
+// Installable web app: same page plus a manifest, icons and an offline cache.
+const pwaDir = path.join(outDir, 'pwa');
+fs.rmSync(pwaDir, { recursive: true, force: true });
+fs.mkdirSync(path.join(pwaDir, 'icons'), { recursive: true });
+for (const f of fs.readdirSync(path.join(appDir, 'assets', 'pwa'))) {
+  fs.copyFileSync(path.join(appDir, 'assets', 'pwa', f), path.join(pwaDir, 'icons', f));
+}
+const IVORY = '#F5F4EE';
+const CHARCOAL = '#1F1E1D';
+fs.writeFileSync(
+  path.join(pwaDir, 'manifest.webmanifest'),
+  JSON.stringify(
+    {
+      name: appName,
+      short_name: appName,
+      lang: 'tr',
+      start_url: './',
+      scope: './',
+      display: 'standalone',
+      orientation: 'any',
+      background_color: IVORY,
+      theme_color: IVORY,
+      icons: [
+        { src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png' },
+        { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png' },
+        { src: 'icons/maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+      ],
+    },
+    null,
+    2,
+  ),
+);
+const version = createHash('sha256').update(page).digest('hex').slice(0, 12);
+fs.writeFileSync(
+  path.join(pwaDir, 'sw.js'),
+  `// Offline cache for the installed web app. A new build gets a new cache name.
+const CACHE = '${appName.toLowerCase()}-${version}';
+const SHELL = ['./', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png'];
+self.addEventListener('install', (e) => { e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting())); });
+self.addEventListener('activate', (e) => {
+  e.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))).then(() => self.clients.claim()));
+});
+self.addEventListener('fetch', (e) => {
+  const req = e.request;
+  if (req.method !== 'GET' || new URL(req.url).origin !== location.origin) return;
+  // Pages: network first (updates arrive), the cached app when offline.
+  if (req.mode === 'navigate') {
+    e.respondWith(fetch(req).then((res) => { const copy = res.clone(); caches.open(CACHE).then((c) => c.put('./', copy)); return res; }).catch(() => caches.match('./')));
+    return;
+  }
+  e.respondWith(caches.match(req).then((hit) => hit || fetch(req)));
+});
+`,
+);
+fs.writeFileSync(
+  path.join(pwaDir, 'index.html'),
+  `<!doctype html><html lang="tr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="${IVORY}" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="${CHARCOAL}" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="${appName}">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" href="icons/icon-192.png">
+</head><body style="margin:0">${page}
+<script>if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(function () {});</script>
+</body></html>`,
+);
+
 const mb = (n) => `${(n / 1024 / 1024).toFixed(1)} MB`;
-console.log(`Wrote ${path.relative(appDir, out)} (${mb(Buffer.byteLength(page))}, ${inlined} images inlined)`);
+console.log(`Wrote ${path.relative(appDir, out)} (${mb(Buffer.byteLength(page))}, ${inlined} images inlined) and web-build/pwa/`);

@@ -92,6 +92,29 @@ cd app && npm run build:preview   # → app/web-build/derece-preview.html
 
 `derece-preview-full.html` tam bir HTML belgesidir; dosyadan (`file://`) değil, http üzerinden aç: `python3 -m http.server -d web-build` → `http://localhost:8000/derece-preview-full.html`. `.env` okunmaz ve Metro'ya boş bir önbellek verilir, yani dosyaya sunucu adresi ya da anahtar girmez. Kamera tarayıcıda çalışmaz; galeri ve örnek soru çalışır.
 
+## iPad'e (veya iPhone'a) kurulum
+
+Dört yol var; en kolaydan en kalıcıya:
+
+1. **Hemen, hiçbir şey kurmadan:** claude.ai'deki önizleme bağlantısını iPad'de Safari'de aç → **Paylaş → Ana Ekrana Ekle**. Ana ekranda simgesi olur; açmak için internet ve claude.ai oturumu gerekir.
+2. **Kalıcı web uygulaması (önerilen, ücretsiz, sunucusuz):**
+   ```bash
+   cd app && npm run build:preview      # → app/web-build/pwa/
+   ```
+   `web-build/pwa` klasörünü HTTPS veren bir yere, **alan adının köküne** koy. En kolayı [Netlify Drop](https://app.netlify.com/drop): klasörü sürükle bırak, sana `https://...netlify.app` adresi verir. iPad'de Safari ile aç → **Paylaş → Ana Ekrana Ekle**. Tam ekran açılır, ikonu vardır, bir kez açıldıktan sonra internetsiz de çalışır (demo verileriyle). Kamera yerine galeriden seçim çalışır.
+3. **Expo Go (geliştirirken):** iPad'e App Store'dan Expo Go'yu kur. Bilgisayarda `cd app && EXPO_PUBLIC_DEMO=1 npx expo start --tunnel` → iPad kamerasıyla QR kodu okut. Animasyonlar, titreşim ve bildirimler gerçek cihazdaki gibi çalışır; bilgisayar açık olmalı.
+4. **Gerçek uygulama (.ipa):** Apple Developer hesabı (yıllık 99 $) ve ücretsiz bir Expo hesabı gerekir.
+   ```bash
+   npm i -g eas-cli && cd app
+   eas login
+   eas device:create          # iPad'i kaydet (çıkan bağlantıyı iPad'de aç)
+   eas build -p ios --profile demo      # sunucusuz demo sürümü
+   eas build -p ios --profile preview   # sunucuya bağlanan sürüm (.env'deki adresle)
+   ```
+   Derleme bitince verilen bağlantıyı iPad'de açıp kur. Ücretsiz Apple hesabıyla kurmak için Mac'te `npx expo run:ios --device` de olur (7 günde bir yeniden kurulur).
+
+Not: Sunucuya bağlı sürümü .ipa olarak kurarken iOS düz `http://` adreslerini engeller; o aşamada sunucuya alan adı ve HTTPS (ör. Caddy) ekle.
+
 ## Konu listesi
 
 `server/src/topics.ts` ve `app/src/data/topics.ts` aynı dosyadır. Birini düzenle, diğerine kopyala:
