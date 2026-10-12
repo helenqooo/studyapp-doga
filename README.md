@@ -82,7 +82,7 @@ Uygulamanın demo modundaki web sürümü tek bir HTML dosyası olarak üretileb
 cd app && npm run build:preview   # → app/web-build/derece-preview.html
 ```
 
-`.env` okunmaz, yani dosyaya sunucu adresi ya da anahtar girmez. Kamera tarayıcıda çalışmaz; galeri ve örnek soru çalışır.
+`derece-preview-full.html` tam bir HTML belgesidir; dosyadan (`file://`) değil, http üzerinden aç: `python3 -m http.server -d web-build` → `http://localhost:8000/derece-preview-full.html`. `.env` okunmaz ve Metro'ya boş bir önbellek verilir, yani dosyaya sunucu adresi ya da anahtar girmez. Kamera tarayıcıda çalışmaz; galeri ve örnek soru çalışır.
 
 ## Konu listesi
 

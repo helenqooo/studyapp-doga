@@ -61,6 +61,7 @@ export function Button({
       accessibilityLabel={label}
       accessibilityState={{ disabled: inactive, selected }}
       disabled={inactive}
+      dimmed={inactive}
       onPress={() => {
         haptics.tap();
         onPress?.();
@@ -72,7 +73,6 @@ export function Button({
           borderRadius: size === 'lg' ? theme.radius.xl : theme.radius.md,
           paddingHorizontal: theme.spacing.lg,
           justifyContent: 'center',
-          opacity: inactive ? 0.5 : 1,
         },
         style,
       ]}

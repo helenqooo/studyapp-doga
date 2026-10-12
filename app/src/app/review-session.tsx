@@ -172,7 +172,13 @@ export default function ReviewSessionScreen() {
             {tally.correct} doğru · {tally.wrong} yanlış
           </AppText>
         </View>
-        <ProgressBar progress={index / queue.length} color={theme.colors.primary} trackColor={theme.colors.primarySoft} />
+        {/* The screen remounts per question, so continue from the previous step. */}
+        <ProgressBar
+          progress={index / queue.length}
+          from={Math.max(0, index - 1) / queue.length}
+          color={theme.colors.primary}
+          trackColor={theme.colors.primarySoft}
+        />
       </View>
 
       <View style={{ gap: theme.spacing.xs }}>

@@ -60,6 +60,7 @@ export function MathView({ markdown, fontSize, style }: Props) {
         ref,
         srcDoc: MATH_HTML,
         title: 'Matematik',
+        scrolling: 'no',
         onLoad: () => setReady(true),
         style: { border: 0, width: '100%', height: '100%', background: 'transparent', colorScheme: 'normal', display: 'block' },
       })}

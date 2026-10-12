@@ -99,10 +99,10 @@ const light: ColorTokens = {
   success: '#566F3D',
   successSoft: '#E9EEDF',
   danger: '#A8443A',
-  dangerSoft: '#F7E4DF',
+  dangerSoft: '#F9EAE6',
   warning: '#8A5E1A',
   warningSoft: '#F6EDDB',
-  neutral: '#6E6B63',
+  neutral: '#66635C',
   neutralSoft: '#ECEAE2',
   successStrong: '#566F3D',
   dangerStrong: '#A8443A',
@@ -118,7 +118,7 @@ const light: ColorTokens = {
 
   tabBar: '#F5F4EE',
   tabActive: '#A84F33',
-  tabInactive: '#76736A',
+  tabInactive: '#6B6962',
 
   cameraBackground: '#000000',
   cameraForeground: '#FFFFFF',
@@ -186,7 +186,7 @@ const dark: ColorTokens = {
 
   tabBar: '#1F1E1D',
   tabActive: '#E08B6D',
-  tabInactive: '#85827A',
+  tabInactive: '#908D84',
 
   cameraBackground: '#000000',
   cameraForeground: '#FFFFFF',
@@ -291,8 +291,16 @@ export const motion = {
   rise: 10,
   spring: { damping: 16, stiffness: 190, mass: 0.9 },
   springBouncy: { damping: 11, stiffness: 220, mass: 0.8 },
-  /** Scale of a pressed button or card. */
+  /** Scale of a pressed button or card, and how much it fades. */
   pressScale: 0.97,
+  pressFade: 0.12,
+  /** Sideways shake of the "wrong" badge: distance (pt) and step durations (ms). */
+  shake: { distance: 8, steps: [50, 70, 60, 60] },
+} as const;
+
+/** Opacity of disabled controls. */
+export const opacity = {
+  disabled: 0.5,
 } as const;
 
 /**
@@ -330,8 +338,11 @@ export const layout = {
   cameraFrameShare: 0.86,
   cropHandle: 44,
   cropMinSize: 80,
-  /** Diameter of the answer-result badge (check / cross). */
+  /** Diameter of the answer-result badge (check / cross) and its glyph stroke (24-unit grid). */
   resultBadge: 96,
+  resultStroke: 2.6,
+  /** Confetti pieces: strips (long × short) and dots, with the strips' corner radius. */
+  confetti: { long: 10, short: 5, dot: 7, radius: 2 },
   /** Size of the "thinking" spark loader. */
   spark: 56,
   chart: {
@@ -357,10 +368,11 @@ export interface Theme {
   letterSpacing: typeof letterSpacing;
   fonts: typeof fonts;
   motion: typeof motion;
+  opacity: typeof opacity;
   layout: typeof layout;
 }
 
-const shared = { breakpoints, spacing, radius, fontSize, letterSpacing, fonts, motion, layout };
+const shared = { breakpoints, spacing, radius, fontSize, letterSpacing, fonts, motion, opacity, layout };
 
 const themes: Record<ColorScheme, Theme> = {
   light: { scheme: 'light', colors: light, ...shared },

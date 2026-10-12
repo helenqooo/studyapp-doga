@@ -10,15 +10,18 @@ interface Props {
   color?: string;
   trackColor?: string;
   height?: number;
+  /** Value (0..1) to animate from on mount; default empty. */
+  from?: number;
   style?: StyleProp<ViewStyle>;
 }
 
 /** Bar that fills from empty on mount and glides to every new value. */
-export function ProgressBar({ progress, color, trackColor, height, style }: Props) {
+export function ProgressBar({ progress, color, trackColor, height, from, style }: Props) {
   const theme = useTheme();
   const h = height ?? theme.layout.progressHeight;
-  const pct = Math.round(Math.min(1, Math.max(0, progress)) * 100);
-  const width = useSharedValue(0);
+  const toPct = (v: number) => Math.round(Math.min(1, Math.max(0, v)) * 100);
+  const pct = toPct(progress);
+  const width = useSharedValue(from === undefined ? 0 : toPct(from));
 
   useEffect(() => {
     width.value = withTiming(pct, { duration: theme.motion.duration.slow * 2, easing: Easing.out(Easing.cubic) });

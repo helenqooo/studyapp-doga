@@ -63,7 +63,8 @@
 
   var lastHeight = -1;
   function postHeight() {
-    var h = Math.ceil(content.getBoundingClientRect().height);
+    // scrollHeight also covers KaTeX parts that overflow the box (tall fractions).
+    var h = Math.max(Math.ceil(content.getBoundingClientRect().height), content.scrollHeight);
     if (h !== lastHeight && bridge) {
       lastHeight = h;
       bridge.postMessage(JSON.stringify({ type: 'height', height: h }));

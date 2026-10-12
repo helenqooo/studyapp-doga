@@ -130,11 +130,16 @@ export default function ChatScreen() {
           </View>
         ) : null}
 
-        {items.map((m) => (
-          <Appear key={m.id}>
-            <Bubble message={m} />
-          </Appear>
-        ))}
+        {/* Only replies animate in: the user's message already did, as the pending bubble. */}
+        {items.map((m) =>
+          m.role === 'assistant' ? (
+            <Appear key={m.id}>
+              <Bubble message={m} />
+            </Appear>
+          ) : (
+            <Bubble key={m.id} message={m} />
+          ),
+        )}
 
         {pending ? (
           <>

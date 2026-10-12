@@ -396,11 +396,14 @@ function tutorReply(q: DemoQuestion, message: string): string {
     return `Tabii, daha sade anlatayım:\n\n${q.hints.map((h, i) => `${i + 1}. ${h}`).join('\n')}\n\nBu adımları izleyince cevap **${q.finalAnswer}** çıkıyor.`;
   }
   if (text.includes('ilk adım')) {
-    return `İlk adımda şunu yaptık:\n\n${q.solutionSteps[0] ?? ''}\n\nAmaç, soruyu tek bilinmeyenli bir hale getirmek. Bundan sonraki her adım bu seçimin üzerine kuruluyor.`;
+    return `İlk adımda şunu yaptık:\n\n${q.solutionSteps[0] ?? ''}\n\nBundan sonraki her adım bunun üzerine kuruluyor. Hangi kısmı takıldığını yazarsan oradan devam edelim.`;
   }
   if (text.includes('benzer')) {
-    const other = DEMO_QUESTIONS.find((d) => d.subject === q.subject && d.key !== q.key) ?? DEMO_QUESTIONS.find((d) => d.key !== q.key);
-    return `Demo modunda yeni soru üretemiyorum; gerçek sürümde sana bu soruya benzeyen yeni bir soru yazarım. Şimdilik aynı dersten şunu dene:\n\n${other?.questionText ?? ''}`;
+    const sameSubject = DEMO_QUESTIONS.find((d) => d.subject === q.subject && d.key !== q.key);
+    const other =
+      sameSubject ?? DEMO_QUESTIONS.find((d) => d.exam === q.exam && d.key !== q.key) ?? DEMO_QUESTIONS.find((d) => d.key !== q.key);
+    const from = sameSubject ? 'aynı dersten' : 'başka bir dersten';
+    return `Demo modunda yeni soru üretemiyorum; gerçek sürümde sana bu soruya benzeyen yeni bir soru yazarım. Şimdilik ${from} şunu dene:\n\n${other?.questionText ?? ''}`;
   }
   return `**Demo yanıtı.** Gerçek sürümde sorduğun şeye özel cevap verilir. Bu soruda en sık sorulan şuydu: *${q.followUp.question}*\n\n${q.followUp.answer}`;
 }

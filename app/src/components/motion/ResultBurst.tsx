@@ -2,6 +2,7 @@ import { useEffect, useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated, {
   Easing,
+  ReduceMotion,
   runOnJS,
   useAnimatedProps,
   useAnimatedStyle,
@@ -66,6 +67,7 @@ function Particle({ index, progress, color, distance }: {
   color: string;
   distance: number;
 }) {
+  const { confetti } = useTheme().layout;
   // Deterministic spread: even angles with a small per-index wobble, varied reach and spin.
   const angle = (index / PARTICLES) * Math.PI * 2 + ((index * 37) % 11) / 20;
   const reach = distance * (0.7 + ((index * 53) % 7) / 14);
@@ -80,12 +82,12 @@ function Particle({ index, progress, color, distance }: {
       transform: [{ translateX: x }, { translateY: y }, { rotate: `${spin * t}deg` }, { scale: 1 - 0.4 * t }],
     };
   });
-  const w = wide ? 10 : 7;
-  const h = wide ? 5 : 7;
+  const w = wide ? confetti.long : confetti.dot;
+  const h = wide ? confetti.short : confetti.dot;
   return (
     <Animated.View
       style={[
-        { position: 'absolute', width: w, height: h, borderRadius: wide ? 2 : h / 2, backgroundColor: color },
+        { position: 'absolute', width: w, height: h, borderRadius: wide ? confetti.radius : h / 2, backgroundColor: color },
         style,
       ]}
     />
@@ -107,7 +109,7 @@ interface Props {
 export function ResultBurst({ kind, xp, levelUp, onDone }: Props) {
   const theme = useTheme();
   const reduceMotion = useReducedMotion();
-  const { duration, springBouncy } = theme.motion;
+  const { duration, springBouncy, shake: shakeSpec } = theme.motion;
   const size = theme.layout.resultBadge;
 
   const pop = useSharedValue(0);
@@ -127,10 +129,13 @@ export function ResultBurst({ kind, xp, levelUp, onDone }: Props) {
   useEffect(() => {
     const finish = () => onDone();
     if (reduceMotion) {
-      pop.value = withTiming(1, { duration: duration.base });
+      // Plain fades. Opt out of the system override, which would otherwise skip the
+      // delay and finish every timing at once, unmounting the burst before it shows.
+      const fadeOnly = { duration: duration.base, reduceMotion: ReduceMotion.Never };
+      pop.value = withTiming(1, fadeOnly);
       draw.value = 1;
-      float.value = withTiming(1, { duration: duration.base });
-      fade.value = withDelay(total - duration.base, withTiming(0, { duration: duration.base }, (ok) => ok && runOnJS(finish)()));
+      float.value = 1;
+      fade.value = withDelay(total - duration.base, withTiming(0, fadeOnly, (ok) => ok && runOnJS(finish)()), ReduceMotion.Never);
       return;
     }
     pop.value = withSpring(1, springBouncy);
@@ -140,13 +145,14 @@ export function ResultBurst({ kind, xp, levelUp, onDone }: Props) {
       burst.value = withDelay(duration.fast, withTiming(1, { duration: duration.celebrate * 0.75, easing: Easing.out(Easing.cubic) }));
     }
     if (kind === 'wrong') {
+      const [a, b, c, d] = shakeSpec.steps;
       shake.value = withDelay(
         duration.slow,
         withSequence(
-          withTiming(1, { duration: 50 }),
-          withTiming(-1, { duration: 70 }),
-          withTiming(0.6, { duration: 60 }),
-          withTiming(0, { duration: 60 }),
+          withTiming(1, { duration: a }),
+          withTiming(-1, { duration: b }),
+          withTiming(0.6, { duration: c }),
+          withTiming(0, { duration: d }),
         ),
       );
     }
@@ -161,9 +167,12 @@ export function ResultBurst({ kind, xp, levelUp, onDone }: Props) {
 
   const containerStyle = useAnimatedStyle(() => ({ opacity: fade.value }));
   const scrimStyle = useAnimatedStyle(() => ({ opacity: Math.min(1, pop.value * 1.5) }));
+  const shakeDistance = shakeSpec.distance;
+  // With Reduce Motion the badge only fades (no zoom).
+  const minScale = reduceMotion ? 1 : 0.4;
   const badgeStyle = useAnimatedStyle(() => ({
     opacity: Math.min(1, pop.value * 1.5),
-    transform: [{ scale: 0.4 + 0.6 * pop.value }, { translateX: shake.value * 8 }],
+    transform: [{ scale: minScale + (1 - minScale) * pop.value }, { translateX: shake.value * shakeDistance }],
   }));
   const ringStyle = useAnimatedStyle(() => ({
     opacity: 0.55 * (1 - ring.value),
@@ -216,7 +225,7 @@ export function ResultBurst({ kind, xp, levelUp, onDone }: Props) {
                 from={i / glyph.length}
                 to={(i + 1) / glyph.length}
                 color={theme.colors.textOnAccent}
-                width={2.6}
+                width={theme.layout.resultStroke}
               />
             ))}
           </Svg>

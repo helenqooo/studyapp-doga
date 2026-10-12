@@ -1,4 +1,4 @@
-import type { StyleProp, ViewStyle } from 'react-native';
+import { View, type StyleProp, type ViewStyle } from 'react-native';
 import { haptics } from '../lib/haptics';
 import { useTheme } from '../theme';
 import { AppText } from './AppText';
@@ -9,7 +9,7 @@ interface Props {
   label: string;
   selected?: boolean;
   onPress: () => void;
-  /** Raw color token value used when selected; defaults to primary. */
+  /** Raw color token (e.g. a subject color). Selected, it outlines the chip and fills its dot; text stays in the text color. */
   color?: string;
   icon?: IconName;
   style?: StyleProp<ViewStyle>;
@@ -18,8 +18,11 @@ interface Props {
 /** Tappable filter / suggestion pill. */
 export function Chip({ label, selected = false, onPress, color, icon, style }: Props) {
   const theme = useTheme();
-  const accent = color ?? theme.colors.primary;
-  const fg = selected ? theme.colors.textOnAccent : theme.colors.text;
+  // White text only on the primary fill; a custom hue would fail contrast under white.
+  const filled = selected && !color;
+  const fg = filled ? theme.colors.textOnAccent : theme.colors.text;
+  const background = filled ? theme.colors.primary : selected ? theme.colors.surfaceAlt : theme.colors.surface;
+  const border = selected ? (color ?? theme.colors.primary) : theme.colors.border;
   return (
     <PressableScale
       accessibilityRole="button"
@@ -36,15 +39,18 @@ export function Chip({ label, selected = false, onPress, color, icon, style }: P
           minHeight: theme.layout.minTouch - theme.spacing.xs,
           paddingHorizontal: theme.spacing.md,
           borderRadius: theme.radius.pill,
-          backgroundColor: selected ? accent : theme.colors.surface,
+          backgroundColor: background,
           borderWidth: theme.layout.borderWidth,
-          borderColor: selected ? accent : theme.colors.border,
+          borderColor: border,
         },
         style,
       ]}
     >
+      {color ? (
+        <View style={{ width: theme.spacing.sm, height: theme.spacing.sm, borderRadius: theme.radius.pill, backgroundColor: color }} />
+      ) : null}
       {icon ? <Icon name={icon} size={theme.fontSize.sm} color={fg} /> : null}
-      <AppText variant="label" tint={fg}>
+      <AppText variant="label" tint={fg} weight={selected ? 'semibold' : undefined}>
         {label}
       </AppText>
     </PressableScale>

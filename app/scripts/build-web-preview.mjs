@@ -1,11 +1,15 @@
 // Builds a single self-contained HTML file of the app in demo mode (no server needed),
 // for previewing in a browser, e.g. on an iPad. Everything is inlined: the JS bundle,
-// fonts and images. Output: web-build/derece-preview.html (+ a -local.html twin wrapped
-// in a full document for opening straight from disk).
+// fonts and images. Output: web-build/derece-preview.html (a page body, for hosts that
+// add the document skeleton) and derece-preview-full.html (a complete document). Open
+// them over http, e.g. `python3 -m http.server -d web-build`; from file:// the router
+// can't reset the path and shows "Unmatched Route".
 //
 //   node scripts/build-web-preview.mjs
 //
-// .env is NOT read (EXPO_NO_DOTENV), so no server address or token ends up in the file.
+// .env is NOT read (EXPO_NO_DOTENV) and Metro gets a private, empty cache (inlined
+// EXPO_PUBLIC_* values are not part of its cache key), so no server address or token
+// from a dev build can end up in the file.
 
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -16,9 +20,14 @@ import { fileURLToPath } from 'node:url';
 const appDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const outDir = path.join(appDir, 'web-build');
 const exportDir = fs.mkdtempSync(path.join(os.tmpdir(), 'derece-web-'));
+const cacheDir = fs.mkdtempSync(path.join(os.tmpdir(), 'derece-metro-'));
 
 const env = {
   ...process.env,
+  // Metro keeps its cache under the temp dir; a fresh one forces a full transform.
+  TMPDIR: cacheDir,
+  TMP: cacheDir,
+  TEMP: cacheDir,
   CI: '1',
   EXPO_NO_DOTENV: '1',
   EXPO_PUBLIC_DEMO: '1',
@@ -30,6 +39,7 @@ const result = spawnSync('npx', ['expo', 'export', '--platform', 'web', '--outpu
   env,
   stdio: 'inherit',
 });
+fs.rmSync(cacheDir, { recursive: true, force: true });
 if (result.status !== 0) process.exit(result.status ?? 1);
 
 const indexHtml = fs.readFileSync(path.join(exportDir, 'index.html'), 'utf8');
@@ -86,24 +96,29 @@ try { if (location.pathname !== '/') history.replaceState(null, '', '/' + locati
 <script>${js}</script>
 `;
 
+// Safety net: nothing from a local .env may be in the preview. Checked before writing.
+const dotenv = path.join(appDir, '.env');
+if (fs.existsSync(dotenv)) {
+  const text = fs.readFileSync(dotenv, 'utf8');
+  for (const key of ['EXPO_PUBLIC_APP_TOKEN', 'EXPO_PUBLIC_API_URL']) {
+    const raw = text.match(new RegExp(`^(?:export\\s+)?${key}=(.*)$`, 'm'))?.[1]?.trim();
+    const value = raw?.replace(/^(['"])(.*)\1$/, '$2');
+    if (value && page.includes(value)) {
+      fs.rmSync(exportDir, { recursive: true, force: true });
+      throw new Error(`${key} from .env leaked into the preview; nothing was written.`);
+    }
+  }
+}
+
 fs.mkdirSync(outDir, { recursive: true });
 const out = path.join(outDir, 'derece-preview.html');
 fs.writeFileSync(out, page);
 fs.writeFileSync(
-  path.join(outDir, 'derece-preview-local.html'),
+  path.join(outDir, 'derece-preview-full.html'),
   `<!doctype html><html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"></head><body style="margin:0">${page}</body></html>`,
 );
+fs.rmSync(path.join(outDir, 'derece-preview-local.html'), { force: true });
 fs.rmSync(exportDir, { recursive: true, force: true });
-
-// Safety net: the token from a local .env must never be in the preview.
-const dotenv = path.join(appDir, '.env');
-if (fs.existsSync(dotenv)) {
-  const token = fs.readFileSync(dotenv, 'utf8').match(/^EXPO_PUBLIC_APP_TOKEN=(.+)$/m)?.[1]?.trim();
-  if (token && page.includes(token)) {
-    fs.rmSync(out);
-    throw new Error('APP_TOKEN leaked into the preview; aborting.');
-  }
-}
 
 const mb = (n) => `${(n / 1024 / 1024).toFixed(1)} MB`;
 console.log(`Wrote ${path.relative(appDir, out)} (${mb(Buffer.byteLength(page))}, ${inlined} images inlined)`);
