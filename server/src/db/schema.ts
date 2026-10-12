@@ -93,7 +93,7 @@ export interface ExamSectionResult {
   topics?: ExamTopicResult[];
 }
 
-// Deneme results (Phase 3).
+// Deneme results. Sections hold D/Y/B per exam section, optionally per topic.
 export const exams = sqliteTable(
   'exams',
   {
@@ -123,6 +123,14 @@ export const sessions = sqliteTable(
   },
   (t) => [index('sessions_date_idx').on(t.date)],
 );
+
+// AI weekly priorities, one row per week (Monday, APP_TIMEZONE).
+export const weeklySummaries = sqliteTable('weekly_summaries', {
+  weekStart: text('week_start').primaryKey(),
+  createdAt: integer('created_at').notNull(),
+  summary: text('summary').notNull(),
+  priorities: text('priorities', { mode: 'json' }).$type<{ topicId: string; reason: string }[]>().notNull(),
+});
 
 export interface EarnedBadge {
   id: string;

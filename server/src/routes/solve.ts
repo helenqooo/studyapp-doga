@@ -8,7 +8,7 @@ import { questionDto } from '../dto';
 import { sniffImage } from '../images';
 import type { AppDeps } from '../app';
 
-export function solveRoutes(app: FastifyInstance, { env, db, solver, now }: AppDeps): void {
+export function solveRoutes(app: FastifyInstance, { env, db, ai, now }: AppDeps): void {
   // multipart/form-data with a single "image" file field.
   app.post('/solve', async (req, reply) => {
     const file = await req.file();
@@ -28,7 +28,7 @@ export function solveRoutes(app: FastifyInstance, { env, db, solver, now }: AppD
 
     let solution;
     try {
-      solution = await solver.solve(buf, kind.mime);
+      solution = await ai.solver.solve(buf, kind.mime);
     } catch (err) {
       await fs.rm(imagePath, { force: true });
       if (err instanceof AiError) {
@@ -45,7 +45,7 @@ export function solveRoutes(app: FastifyInstance, { env, db, solver, now }: AppD
         createdAt: now(),
         imageFile,
         imageMime: kind.mime,
-        model: solver.model,
+        model: ai.model,
         ...solution,
       })
       .returning()

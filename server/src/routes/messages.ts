@@ -15,7 +15,7 @@ export const MAX_USER_MESSAGES = 10;
 
 const MessageBody = z.object({ content: z.string().trim().min(1).max(2000) });
 
-export function messageRoutes(app: FastifyInstance, { env, db, tutor, now }: AppDeps): void {
+export function messageRoutes(app: FastifyInstance, { env, db, ai, now }: AppDeps): void {
   app.get<IdParams>('/questions/:id/messages', async (req, reply) => {
     const q = db.select({ id: questions.id }).from(questions).where(eq(questions.id, req.params.id)).get();
     if (!q) return reply.code(404).send({ error: 'Soru bulunamadı.' });
@@ -62,7 +62,7 @@ export function messageRoutes(app: FastifyInstance, { env, db, tutor, now }: App
 
     let answer: string;
     try {
-      answer = await tutor.reply({ question: q, image, history, message: body.data.content });
+      answer = await ai.tutor.reply({ question: q, image, history, message: body.data.content });
     } catch (err) {
       if (err instanceof AiError) {
         req.log.warn({ err }, 'tutor failed');

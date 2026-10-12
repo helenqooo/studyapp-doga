@@ -38,6 +38,18 @@ export const SUBJECTS_BY_EXAM: Record<Exam, Subject[]> = {
   AYT: ['Matematik', 'Fizik', 'Kimya', 'Biyoloji'],
 };
 
+/** Questions per exam section (net = doğru − yanlış / 4). */
+export const QUESTION_COUNTS: Record<Subject, number> = {
+  'Türkçe': 40,
+  'Sosyal': 20,
+  'Temel Matematik': 40,
+  'Fen': 20,
+  'Matematik': 40,
+  'Fizik': 14,
+  'Kimya': 13,
+  'Biyoloji': 13,
+};
+
 export const TOPICS: Topic[] = [
   // ───────────── TYT · Türkçe ─────────────
   { id: 'tyt-tr-sozcukte-anlam', exam: 'TYT', subject: 'Türkçe', topic: 'Sözcükte Anlam' },

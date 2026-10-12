@@ -1,63 +1,12 @@
 // End-to-end API test against a temp database, with mock AI and a controllable clock.
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
-import os from 'node:os';
-import path from 'node:path';
 import { after, test } from 'node:test';
-import { buildApp } from './app';
-import { createMockSolver } from './claude/solver';
-import { createMockTutor } from './claude/tutor';
-import { openDb } from './db/client';
-import { loadEnv } from './env';
 import { MAX_USER_MESSAGES } from './routes/messages';
+import { createTestApp, DAY } from './testing';
 
-const DAY = 24 * 60 * 60 * 1000;
-const TOKEN = 'test-token-1234567890';
-const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'derece-test-'));
-const env = loadEnv({ APP_TOKEN: TOKEN, MOCK_SOLVER: 'true', DATA_DIR: dataDir, APP_TIMEZONE: 'Europe/Istanbul' });
-
-// Noon in Istanbul, so day arithmetic never straddles midnight.
-let clock = Date.parse('2026-10-12T09:00:00Z');
-const app = await buildApp(
-  {
-    env,
-    db: openDb(env.dbFile),
-    solver: createMockSolver({ delayMs: 0 }),
-    tutor: createMockTutor({ delayMs: 0 }),
-    now: () => clock,
-  },
-  { logger: false },
-);
-
-after(async () => {
-  await app.close();
-  fs.rmSync(dataDir, { recursive: true, force: true });
-});
-
-const auth = { authorization: `Bearer ${TOKEN}` };
-
-async function call<T = any>(method: 'GET' | 'POST', url: string, body?: unknown): Promise<{ status: number; json: T }> {
-  const res = await app.inject({ method, url, headers: auth, ...(body !== undefined ? { payload: body as object } : {}) });
-  return { status: res.statusCode, json: res.json() as T };
-}
-
-async function solveOne(): Promise<string> {
-  const png = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.alloc(32)]);
-  const boundary = '----derece-test';
-  const payload = Buffer.concat([
-    Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="image"; filename="q.png"\r\nContent-Type: image/png\r\n\r\n`),
-    png,
-    Buffer.from(`\r\n--${boundary}--\r\n`),
-  ]);
-  const res = await app.inject({
-    method: 'POST',
-    url: '/solve',
-    headers: { ...auth, 'content-type': `multipart/form-data; boundary=${boundary}` },
-    payload,
-  });
-  assert.equal(res.statusCode, 201);
-  return res.json().id;
-}
+const t = await createTestApp();
+const { app, call, solveOne } = t;
+after(() => t.close());
 
 test('requests without the token are rejected', async () => {
   const res = await app.inject({ method: 'GET', url: '/reviews/today' });
@@ -78,7 +27,7 @@ test('a wrong answer goes through the full review ladder', async () => {
   assert.deepEqual([q.json.review.stage, q.json.review.dueDate], [0, '2026-10-13']);
 
   // Due the next day.
-  clock += DAY;
+  t.clock.now += DAY;
   today = await call('GET', '/reviews/today');
   assert.equal(today.json.items.length, 1);
   assert.equal(today.json.items[0].id, id);
@@ -98,14 +47,14 @@ test('a wrong answer goes through the full review ladder', async () => {
   assert.equal(today.json.completedToday, 1);
 
   // Wrong on the next review → back to the start.
-  clock = Date.parse('2026-10-16T09:00:00Z');
+  t.clock.now = Date.parse('2026-10-16T09:00:00Z');
   res = await call('POST', `/reviews/${id}/result`, { result: 'wrong' });
   assert.deepEqual([res.json.review.stage, res.json.review.dueDate, res.json.xpGained], [0, '2026-10-17', 0]);
 
   // Five correct reviews in a row graduate it.
   const due: string[] = [];
   for (let i = 0; i < 5; i++) {
-    clock = Date.parse(`${res.json.review.dueDate}T09:00:00Z`);
+    t.clock.now = Date.parse(`${res.json.review.dueDate}T09:00:00Z`);
     res = await call('POST', `/reviews/${id}/result`, { result: 'correct' });
     assert.equal(res.status, 200);
     due.push(res.json.review.status === 'graduated' ? 'graduated' : res.json.review.dueDate);

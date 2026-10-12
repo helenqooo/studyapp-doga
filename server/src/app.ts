@@ -3,22 +3,22 @@ import multipart from '@fastify/multipart';
 import { eq } from 'drizzle-orm';
 import Fastify, { type FastifyServerOptions } from 'fastify';
 import { registerAuth } from './auth';
-import type { Solver } from './claude/solver';
-import type { Tutor } from './claude/tutor';
+import type { Ai } from './claude/ai';
 import type { Db } from './db/client';
 import { profile } from './db/schema';
 import { profileDto } from './dto';
 import type { Env } from './env';
+import { examRoutes } from './routes/exams';
 import { messageRoutes } from './routes/messages';
 import { questionRoutes } from './routes/questions';
 import { reviewRoutes } from './routes/reviews';
 import { solveRoutes } from './routes/solve';
+import { statsRoutes } from './routes/stats';
 
 export interface AppDeps {
   env: Env;
   db: Db;
-  solver: Solver;
-  tutor: Tutor;
+  ai: Ai;
   /** Current time in ms; injectable so tests can move across days. */
   now: () => number;
 }
@@ -52,6 +52,8 @@ export async function buildApp(input: Omit<AppDeps, 'now'> & { now?: AppDeps['no
   questionRoutes(app, deps);
   reviewRoutes(app, deps);
   messageRoutes(app, deps);
+  examRoutes(app, deps);
+  statsRoutes(app, deps);
 
   return app;
 }

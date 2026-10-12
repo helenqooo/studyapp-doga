@@ -1,7 +1,8 @@
 import { z } from 'zod';
 import type { ImageMime } from '../images';
-import { getTopic, SUBJECTS_BY_EXAM, TOPICS, topicLabel, type Exam, type Subject } from '../topics';
+import { getTopic, SUBJECTS_BY_EXAM, type Exam, type Subject } from '../topics';
 import { AiError, type Claude } from './client';
+import { ALL_SUBJECTS, TOPIC_IDS, TOPIC_LIST } from './taxonomy';
 
 export interface Solution {
   exam: Exam;
@@ -20,7 +21,6 @@ export interface Solver {
   readonly model: string;
 }
 
-const ALL_SUBJECTS = [...SUBJECTS_BY_EXAM.TYT, ...SUBJECTS_BY_EXAM.AYT];
 
 // Property order matters: the model fills fields in this order, so transcription and
 // the worked solution come before hints and the self-assessed confidence.
@@ -33,7 +33,7 @@ const OUTPUT_SCHEMA = {
     },
     exam: { type: 'string', enum: ['TYT', 'AYT'] },
     subject: { type: 'string', enum: ALL_SUBJECTS },
-    topicId: { type: 'string', enum: TOPICS.map((t) => t.id) },
+    topicId: { type: 'string', enum: TOPIC_IDS },
     difficulty: { type: 'integer', description: 'YKS difficulty from 1 (very easy) to 5 (very hard).' },
     solutionSteps: {
       type: 'array',
@@ -74,7 +74,6 @@ const OutputSchema = z.object({
   confidence: z.number(),
 });
 
-const TOPIC_LIST = TOPICS.map((t) => `${t.id} — ${t.exam} · ${t.subject} · ${topicLabel(t)}`).join('\n');
 
 const SYSTEM_PROMPT = `You are an expert YKS tutor helping a Turkish high-school student prepare for TYT and AYT (Sayısal). The student sends a photo of one exam-style question. Everything you write for the student must be in Turkish.
 
