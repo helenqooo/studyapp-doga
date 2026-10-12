@@ -66,6 +66,12 @@ export interface ColorTokens {
   /** Veil behind the result badge so it reads over busy content. */
   celebrationScrim: string;
 
+  /** Badge medallions by tier, plus the muted look of a badge not earned yet. */
+  badge: { bronze: string; silver: string; gold: string; ink: string; locked: string; lockedInk: string };
+
+  /** Avatar circle fills (initial in `textOnAccent`, all ≥ 4.5:1 under white). */
+  avatar: Record<'clay' | 'kraft' | 'olive' | 'sky' | 'plum' | 'sand' | 'slate' | 'rose', string>;
+
   subject: Record<Subject, string>;
 
   /** Chart roles. The line/bar hue passes the dataviz checks (band, chroma, ≥3:1) on the surface. */
@@ -127,6 +133,17 @@ const light: ColorTokens = {
 
   confetti: ['#D97757', '#C9954C', '#788C5D', '#6A9BCC', '#E4B9A3'],
   celebrationScrim: 'rgba(245, 244, 238, 0.72)',
+  badge: { bronze: '#B87A45', silver: '#7D8794', gold: '#B8862F', ink: '#FFFFFF', locked: '#E4E1D8', lockedInk: '#8F8C84' },
+  avatar: {
+    clay: '#B5573A',
+    kraft: '#8F6328',
+    olive: '#566F3D',
+    sky: '#3F6D9C',
+    plum: '#8A4F75',
+    sand: '#7A6A4F',
+    slate: '#56606B',
+    rose: '#A8484F',
+  },
 
   subject: {
     'Türkçe': '#D97757',
@@ -195,6 +212,17 @@ const dark: ColorTokens = {
 
   confetti: ['#E08B6D', '#D4A27F', '#A3B886', '#8DB4DE', '#F0C6B3'],
   celebrationScrim: 'rgba(31, 30, 29, 0.72)',
+  badge: { bronze: '#B87A45', silver: '#7D8794', gold: '#B8862F', ink: '#FFFFFF', locked: '#3B3A36', lockedInk: '#85827A' },
+  avatar: {
+    clay: '#B5573A',
+    kraft: '#8F6328',
+    olive: '#566F3D',
+    sky: '#3F6D9C',
+    plum: '#8A4F75',
+    sand: '#7A6A4F',
+    slate: '#56606B',
+    rose: '#A8484F',
+  },
 
   subject: {
     'Türkçe': '#E08B6D',
@@ -273,6 +301,8 @@ export const fontSize = {
   xl: 21,
   xxl: 30,
   display: 44,
+  /** Hero numbers: the timer, the streak count. */
+  numeral: 64,
 } as const;
 
 /** Letter spacing for the serif display sizes (slightly tight, like editorial titles). */
@@ -345,6 +375,11 @@ export const layout = {
   confetti: { long: 10, short: 5, dot: 7, radius: 2 },
   /** Size of the "thinking" spark loader. */
   spark: 56,
+  /** Pomodoro ring diameter and stroke. */
+  timerRing: 260,
+  timerStroke: 10,
+  /** Avatar circle on the leaderboard. */
+  avatar: 40,
   chart: {
     lineWidth: 2,
     markerRadius: 4,

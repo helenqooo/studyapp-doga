@@ -123,4 +123,24 @@ export const SAMPLE_KARNE: { exam: Exam; name: string; sections: ExamSectionInpu
 
 /** Total XP at the start: level 7, 17 XP short of level 8 (two good actions level up). */
 export const SEED_XP = 1275;
-export const SEED_STREAK = { current: 6, longest: 12 };
+/** Six days in a row up to yesterday: one pomodoro (or a cleared review queue) today makes seven and earns the badge. */
+export const SEED_STREAK = { current: 6, longest: 12, lastDaysAgo: 1 };
+export const SEED_BADGES = [{ id: 'first-exam', daysAgo: 84 }];
+
+/** Pomodoros of the past six days: [days ago, subject, minutes]. */
+export const SEED_SESSIONS: [number, string, number][] = [
+  [6, 'Temel Matematik', 25], [6, 'Temel Matematik', 25],
+  [5, 'Fizik', 25], [5, 'Türkçe', 25], [5, 'Temel Matematik', 25],
+  [4, 'Kimya', 25],
+  [3, 'Matematik', 25], [3, 'Matematik', 25], [3, 'Biyoloji', 25], [3, 'Türkçe', 25],
+  [2, 'Fen', 25], [2, 'Sosyal', 25],
+  [1, 'Matematik', 25], [1, 'Fizik', 25], [1, 'Temel Matematik', 25],
+];
+
+/** Sample classmates for the leaderboard: weekly XP is set relative to yours so the race stays close. */
+export const FRIENDS = [
+  { id: 'f-elif', displayName: 'Elif', avatar: 'sky', totalXp: 1880, streak: 12, weekly: (me: number) => Math.round(me * 1.25 + 35) },
+  { id: 'f-mert', displayName: 'Mert', avatar: 'olive', totalXp: 960, streak: 3, weekly: (me: number) => Math.round(me * 0.85 + 10) },
+  { id: 'f-zeynep', displayName: 'Zeynep', avatar: 'plum', totalXp: 1540, streak: 0, weekly: (me: number) => Math.round(me * 0.55) },
+  { id: 'f-can', displayName: 'Can', avatar: 'kraft', totalXp: 410, streak: 1, weekly: (me: number) => Math.round(me * 0.3 + 5) },
+] as const;

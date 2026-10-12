@@ -66,7 +66,7 @@ export default function ReviewSessionScreen() {
   const today = useReviewsToday();
   const submit = useReviewResult();
   const { split } = useWindowLayout();
-  const startCelebration = useResultCelebration();
+  const celebrate = useResultCelebration();
 
   // Freeze the queue when the session starts so answering doesn't reshuffle it.
   const [queue, setQueue] = useState<Question[] | null>(null);
@@ -134,12 +134,11 @@ export default function ReviewSessionScreen() {
   const topic = getTopic(q.topicId);
 
   const answer = (correct: boolean) => {
-    const celebrate = startCelebration();
     submit.mutate(
       { questionId: q.id, result: correct ? 'correct' : 'wrong', viewedSolution: showSolution },
       {
         onSuccess: (res) => {
-          celebrate(correct ? 'correct' : 'wrong', res);
+          celebrate(correct ? 'correct' : 'wrong', res.rewards);
           setOutcome({ correct, review: res.review, xpGained: res.xpGained });
           setTally((t) => ({
             correct: t.correct + (correct ? 1 : 0),

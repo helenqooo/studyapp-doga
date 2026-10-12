@@ -79,7 +79,7 @@ export default function QuestionScreen() {
   const query = useQuestion(id);
   const record = useRecordAttempt(id);
   const { split } = useWindowLayout();
-  const startCelebration = useResultCelebration();
+  const celebrate = useResultCelebration();
 
   const [hintsShown, setHintsShown] = useState(0);
   const [solutionShown, setSolutionShown] = useState(false);
@@ -122,12 +122,11 @@ export default function QuestionScreen() {
   };
 
   const save = (result: AttemptResult) => {
-    const celebrate = startCelebration();
     record.mutate(
       { result, userAnswer, hintsUsed: hintsShown, viewedSolution: solutionShown },
       {
         onSuccess: (res) => {
-          celebrate(result, res);
+          celebrate(result, res.rewards);
           setSavedXp(res.xpGained);
         },
         onError: () => haptics.error(),

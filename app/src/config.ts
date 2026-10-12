@@ -2,7 +2,6 @@
 // Restart `npx expo start` after changing them.
 
 export const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? '').replace(/\/+$/, '');
-export const APP_TOKEN = process.env.EXPO_PUBLIC_APP_TOKEN ?? '';
 
 /**
  * Demo mode: no server, sample questions and placeholder history kept in memory.

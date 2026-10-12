@@ -65,10 +65,20 @@ export interface ReviewsToday {
   completedToday: number;
 }
 
+/** What an action earned: XP, a level crossed, new badges, a longer streak. */
+export interface Rewards {
+  xpGained: number;
+  levelUp: number | null;
+  badges: { id: string; earnedAt: string }[];
+  /** New streak length when today started or extended it. */
+  streak: number | null;
+}
+
 export interface ReviewResultResponse {
   review: ReviewState;
   attempt: Attempt;
   xpGained: number;
+  rewards: Rewards;
   profile: Profile;
 }
 
@@ -91,6 +101,8 @@ export interface Profile {
   levelXp: number;
   levelXpRequired: number;
   streak: number;
+  /** Today already counts toward the streak. */
+  streakToday: boolean;
   longestStreak: number;
   badges: { id: string; earnedAt: number }[];
   settings: { focusMinutes: number; breakMinutes: number };
@@ -106,6 +118,7 @@ export interface AttemptInput {
 export interface AttemptResponse {
   attempt: Attempt;
   xpGained: number;
+  rewards: Rewards;
   profile: Profile;
 }
 
@@ -209,3 +222,88 @@ export type WeeklySummary =
       summary: string;
       priorities: { topicId: string; reason: string }[];
     };
+
+export type AvatarKey = 'clay' | 'kraft' | 'olive' | 'sky' | 'plum' | 'sand' | 'slate' | 'rose';
+
+export interface User {
+  id: string;
+  username: string;
+  displayName: string;
+  avatar: AvatarKey;
+}
+
+export interface AuthConfig {
+  registrationOpen: boolean;
+  inviteRequired: boolean;
+}
+
+export interface AuthResponse {
+  token: string;
+  user: User;
+}
+
+export interface RegisterInput {
+  username: string;
+  displayName: string;
+  password: string;
+  inviteCode?: string;
+  avatar?: AvatarKey;
+}
+
+export interface StudySessionInput {
+  /** Client-made UUID; a retried upload is stored once. */
+  id: string;
+  kind: 'focus' | 'break';
+  subject: string | null;
+  startedAt: number;
+  endedAt: number;
+  completed: boolean;
+}
+
+export interface StudySession {
+  id: string;
+  kind: 'focus' | 'break';
+  subject: string | null;
+  startedAt: string;
+  endedAt: string;
+  durationSec: number;
+  completed: boolean;
+  date: string;
+}
+
+export interface SessionResponse {
+  session: StudySession;
+  /** Null when the same session was already stored. */
+  rewards: Rewards | null;
+  profile?: Profile;
+  duplicate?: boolean;
+}
+
+export interface StudyDay {
+  date: string;
+  items: StudySession[];
+  focusSec: number;
+  pomodoros: number;
+  bySubject: { subject: string | null; seconds: number }[];
+}
+
+export interface StudyDays {
+  days: { date: string; focusSec: number }[];
+}
+
+export interface LeaderboardEntry {
+  rank: number;
+  userId: string;
+  displayName: string;
+  avatar: AvatarKey;
+  level: number;
+  streak: number;
+  xp: number;
+  isMe: boolean;
+}
+
+export interface Leaderboard {
+  period: 'week' | 'all';
+  weekStart: string;
+  items: LeaderboardEntry[];
+}

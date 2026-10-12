@@ -14,6 +14,11 @@ const ICONS = [
   'images', 'lightbulb', 'list-filter', 'message-circle-question-mark', 'minus', 'pencil', 'play',
   'refresh-cw', 'repeat', 'rotate-ccw', 'scan', 'scan-line', 'scan-text', 'smartphone', 'sparkles',
   'square-pen', 'star', 'sun', 'timer', 'trash', 'triangle-alert', 'trophy', 'wifi', 'x',
+  // Accounts, timer, leaderboard, badges
+  'at-sign', 'award', 'bell', 'bell-off', 'calendar', 'chevron-down', 'chevron-up', 'clipboard-check', 'clock',
+  'coffee', 'crown', 'eye-off', 'graduation-cap', 'key-round', 'layers', 'library', 'lock', 'log-out', 'medal',
+  'moon', 'pause', 'plus', 'settings', 'skip-forward', 'square', 'sunrise', 'target', 'ticket', 'user-round',
+  'users', 'volume-2', 'volume-x',
 ];
 
 const require = createRequire(import.meta.url);

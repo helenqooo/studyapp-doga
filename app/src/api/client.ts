@@ -1,34 +1,54 @@
 import type { ImageSourcePropType } from 'react-native';
-import { API_URL, APP_TOKEN, AI_UPLOAD_TIMEOUT_MS, DEMO_MODE } from '../config';
+import { API_URL, AI_UPLOAD_TIMEOUT_MS, DEMO_MODE } from '../config';
+import { useAuthStore } from '../store/authStore';
 import { demoApi, demoQuestionImage } from './demo/demoApi';
 import { ApiError } from './errors';
 import type {
   AttemptInput,
   AttemptResponse,
+  AuthConfig,
+  AuthResponse,
   ChatMessage,
   ChatThread,
   ExamInput,
   ExamResult,
   Facets,
   KarneDraft,
+  Leaderboard,
   Overview,
   Profile,
   Question,
   QuestionFilter,
   QuestionPage,
+  RegisterInput,
   ReviewResultResponse,
   ReviewsToday,
+  Rewards,
+  SessionResponse,
+  StudyDay,
+  StudyDays,
+  StudySessionInput,
+  User,
   WeeklySummary,
 } from './types';
 
 export { ApiError };
 
-export const authHeaders = { Authorization: `Bearer ${APP_TOKEN}` };
+/** The signed-in user's token as an Authorization header (empty when signed out). */
+export function authHeaders(): Record<string, string> {
+  const token = useAuthStore.getState().token;
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
 
 function assertConfigured() {
-  if (!API_URL || !APP_TOKEN) {
-    throw new ApiError('API ayarları eksik: app/.env içindeki EXPO_PUBLIC_API_URL ve EXPO_PUBLIC_APP_TOKEN değerlerini doldur.');
+  if (!API_URL) {
+    throw new ApiError('Sunucu adresi eksik: app/.env içindeki EXPO_PUBLIC_API_URL değerini doldur.');
   }
+}
+
+/** A token the server no longer accepts ends the session (the app shows the sign-in screen). */
+function handleUnauthorized(status: number, sentToken: boolean) {
+  if (status === 401 && sentToken) useAuthStore.getState().signOut().catch(() => {});
 }
 
 function errorFromBody(status: number, body: unknown): ApiError {
@@ -41,17 +61,21 @@ function errorFromBody(status: number, body: unknown): ApiError {
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   assertConfigured();
+  const auth = authHeaders();
   let res: Response;
   try {
     res = await fetch(`${API_URL}${path}`, {
       ...init,
-      headers: { ...authHeaders, ...(init.body ? { 'Content-Type': 'application/json' } : {}), ...init.headers },
+      headers: { ...auth, ...(init.body ? { 'Content-Type': 'application/json' } : {}), ...init.headers },
     });
   } catch {
     throw new ApiError('Sunucuya ulaşılamadı. İnternet bağlantını ve API adresini kontrol et.');
   }
   const body: unknown = res.status === 204 ? null : await res.json().catch(() => null);
-  if (!res.ok) throw errorFromBody(res.status, body);
+  if (!res.ok) {
+    handleUnauthorized(res.status, !!auth.Authorization);
+    throw errorFromBody(res.status, body);
+  }
   return body as T;
 }
 
@@ -62,7 +86,7 @@ export function questionImageSource(id: string): ImageSourcePropType {
     // Web assets carry their pixel size, which react-native-web would force on the view.
     return typeof src === 'object' ? { uri: src.uri } : (src ?? {});
   }
-  return { uri: `${API_URL}/questions/${id}/image`, headers: authHeaders };
+  return { uri: `${API_URL}/questions/${id}/image`, headers: authHeaders() };
 }
 
 /**
@@ -84,7 +108,8 @@ function postImage<T>(path: string, imageUri: string, onUploadProgress?: (fracti
 
     const xhr = new XMLHttpRequest();
     xhr.open('POST', `${API_URL}${path}`);
-    xhr.setRequestHeader('Authorization', authHeaders.Authorization);
+    const auth = authHeaders();
+    if (auth.Authorization) xhr.setRequestHeader('Authorization', auth.Authorization);
     xhr.timeout = AI_UPLOAD_TIMEOUT_MS;
     xhr.responseType = 'text';
     if (onUploadProgress) {
@@ -101,7 +126,10 @@ function postImage<T>(path: string, imageUri: string, onUploadProgress?: (fracti
         // fall through with null body
       }
       if (xhr.status >= 200 && xhr.status < 300 && body) resolve(body as T);
-      else reject(errorFromBody(xhr.status, body));
+      else {
+        handleUnauthorized(xhr.status, !!auth.Authorization);
+        reject(errorFromBody(xhr.status, body));
+      }
     };
     xhr.onerror = () => reject(new ApiError('Sunucuya ulaşılamadı. İnternet bağlantını ve API adresini kontrol et.'));
     xhr.ontimeout = () => reject(new ApiError('İşlem çok uzun sürdü. Tekrar dene.'));
@@ -111,6 +139,21 @@ function postImage<T>(path: string, imageUri: string, onUploadProgress?: (fracti
 
 const httpApi = {
   health: () => request<{ ok: boolean }>('/health'),
+  authConfig: () => request<AuthConfig>('/auth/config'),
+  login: (username: string, password: string) =>
+    request<AuthResponse>('/auth/login', { method: 'POST', body: JSON.stringify({ username, password }) }),
+  register: (input: RegisterInput) => request<AuthResponse>('/auth/register', { method: 'POST', body: JSON.stringify(input) }),
+  logout: () => request<null>('/auth/logout', { method: 'POST' }),
+  me: () => request<{ user: User; profile: Profile }>('/me'),
+  updateMe: (input: Partial<Pick<User, 'displayName' | 'avatar'>>) =>
+    request<{ user: User }>('/me', { method: 'PUT', body: JSON.stringify(input) }),
+  updateSettings: (settings: Profile['settings']) =>
+    request<Profile>('/profile/settings', { method: 'PUT', body: JSON.stringify(settings) }),
+  saveSession: (input: StudySessionInput) =>
+    request<SessionResponse>('/sessions', { method: 'POST', body: JSON.stringify(input) }),
+  studyDay: (date?: string) => request<StudyDay>(`/sessions${date ? `?date=${date}` : ''}`),
+  studyDays: (days = 7) => request<StudyDays>(`/sessions/days?days=${days}`),
+  leaderboard: (period: 'week' | 'all') => request<Leaderboard>(`/leaderboard?period=${period}`),
   profile: () => request<Profile>('/profile'),
   question: (id: string) => request<Question>(`/questions/${encodeURIComponent(id)}`),
   attempt: (id: string, input: AttemptInput) =>
@@ -148,7 +191,10 @@ const httpApi = {
   parseKarne: (imageUri: string, onUploadProgress?: (fraction: number) => void) =>
     postImage<KarneDraft>('/exams/parse', imageUri, onUploadProgress),
   createExam: (input: ExamInput) =>
-    request<{ exam: ExamResult; xpGained: number; profile: Profile }>('/exams', { method: 'POST', body: JSON.stringify(input) }),
+    request<{ exam: ExamResult; xpGained: number; rewards: Rewards; profile: Profile }>('/exams', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
   updateExam: (id: string, input: ExamInput) =>
     request<ExamResult>(`/exams/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(input) }),
   deleteExam: (id: string) => request<null>(`/exams/${encodeURIComponent(id)}`, { method: 'DELETE' }),

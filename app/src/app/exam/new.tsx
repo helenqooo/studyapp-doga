@@ -15,6 +15,7 @@ import { LOW_CONFIDENCE_THRESHOLD } from '../../config';
 import { haptics } from '../../lib/haptics';
 import { prepareDocument } from '../../lib/image';
 import { useTheme } from '../../theme';
+import { useRewardCelebration } from '../../lib/celebrate';
 
 type Stage = { kind: 'pick' } | { kind: 'reading'; uri: string } | { kind: 'failed'; uri: string; message: string } | { kind: 'form'; draft: KarneDraft | null };
 
@@ -23,6 +24,7 @@ export default function NewExamScreen() {
   const { source } = useLocalSearchParams<{ source?: 'photo' }>();
   const [stage, setStage] = useState<Stage>(source === 'photo' ? { kind: 'pick' } : { kind: 'form', draft: null });
   const parse = useParseKarne();
+  const celebrateRewards = useRewardCelebration();
   const create = useCreateExam();
 
   const read = (uri: string) => {
@@ -152,7 +154,8 @@ export default function NewExamScreen() {
         error={create.error?.message}
         onSubmit={(input) =>
           create.mutate(input, {
-            onSuccess: ({ exam, xpGained }) => {
+            onSuccess: ({ exam, xpGained, rewards }) => {
+              celebrateRewards(rewards);
               haptics.success();
               router.replace({ pathname: '/exam/[id]', params: { id: exam.id, xp: String(xpGained) } });
             },

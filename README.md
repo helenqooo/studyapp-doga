@@ -32,7 +32,7 @@ Kontrol: `curl http://<VDS-IP>:3000/health` → `{"ok":true}`
 | `ANTHROPIC_API_KEY` | Anthropic API anahtarı. **Sadece burada durur**, uygulamaya asla girmez. |
 | `AI_MODEL` | Kullanılan model. Varsayılan `claude-sonnet-5-5`. |
 | `AI_EFFORT` | İsteğe bağlı: `low` / `medium` / `high` / `xhigh` / `max`. Boş = modelin varsayılanı. |
-| `APP_TOKEN` | Uygulamanın her istekte gönderdiği gizli anahtar. Üret: `openssl rand -hex 32` |
+| `INVITE_CODE` | Arkadaşlarının hesap açarken gireceği davet kodu (en az 6 karakter). Boş bırakırsan ilk hesaptan sonra kayıt kapanır. |
 | `HOST`, `PORT` | Dinlenen adres. Varsayılan `0.0.0.0:3000`. |
 | `APP_TIMEZONE` | Gün hesabı (tekrar tarihleri, seri). Varsayılan `Europe/Istanbul`. |
 | `DATA_DIR` | Veritabanı ve görseller. Varsayılan `server/data/`. **Bu klasörü yedekle.** |
@@ -58,13 +58,21 @@ iPhone'da kamerayla QR kodu okut, Expo Go'da açılır.
 | Değişken | Açıklama |
 |---|---|
 | `EXPO_PUBLIC_API_URL` | Backend adresi, telefonun gördüğü şekliyle. Ör. `http://1.2.3.4:3000` (sonda `/` yok). |
-| `EXPO_PUBLIC_APP_TOKEN` | `server/.env` içindeki `APP_TOKEN` ile aynı. |
+| `EXPO_PUBLIC_DEMO` | İsteğe bağlı. `1` = sunucusuz demo, `0` = adres boş olsa da demo açılmasın. |
 
 - `.env` değişince `npx expo start --tunnel -c` ile yeniden başlat (`EXPO_PUBLIC_*` değerleri paketlemede gömülür).
 - iPad'de de aynı QR ile Expo Go'da açılır: dikey, yatay ve Split View desteklenir; geniş ekranda sekmeler yan menüye geçer, çözüm ve tekrar ekranları iki panele bölünür. iPhone dikey modda kilitli kalır.
 - Bağlantıyı kontrol etmek için: **Profil → Bağlantıyı test et**.
-- `EXPO_PUBLIC_APP_TOKEN` uygulama paketinin içinde bulunur; bu yüzden asıl gizli olan `ANTHROPIC_API_KEY` sadece sunucuda tutulur.
+- Uygulamada gizli anahtar yok: her kullanıcı kendi hesabıyla giriş yapar, oturum anahtarı iPhone'un Anahtar Zinciri'nde (Keychain) saklanır. `ANTHROPIC_API_KEY` sadece sunucuda durur.
 - İleride .ipa olarak kurarken düz `http://` adresi iOS tarafından engellenir; o aşamada alan adı + HTTPS (ör. Caddy / Let's Encrypt) kullan.
+
+## Hesaplar, sıralama ve sayaç
+
+- **İlk açılışta hesap oluştur.** Sunucudaki ilk hesap davet kodu istemez ve tek kullanıcılı sürümden kalan bütün verileri (sorular, denemeler, XP, seri) üstlenir.
+- **Arkadaşlar** `server/.env` içindeki `INVITE_CODE` ile hesap açar. Herkes yalnızca kendi verisini görür; ortak olan tek şey **Sıralama** ekranıdır (haftalık XP, pazartesi sıfırlanır; ayrıca tüm zamanlar).
+- **Sayaç (pomodoro):** Ana sayfadaki "Bugünkü çalışma" kartından açılır. Varsayılan 25/5 dakika; süreler sayaç ekranından değişir. Uygulama arka plandayken de doğru sayar, süre bitince bildirim gelir. 5 dakikadan uzun tamamlanan her odak +20 XP kazandırır.
+- **Seri:** Gün içinde en az bir tamamlanmış pomodoro ya da bugünün tekrar listesinin bitirilmesi günü seriye sayar.
+- **Rozetler:** İlk deneme, 7 ve 30 günlük seri, 100 ve 500 soru, konu ustası (bir konuda 10 doğru tekrar). Profil ekranında görünür.
 
 ## Demo modu (sunucusuz)
 

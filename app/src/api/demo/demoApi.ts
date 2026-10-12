@@ -8,6 +8,9 @@ import type {
   AttemptInput,
   AttemptResponse,
   AttemptResult,
+  AuthConfig,
+  AuthResponse,
+  AvatarKey,
   ChatMessage,
   ChatThread,
   ExamInput,
@@ -15,36 +18,51 @@ import type {
   ExamSectionInput,
   Facets,
   KarneDraft,
+  Leaderboard,
   Overview,
   Profile,
   Question,
   QuestionFilter,
   QuestionPage,
+  RegisterInput,
   ReviewResultResponse,
   ReviewsToday,
   ReviewState,
+  Rewards,
+  SessionResponse,
+  StudyDay,
+  StudyDays,
+  StudySession,
+  StudySessionInput,
   TopicLoss,
+  User,
   WeeklySummary,
 } from '../types';
+import { DEMO_USER } from '../../store/authStore';
 import {
   addDays,
   ANALYSIS_WINDOW_DAYS,
   DAY_MS,
+  effectiveStreak,
   initialSchedule,
   intervalDays,
   levelFromXp,
   localDate,
   lostNet,
   MAX_USER_MESSAGES,
+  MIN_COUNTED_FOCUS_SEC,
   net,
   nextSchedule,
+  nextStreak,
   PRACTICE_WEIGHT,
   questionCount,
   round2,
+  TOPIC_MASTER_REVIEWS,
+  weekStart,
   XP,
 } from './logic';
 import { DEMO_QUESTIONS, type DemoQuestion } from './questions';
-import { SAMPLE_KARNE, SEED_EXAMS, SEED_QUESTIONS, SEED_STREAK, SEED_XP } from './seed';
+import { FRIENDS, SAMPLE_KARNE, SEED_BADGES, SEED_EXAMS, SEED_QUESTIONS, SEED_SESSIONS, SEED_STREAK, SEED_XP } from './seed';
 
 interface QuestionRow {
   id: string;
@@ -68,6 +86,10 @@ interface ReviewRow {
 interface MessageRow extends Omit<ChatMessage, 'createdAt'> {
   questionId: string;
   createdAt: number;
+}
+interface SessionRow extends Omit<StudySession, 'startedAt' | 'endedAt'> {
+  startedAt: number;
+  endedAt: number;
 }
 interface ExamRow {
   id: string;
@@ -100,7 +122,18 @@ const byKey = new Map(DEMO_QUESTIONS.map((q) => [q.key, q]));
 const plainQuestion = (text: string) => text.replace(/\$/g, '');
 
 const db = {
-  xp: SEED_XP,
+  user: { ...DEMO_USER } as User,
+  profile: {
+    xp: SEED_XP,
+    currentStreak: SEED_STREAK.current,
+    longestStreak: SEED_STREAK.longest,
+    lastStreakDate: null as string | null,
+    badges: [] as { id: string; earnedAt: number }[],
+    settings: { focusMinutes: 25, breakMinutes: 5 },
+  },
+  /** Every XP gain with its day, for the weekly leaderboard. */
+  xpEvents: [] as { amount: number; date: string }[],
+  sessions: [] as SessionRow[],
   questions: [] as QuestionRow[],
   attempts: [] as AttemptRow[],
   reviews: [] as ReviewRow[],
@@ -168,21 +201,101 @@ function seed() {
   for (const e of SEED_EXAMS) {
     const createdAt = daysAgo(e.daysAgo, 21);
     db.exams.push({ id: newId('exam'), createdAt, date: localDate(createdAt), exam: e.exam, name: e.name, sections: e.sections });
+    db.xpEvents.push({ amount: XP.examEntry, date: localDate(createdAt) });
   }
+  SEED_SESSIONS.forEach(([ago, subject, minutes], i) => {
+    const startedAt = daysAgo(ago, 15) + (i % 4) * 35 * 60_000;
+    const endedAt = startedAt + minutes * 60_000;
+    db.sessions.push({
+      id: `demo-s${i}`,
+      kind: 'focus',
+      subject,
+      startedAt,
+      endedAt,
+      durationSec: minutes * 60,
+      completed: true,
+      date: localDate(startedAt),
+    });
+    db.xpEvents.push({ amount: XP.pomodoroComplete, date: localDate(startedAt) });
+  });
+  for (const a of db.attempts) {
+    if (a.source === 'solve') db.xpEvents.push({ amount: XP.solveQuestion, date: localDate(a.createdAt) });
+    else if (a.result === 'correct') db.xpEvents.push({ amount: XP.reviewCorrect, date: localDate(a.createdAt) });
+  }
+  db.profile.lastStreakDate = addDays(today, -SEED_STREAK.lastDaysAgo);
+  db.profile.badges = SEED_BADGES.map((b) => ({ id: b.id, earnedAt: daysAgo(b.daysAgo, 21) }));
 }
 seed();
 
 // ---------------------------------------------------------------- DTOs
 
 function profileDto(): Profile {
+  const p = db.profile;
+  const today = localDate(Date.now());
   return {
-    xp: db.xp,
-    ...levelFromXp(db.xp),
-    streak: SEED_STREAK.current,
-    longestStreak: SEED_STREAK.longest,
-    badges: [],
-    settings: { focusMinutes: 25, breakMinutes: 5 },
+    xp: p.xp,
+    ...levelFromXp(p.xp),
+    streak: effectiveStreak(p.currentStreak, p.lastStreakDate, today),
+    streakToday: p.lastStreakDate === today,
+    longestStreak: p.longestStreak,
+    badges: p.badges.map((b) => ({ ...b })),
+    settings: { ...p.settings },
   };
+}
+
+/** Badge ids the demo user qualifies for now (mirrors server/src/gamification.ts). */
+function qualifyingBadges(today: string): string[] {
+  const p = db.profile;
+  const ids: string[] = [];
+  if (db.exams.length >= 1) ids.push('first-exam');
+  const streak = effectiveStreak(p.currentStreak, p.lastStreakDate, today);
+  if (streak >= 7) ids.push('streak-7');
+  if (streak >= 30) ids.push('streak-30');
+  if (db.questions.length >= 100) ids.push('questions-100');
+  if (db.questions.length >= 500) ids.push('questions-500');
+  const perTopic = new Map<string, number>();
+  for (const a of db.attempts) {
+    if (a.source !== 'review' || a.result !== 'correct') continue;
+    const topicId = db.questions.find((q) => q.id === a.questionId)?.data.topicId;
+    if (topicId) perTopic.set(topicId, (perTopic.get(topicId) ?? 0) + 1);
+  }
+  for (const [topicId, n] of perTopic) if (n >= TOPIC_MASTER_REVIEWS) ids.push(`topic-master:${topicId}`);
+  return ids;
+}
+
+/** XP, streak and badges for an action (mirrors applyRewards on the server). */
+function applyRewards(xp: number, now: number, streakDay = false): Rewards {
+  const p = db.profile;
+  const today = localDate(now);
+  const levelBefore = levelFromXp(p.xp).level;
+  if (xp > 0) {
+    p.xp += xp;
+    db.xpEvents.push({ amount: xp, date: today });
+  }
+  let streak: number | null = null;
+  if (streakDay) {
+    const next = nextStreak(p.currentStreak, p.lastStreakDate, today);
+    p.currentStreak = next.current;
+    p.lastStreakDate = today;
+    p.longestStreak = Math.max(p.longestStreak, next.current);
+    if (next.grew) streak = next.current;
+  }
+  const owned = new Set(p.badges.map((b) => b.id));
+  const earned = qualifyingBadges(today)
+    .filter((id) => !owned.has(id))
+    .map((id) => ({ id, earnedAt: now }));
+  p.badges.push(...earned);
+  const levelAfter = levelFromXp(p.xp).level;
+  return {
+    xpGained: xp,
+    levelUp: levelAfter > levelBefore ? levelAfter : null,
+    badges: earned.map((b) => ({ id: b.id, earnedAt: iso(b.earnedAt) })),
+    streak,
+  };
+}
+
+function sessionDto(s: SessionRow): StudySession {
+  return { ...s, startedAt: iso(s.startedAt), endedAt: iso(s.endedAt) };
 }
 
 function attemptDto(a: AttemptRow): Attempt {
@@ -433,6 +546,113 @@ export const demoApi = {
     await wait(QUICK_MS);
     return { ok: true };
   },
+  // Demo mode has no accounts: you are always signed in as DEMO_USER.
+  authConfig: async (): Promise<AuthConfig> => ({ registrationOpen: false, inviteRequired: false }),
+  login: async (_username: string, _password: string): Promise<AuthResponse> => ({ token: 'demo', user: { ...db.user } }),
+  register: async (_input: RegisterInput): Promise<AuthResponse> => ({ token: 'demo', user: { ...db.user } }),
+  logout: async (): Promise<null> => null,
+  me: async (): Promise<{ user: User; profile: Profile }> => {
+    await wait(QUICK_MS);
+    return { user: { ...db.user }, profile: profileDto() };
+  },
+  updateMe: async (input: Partial<Pick<User, 'displayName' | 'avatar'>>): Promise<{ user: User }> => {
+    await wait(QUICK_MS);
+    db.user = { ...db.user, ...input };
+    return { user: { ...db.user } };
+  },
+  updateSettings: async (settings: Profile['settings']): Promise<Profile> => {
+    await wait(QUICK_MS);
+    if (settings.focusMinutes < 5 || settings.focusMinutes > 90 || settings.breakMinutes < 1 || settings.breakMinutes > 30) {
+      throw new ApiError('Odak 5–90, mola 1–30 dakika olmalı.', 400);
+    }
+    db.profile.settings = { ...settings };
+    return profileDto();
+  },
+  saveSession: async (input: StudySessionInput): Promise<SessionResponse> => {
+    await wait(QUICK_MS);
+    const existing = db.sessions.find((x) => x.id === input.id);
+    if (existing) return { session: sessionDto(existing), rewards: null, duplicate: true };
+    const durationSec = Math.round((input.endedAt - input.startedAt) / 1000);
+    if (durationSec <= 0 || durationSec > 4 * 60 * 60) throw new ApiError('Oturum süresi geçersiz.', 400);
+    const row: SessionRow = {
+      id: input.id,
+      kind: input.kind,
+      subject: input.subject,
+      startedAt: input.startedAt,
+      endedAt: input.endedAt,
+      durationSec,
+      completed: input.completed,
+      date: localDate(input.startedAt),
+    };
+    db.sessions.push(row);
+    const counts = input.kind === 'focus' && input.completed && durationSec >= MIN_COUNTED_FOCUS_SEC;
+    const rewards = applyRewards(counts ? XP.pomodoroComplete : 0, Date.now(), counts);
+    return { session: sessionDto(row), rewards, profile: profileDto() };
+  },
+  studyDay: async (date?: string): Promise<StudyDay> => {
+    await wait(QUICK_MS);
+    const day = date ?? localDate(Date.now());
+    const items = db.sessions.filter((x) => x.date === day).sort((a, b) => a.startedAt - b.startedAt);
+    const focus = items.filter((x) => x.kind === 'focus');
+    const bySubject = new Map<string, number>();
+    for (const x of focus) bySubject.set(x.subject ?? '', (bySubject.get(x.subject ?? '') ?? 0) + x.durationSec);
+    return {
+      date: day,
+      items: items.map(sessionDto),
+      focusSec: focus.reduce((sum, x) => sum + x.durationSec, 0),
+      pomodoros: focus.filter((x) => x.completed && x.durationSec >= MIN_COUNTED_FOCUS_SEC).length,
+      bySubject: [...bySubject].map(([subject, seconds]) => ({ subject: subject || null, seconds })).sort((a, b) => b.seconds - a.seconds),
+    };
+  },
+  studyDays: async (days = 7): Promise<StudyDays> => {
+    await wait(QUICK_MS);
+    const today = localDate(Date.now());
+    const from = addDays(today, -(days - 1));
+    return {
+      days: Array.from({ length: days }, (_, i) => {
+        const date = addDays(from, i);
+        const focusSec = db.sessions.filter((x) => x.kind === 'focus' && x.date === date).reduce((sum, x) => sum + x.durationSec, 0);
+        return { date, focusSec };
+      }),
+    };
+  },
+  leaderboard: async (period: 'week' | 'all'): Promise<Leaderboard> => {
+    await wait(QUICK_MS * 2);
+    const today = localDate(Date.now());
+    const week = weekStart(today);
+    const myWeek = db.xpEvents.filter((e) => e.date >= week).reduce((sum, e) => sum + e.amount, 0);
+    const me = {
+      userId: db.user.id,
+      displayName: db.user.displayName,
+      avatar: db.user.avatar,
+      level: levelFromXp(db.profile.xp).level,
+      streak: effectiveStreak(db.profile.currentStreak, db.profile.lastStreakDate, today),
+      xp: period === 'week' ? myWeek : db.profile.xp,
+      isMe: true,
+    };
+    // Friends' weekly XP follows yours at the time the week's board is first opened today,
+    // so it doesn't jump when you earn XP.
+    const base = weeklyBase(myWeek, today);
+    const friends = FRIENDS.map((f) => ({
+      userId: f.id,
+      displayName: f.displayName,
+      avatar: f.avatar as AvatarKey,
+      level: levelFromXp(f.totalXp).level,
+      streak: f.streak,
+      xp: period === 'week' ? f.weekly(base) : f.totalXp,
+      isMe: false,
+    }));
+    const rows = [me, ...friends].sort((a, b) => b.xp - a.xp || a.displayName.localeCompare(b.displayName, 'tr'));
+    let rank = 0;
+    return {
+      period,
+      weekStart: week,
+      items: rows.map((r, i) => {
+        if (i === 0 || r.xp !== rows[i - 1]!.xp) rank = i + 1;
+        return { rank, ...r };
+      }),
+    };
+  },
   profile: async (): Promise<Profile> => {
     await wait(QUICK_MS);
     return profileDto();
@@ -463,8 +683,8 @@ export const demoApi = {
       const schedule = initialSchedule(localDate(now));
       db.reviews.push({ questionId: q.id, ...schedule, correctCount: 0, lastResult: null, lastReviewedAt: null, createdAt: now });
     }
-    db.xp += XP.solveQuestion;
-    return { attempt: attemptDto(attempt), xpGained: XP.solveQuestion, profile: profileDto() };
+    const rewards = applyRewards(XP.solveQuestion, now);
+    return { attempt: attemptDto(attempt), xpGained: rewards.xpGained, rewards, profile: profileDto() };
   },
   questions: async (filter: QuestionFilter, offset: number): Promise<QuestionPage> => {
     await wait(QUICK_MS);
@@ -528,9 +748,10 @@ export const demoApi = {
       viewedSolution: input.viewedSolution,
     };
     db.attempts.push(attempt);
-    const xpGained = correct ? XP.reviewCorrect : 0;
-    db.xp += xpGained;
-    return { review: reviewDto(review), attempt: attemptDto(attempt), xpGained, profile: profileDto() };
+    // Clearing today's queue counts the day for the streak.
+    const stillDue = db.reviews.some((r) => r.status === 'active' && r.dueDate <= today);
+    const rewards = applyRewards(correct ? XP.reviewCorrect : 0, now, !stillDue);
+    return { review: reviewDto(review), attempt: attemptDto(attempt), xpGained: rewards.xpGained, rewards, profile: profileDto() };
   },
   messages: async (id: string): Promise<ChatThread> => {
     await wait(QUICK_MS);
@@ -589,7 +810,7 @@ export const demoApi = {
       warnings: ['Demo modu: değerler örnek bir karneden geliyor, fotoğrafın okunmadı.'],
     };
   },
-  createExam: async (input: ExamInput): Promise<{ exam: ExamResult; xpGained: number; profile: Profile }> => {
+  createExam: async (input: ExamInput): Promise<{ exam: ExamResult; xpGained: number; rewards: Rewards; profile: Profile }> => {
     await wait(QUICK_MS * 2);
     validateExam(input);
     const row: ExamRow = {
@@ -601,8 +822,8 @@ export const demoApi = {
       sections: normalizeSections(input.exam, input.sections),
     };
     db.exams.push(row);
-    db.xp += XP.examEntry;
-    return { exam: examDto(row), xpGained: XP.examEntry, profile: profileDto() };
+    const rewards = applyRewards(XP.examEntry, row.createdAt);
+    return { exam: examDto(row), xpGained: rewards.xpGained, rewards, profile: profileDto() };
   },
   updateExam: async (id: string, input: ExamInput): Promise<ExamResult> => {
     await wait(QUICK_MS * 2);
@@ -652,6 +873,12 @@ export const demoApi = {
     return weeklySummaryDto();
   },
 };
+
+let weeklyBaseCache: { day: string; xp: number } | null = null;
+function weeklyBase(myWeek: number, today: string): number {
+  if (weeklyBaseCache?.day !== today) weeklyBaseCache = { day: today, xp: myWeek };
+  return weeklyBaseCache.xp;
+}
 
 /** Image of a question in demo mode (bundled asset). */
 export function demoQuestionImage(id: string): DemoQuestion['image'] | null {

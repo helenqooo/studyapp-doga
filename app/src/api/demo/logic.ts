@@ -4,7 +4,9 @@
 import { QUESTION_COUNTS, type Subject } from '../../data/topics';
 
 export const REVIEW_INTERVALS = [1, 3, 7, 14, 30] as const;
-export const XP = { solveQuestion: 10, reviewCorrect: 15, examEntry: 50 } as const;
+export const XP = { solveQuestion: 10, reviewCorrect: 15, pomodoroComplete: 20, examEntry: 50 } as const;
+export const TOPIC_MASTER_REVIEWS = 10;
+export const MIN_COUNTED_FOCUS_SEC = 5 * 60;
 export const MAX_USER_MESSAGES = 10;
 export const ANALYSIS_WINDOW_DAYS = 90;
 export const PRACTICE_WEIGHT = 0.5;
@@ -64,3 +66,19 @@ export function levelFromXp(totalXp: number) {
 export const net = (correct: number, wrong: number) => correct - wrong / 4;
 export const lostNet = (wrong: number, blank: number) => wrong * 1.25 + blank;
 export const questionCount = (subject: string) => QUESTION_COUNTS[subject as Subject] ?? 0;
+
+export function effectiveStreak(current: number, lastStreakDate: string | null, today: string): number {
+  return lastStreakDate && lastStreakDate >= addDays(today, -1) ? current : 0;
+}
+
+export function nextStreak(current: number, lastStreakDate: string | null, today: string) {
+  if (lastStreakDate === today) return { current, grew: false };
+  if (lastStreakDate === addDays(today, -1)) return { current: current + 1, grew: true };
+  return { current: 1, grew: true };
+}
+
+/** Monday of the week containing `date`. */
+export function weekStart(date: string): string {
+  const dow = new Date(`${date}T00:00:00Z`).getUTCDay();
+  return addDays(date, -((dow + 6) % 7));
+}

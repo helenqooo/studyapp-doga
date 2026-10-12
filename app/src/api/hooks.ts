@@ -1,6 +1,7 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from './client';
-import type { AttemptInput, ChatThread, ExamInput, ExamResult, Question, QuestionFilter } from './types';
+import { useAuthStore } from '../store/authStore';
+import type { AttemptInput, ChatThread, ExamInput, ExamResult, Profile, Question, QuestionFilter, RegisterInput, StudySessionInput, User } from './types';
 
 export const queryKeys = {
   profile: ['profile'] as const,
@@ -17,6 +18,14 @@ export const queryKeys = {
   stats: ['stats'] as const,
   overview: ['stats', 'overview'] as const,
   weeklySummary: ['stats', 'weekly-summary'] as const,
+  authConfig: ['auth', 'config'] as const,
+  /** Prefix: every leaderboard period. */
+  leaderboard: ['leaderboard'] as const,
+  leaderboardPeriod: (period: 'week' | 'all') => ['leaderboard', period] as const,
+  /** Prefix: study timer days. */
+  study: ['study'] as const,
+  studyDay: (date: string | null) => ['study', 'day', date] as const,
+  studyDays: (days: number) => ['study', 'days', days] as const,
 };
 
 export function useProfile() {
@@ -53,6 +62,7 @@ export function useRecordAttempt(questionId: string) {
       queryClient.invalidateQueries({ queryKey: queryKeys.questions });
       queryClient.invalidateQueries({ queryKey: queryKeys.reviewsToday });
       queryClient.invalidateQueries({ queryKey: queryKeys.stats });
+      queryClient.invalidateQueries({ queryKey: queryKeys.leaderboard });
     },
   });
 }
@@ -87,6 +97,7 @@ export function useReviewResult() {
       queryClient.invalidateQueries({ queryKey: queryKeys.reviewsToday });
       queryClient.invalidateQueries({ queryKey: queryKeys.questions });
       queryClient.invalidateQueries({ queryKey: queryKeys.stats });
+      queryClient.invalidateQueries({ queryKey: queryKeys.leaderboard });
     },
   });
 }
@@ -142,6 +153,7 @@ export function useCreateExam() {
     mutationFn: (input: ExamInput) => api.createExam(input),
     onSuccess: ({ exam, profile }) => {
       queryClient.setQueryData(queryKeys.profile, profile);
+      queryClient.invalidateQueries({ queryKey: queryKeys.leaderboard });
       written(exam);
     },
   });
@@ -171,5 +183,80 @@ export function useRefreshWeeklySummary() {
   return useMutation({
     mutationFn: () => api.weeklySummary(true),
     onSuccess: (summary) => queryClient.setQueryData(queryKeys.weeklySummary, summary),
+  });
+}
+
+// ---------------------------------------------------------------- accounts
+
+export function useAuthConfig() {
+  return useQuery({ queryKey: queryKeys.authConfig, queryFn: api.authConfig, retry: 0 });
+}
+
+export function useLogin() {
+  const signIn = useAuthStore((s) => s.signIn);
+  return useMutation({
+    mutationFn: ({ username, password }: { username: string; password: string }) => api.login(username, password),
+    onSuccess: (res) => signIn(res),
+  });
+}
+
+export function useRegister() {
+  const signIn = useAuthStore((s) => s.signIn);
+  return useMutation({ mutationFn: (input: RegisterInput) => api.register(input), onSuccess: (res) => signIn(res) });
+}
+
+/** Ends the session on the server too; signs out locally even if the server can't be reached. */
+export function useLogout() {
+  const signOut = useAuthStore((s) => s.signOut);
+  return useMutation({
+    mutationFn: () => api.logout().catch(() => null),
+    onSettled: () => signOut(),
+  });
+}
+
+export function useUpdateMe() {
+  const setUser = useAuthStore((s) => s.setUser);
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: Partial<Pick<User, 'displayName' | 'avatar'>>) => api.updateMe(input),
+    onSuccess: ({ user }) => {
+      setUser(user);
+      queryClient.invalidateQueries({ queryKey: queryKeys.leaderboard });
+    },
+  });
+}
+
+export function useUpdateSettings() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (settings: Profile['settings']) => api.updateSettings(settings),
+    onSuccess: (profile) => queryClient.setQueryData(queryKeys.profile, profile),
+  });
+}
+
+// ---------------------------------------------------------------- study timer & leaderboard
+
+export function useLeaderboard(period: 'week' | 'all') {
+  return useQuery({ queryKey: queryKeys.leaderboardPeriod(period), queryFn: () => api.leaderboard(period) });
+}
+
+/** Today's (or a given day's) study sessions with totals. */
+export function useStudyDay(date: string | null = null) {
+  return useQuery({ queryKey: queryKeys.studyDay(date), queryFn: () => api.studyDay(date ?? undefined) });
+}
+
+export function useStudyDays(days = 7) {
+  return useQuery({ queryKey: queryKeys.studyDays(days), queryFn: () => api.studyDays(days) });
+}
+
+export function useSaveSession() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: StudySessionInput) => api.saveSession(input),
+    onSuccess: ({ profile }) => {
+      if (profile) queryClient.setQueryData(queryKeys.profile, profile);
+      queryClient.invalidateQueries({ queryKey: queryKeys.study });
+      queryClient.invalidateQueries({ queryKey: queryKeys.leaderboard });
+    },
   });
 }

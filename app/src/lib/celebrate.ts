@@ -1,25 +1,47 @@
-import { useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
-import { queryKeys } from '../api/hooks';
-import type { AttemptResult, Profile } from '../api/types';
-import { useCelebrate } from '../components/motion/Celebration';
+import type { AttemptResult, Rewards } from '../api/types';
+import { useCelebrate, type Celebration } from '../components/motion/Celebration';
 import { haptics } from './haptics';
 
+/** Celebrations for what an action earned beyond its own result: badges, then the streak. */
+export function rewardCelebrations(rewards: Rewards | null | undefined): Celebration[] {
+  if (!rewards) return [];
+  return [
+    ...rewards.badges.map((b) => ({ kind: 'badge' as const, badgeId: b.id })),
+    ...(rewards.streak ? [{ kind: 'streak' as const, days: rewards.streak }] : []),
+  ];
+}
+
 /**
- * Call before saving a result; the returned function plays the result burst (with
- * the earned XP and any level-up) once the server answers.
+ * Plays the result burst for a marked answer (with XP and any level-up), followed by any
+ * new badge and streak growth.
  */
 export function useResultCelebration() {
   const celebrate = useCelebrate();
-  const queryClient = useQueryClient();
-  return useCallback(() => {
-    const levelBefore = queryClient.getQueryData<Profile>(queryKeys.profile)?.level;
-    return (result: AttemptResult, res: { xpGained: number; profile: Profile }) => {
-      const levelUp = levelBefore != null && res.profile.level > levelBefore ? res.profile.level : null;
-      if (result === 'correct' || levelUp) haptics.success();
+  return useCallback(
+    (result: AttemptResult, rewards: Rewards) => {
+      const extra = rewardCelebrations(rewards);
+      if (result === 'correct' || rewards.levelUp || extra.length) haptics.success();
       else if (result === 'wrong') haptics.warning();
       else haptics.select();
-      celebrate({ kind: result, xp: res.xpGained || undefined, levelUp });
-    };
-  }, [celebrate, queryClient]);
+      celebrate({ kind: result, xp: rewards.xpGained || undefined, levelUp: rewards.levelUp }, ...extra);
+    },
+    [celebrate],
+  );
+}
+
+/** For actions without a result burst (a pomodoro, a deneme): level up, badges, streak. */
+export function useRewardCelebration() {
+  const celebrate = useCelebrate();
+  return useCallback(
+    (rewards: Rewards | null | undefined) => {
+      if (!rewards) return;
+      const items: Celebration[] = rewardCelebrations(rewards);
+      if (rewards.levelUp) items.unshift({ kind: 'correct', xp: rewards.xpGained || undefined, levelUp: rewards.levelUp });
+      if (!items.length) return;
+      haptics.success();
+      celebrate(...items);
+    },
+    [celebrate],
+  );
 }

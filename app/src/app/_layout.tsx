@@ -15,7 +15,10 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo, useState } from 'react';
 import { AppState, Platform } from 'react-native';
 import { CelebrationProvider } from '../components/motion/Celebration';
+import { TimerPill } from '../components/TimerPill';
+import { TimerSupervisor } from '../components/TimerSupervisor';
 import { isTabletDevice } from '../lib/layout';
+import { useAuthStore } from '../store/authStore';
 import { fonts, useTheme } from '../theme';
 
 // Keep the splash up until the fonts are ready, so text never flashes in a system font.
@@ -39,10 +42,22 @@ const fontsInlined =
 export default function RootLayout() {
   const theme = useTheme();
   const [fontsLoaded, fontError] = useFonts(fontsInlined ? {} : FONT_FILES);
-  const ready = fontsInlined || fontsLoaded || !!fontError;
+  const authStatus = useAuthStore((s) => s.status);
+  const userId = useAuthStore((s) => s.user?.id ?? null);
+  const ready = (fontsInlined || fontsLoaded || !!fontError) && authStatus !== 'loading';
+  const signedIn = authStatus === 'signedIn';
   const [queryClient] = useState(
     () => new QueryClient({ defaultOptions: { queries: { retry: 1, staleTime: 30_000 } } }),
   );
+
+  useEffect(() => {
+    useAuthStore.getState().hydrate();
+  }, []);
+
+  // Another account (or signing out) must never see the previous account's cached data.
+  useEffect(() => {
+    queryClient.clear();
+  }, [userId, queryClient]);
 
   // iPad supports every orientation (and split view); iPhone stays portrait.
   useEffect(() => {
@@ -90,17 +105,30 @@ export default function RootLayout() {
               contentStyle: { backgroundColor: theme.colors.background },
             }}
           >
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen name="camera" options={{ presentation: 'fullScreenModal', headerShown: false, animation: 'fade' }} />
-            <Stack.Screen name="crop" options={{ presentation: 'fullScreenModal', headerShown: false, gestureEnabled: false }} />
-            <Stack.Screen name="question/[id]/index" options={{ title: 'Çözüm' }} />
-            <Stack.Screen name="question/[id]/chat" options={{ title: 'Anlamadım' }} />
-            <Stack.Screen name="review-session" options={{ title: 'Tekrar' }} />
-            <Stack.Screen name="topic-picker" options={{ presentation: 'modal', title: 'Konu seç' }} />
-            <Stack.Screen name="exam/new" options={{ title: 'Deneme ekle' }} />
-            <Stack.Screen name="exam/[id]/index" options={{ title: 'Deneme' }} />
-            <Stack.Screen name="exam/[id]/edit" options={{ title: 'Denemeyi düzenle' }} />
+            <Stack.Protected guard={signedIn}>
+              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+              <Stack.Screen name="camera" options={{ presentation: 'fullScreenModal', headerShown: false, animation: 'fade' }} />
+              <Stack.Screen name="crop" options={{ presentation: 'fullScreenModal', headerShown: false, gestureEnabled: false }} />
+              <Stack.Screen name="question/[id]/index" options={{ title: 'Çözüm' }} />
+              <Stack.Screen name="question/[id]/chat" options={{ title: 'Anlamadım' }} />
+              <Stack.Screen name="review-session" options={{ title: 'Tekrar' }} />
+              <Stack.Screen name="topic-picker" options={{ presentation: 'modal', title: 'Konu seç' }} />
+              <Stack.Screen name="exam/new" options={{ title: 'Deneme ekle' }} />
+              <Stack.Screen name="exam/[id]/index" options={{ title: 'Deneme' }} />
+              <Stack.Screen name="exam/[id]/edit" options={{ title: 'Denemeyi düzenle' }} />
+              <Stack.Screen name="timer" options={{ title: 'Sayaç' }} />
+              <Stack.Screen name="leaderboard" options={{ title: 'Sıralama' }} />
+            </Stack.Protected>
+            <Stack.Protected guard={!signedIn}>
+              <Stack.Screen name="login" options={{ headerShown: false, animation: 'fade' }} />
+            </Stack.Protected>
           </Stack>
+          {signedIn ? (
+            <>
+              <TimerSupervisor />
+              <TimerPill />
+            </>
+          ) : null}
         </CelebrationProvider>
       </ThemeProvider>
     </QueryClientProvider>

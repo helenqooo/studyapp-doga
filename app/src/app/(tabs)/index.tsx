@@ -1,12 +1,15 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback } from 'react';
 import { View } from 'react-native';
-import { useProfile, useReviewsToday } from '../../api/hooks';
+import { useLeaderboard, useProfile, useReviewsToday, useStudyDay } from '../../api/hooks';
+import type { Leaderboard } from '../../api/types';
 import { AppText } from '../../components/AppText';
 import { Button } from '../../components/Button';
+import { Avatar } from '../../components/Avatar';
 import { Card } from '../../components/Card';
 import { DemoBanner } from '../../components/DemoBanner';
 import { Icon } from '../../components/Icon';
+import { PressableScale } from '../../components/motion/PressableScale';
 import { AnimatedNumber } from '../../components/motion/AnimatedNumber';
 import { Appear } from '../../components/motion/Appear';
 import { ProgressBar } from '../../components/ProgressBar';
@@ -15,6 +18,9 @@ import { StatTile } from '../../components/StatTile';
 import { StreakFlame } from '../../components/StreakFlame';
 import { DEMO_MODE } from '../../config';
 import { useResponsive } from '../../lib/layout';
+import { formatClock, formatMinutes, useNow } from '../../lib/useNow';
+import { useAuthStore } from '../../store/authStore';
+import { remainingMs, useTimerStore } from '../../store/timerStore';
 import { usePickImage } from '../../lib/usePickImage';
 import { useTheme } from '../../theme';
 
@@ -53,19 +59,93 @@ function SolveActions({ stacked }: { stacked: boolean }) {
   );
 }
 
+/** "You're 2nd this week, 35 XP behind Elif" — a one-line race status. */
+function raceLine(board: Leaderboard | undefined): { title: string; detail: string } | null {
+  const items = board?.items ?? [];
+  const me = items.find((e) => e.isMe);
+  if (!me || items.length < 2) return null;
+  if (me.rank === 1) {
+    const second = items.find((e) => !e.isMe);
+    const lead = second ? me.xp - second.xp : 0;
+    return { title: 'Bu hafta 1. sıradasın', detail: lead > 0 ? `${second!.displayName} ${lead} XP geride.` : 'Zirvede başa baş gidiyorsunuz.' };
+  }
+  const ahead = items.filter((e) => e.xp > me.xp).at(-1);
+  return {
+    title: `Bu hafta ${me.rank}. sıradasın`,
+    detail: ahead ? `${ahead.displayName}'i geçmek için ${ahead.xp - me.xp + 1} XP.` : '',
+  };
+}
+
+function LeagueCard() {
+  const theme = useTheme();
+  const board = useLeaderboard('week');
+  const line = raceLine(board.data);
+  if (!line) return null;
+  const top = board.data!.items.slice(0, 4);
+  return (
+    <PressableCard onPress={() => router.push('/leaderboard')} label={`${line.title}. ${line.detail} Sıralamayı aç.`}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md }}>
+        <View style={{ flexDirection: 'row' }}>
+          {top.map((e, i) => (
+            <View key={e.userId} style={{ marginLeft: i ? -theme.spacing.sm : 0, borderRadius: theme.radius.pill, borderWidth: theme.layout.frameBorder, borderColor: theme.colors.surface }}>
+              <Avatar name={e.displayName} color={e.avatar} size={theme.layout.avatar * 0.8} />
+            </View>
+          ))}
+        </View>
+        <View style={{ flex: 1, gap: theme.spacing.xxs }}>
+          <AppText weight="semibold">{line.title}</AppText>
+          {line.detail ? (
+            <AppText variant="label" color="textMuted">
+              {line.detail}
+            </AppText>
+          ) : null}
+        </View>
+        <Icon name="chevron-right" size={theme.layout.iconSize.sm} color={theme.colors.textMuted} />
+      </View>
+    </PressableCard>
+  );
+}
+
+function PressableCard({ children, onPress, label }: { children: React.ReactNode; onPress: () => void; label: string }) {
+  const theme = useTheme();
+  return (
+    <PressableScale
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      onPress={onPress}
+      scaleTo={0.99}
+      style={{
+        backgroundColor: theme.colors.surface,
+        borderRadius: theme.radius.lg,
+        borderWidth: theme.layout.borderWidth,
+        borderColor: theme.colors.border,
+        padding: theme.spacing.lg,
+      }}
+    >
+      {children}
+    </PressableScale>
+  );
+}
+
 function HomeContent() {
   const theme = useTheme();
   const size = useResponsive<'compact' | 'regular' | 'wide'>({ compact: 'compact', regular: 'regular', wide: 'wide' });
   const profile = useProfile();
   const reviews = useReviewsToday();
+  const study = useStudyDay();
+  const timer = useTimerStore();
+  const timerRunning = timer.phase !== 'idle';
+  const now = useNow(timerRunning && timer.endsAt !== null);
   const { refetch: refetchProfile } = profile;
   const { refetch: refetchReviews } = reviews;
+  const { refetch: refetchStudy } = study;
 
   useFocusEffect(
     useCallback(() => {
       refetchProfile();
       refetchReviews();
-    }, [refetchProfile, refetchReviews]),
+      refetchStudy();
+    }, [refetchProfile, refetchReviews, refetchStudy]),
   );
 
   const dueCount = reviews.data?.items.length;
@@ -87,7 +167,13 @@ function HomeContent() {
         <StreakFlame active={streak > 0} />
         <View style={{ flex: 1, gap: theme.spacing.xxs }}>
           <AnimatedNumber variant="title" tint={theme.colors.primaryText} value={streak} format={(n) => `${Math.round(n)} gün`} />
-          <AppText color="textMuted">{streak > 0 ? 'Serini bozma!' : 'Bugün bir seri başlat.'}</AppText>
+          <AppText color="textMuted">
+            {streak === 0
+              ? 'Bir pomodoro ya da bugünün tekrarı seriyi başlatır.'
+              : p?.streakToday
+                ? 'Bugün tamam. Yarın da gel.'
+                : 'Seri bugün bitmesin: bir pomodoro yeter.'}
+          </AppText>
         </View>
       </View>
 
@@ -125,11 +211,18 @@ function HomeContent() {
       />
       <StatTile
         label="Bugünkü çalışma"
-        value="0 dk"
-        caption="Sayaç yakında"
+        value={study.data ? formatMinutes(study.data.focusSec) : '—'}
+        caption={
+          timerRunning
+            ? `${timer.phase === 'focus' ? 'Odakta' : 'Molada'} · ${formatClock(remainingMs(timer, now))}`
+            : study.data?.pomodoros
+              ? `${study.data.pomodoros} pomodoro · Sayacı aç`
+              : 'Sayacı başlat'
+        }
         icon="timer"
         color={theme.colors.success}
         softColor={theme.colors.successSoft}
+        onPress={() => router.push('/timer')}
       />
     </View>
   );
@@ -151,6 +244,9 @@ function HomeContent() {
           <View style={{ flex: 1.4, gap: theme.spacing.lg }}>
             <Appear>{progress}</Appear>
             <Appear index={1}>{tiles}</Appear>
+            <Appear index={2}>
+              <LeagueCard />
+            </Appear>
           </View>
           <Appear index={2} style={{ flex: 1 }}>
             <Card style={{ flex: 1, justifyContent: 'center' }}>
@@ -177,6 +273,9 @@ function HomeContent() {
       <Appear index={2}>
         <SolveActions stacked={size === 'compact'} />
       </Appear>
+      <Appear index={3}>
+        <LeagueCard />
+      </Appear>
     </>
   );
 }
@@ -189,8 +288,10 @@ function greeting(hour: number) {
 }
 
 export default function HomeScreen() {
+  const name = useAuthStore((s) => s.user?.displayName);
+  const first = name && name !== 'Sen' ? `, ${name.split(' ')[0]}` : '';
   return (
-    <Screen title={greeting(new Date().getHours())} titleIcon="asterisk" subtitle="Bugün de bir adım öne geç.">
+    <Screen title={`${greeting(new Date().getHours())}${first}`} titleIcon="asterisk" subtitle="Bugün de bir adım öne geç.">
       <HomeContent />
     </Screen>
   );
