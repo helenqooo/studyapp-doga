@@ -119,3 +119,14 @@ Kullanıcı arayüzü dili: **Türkçe**. Kod, yorumlar ve commit mesajları: İ
 4. Soru çöz akışının tamamı: kamera/galeri → yükleme → ipucu ve tam çözüm → KaTeX render → Doğru/Yanlış/Boş işaretleme → kayıt.
 5. `topics.ts` ilk sürümü.
 6. Kurulum için kısa bir README: `.env` değişkenleri, backend nasıl çalıştırılır, Expo nasıl açılır.
+
+## Sonradan eklenen kararlar
+
+Bu bölüm yukarıdaki spesifikasyonu günceller; çelişirse bu bölüm geçerlidir.
+
+- **Çok kullanıcı:** Tek `APP_TOKEN` kalktı. Kullanıcılar kullanıcı adı + şifreyle giriş yapar (scrypt), uygulama oturum anahtarını `Authorization: Bearer <token>` ile gönderir. İlk hesap davet kodu istemez ve tek kullanıcılı sürümün verilerini üstlenir; sonraki hesaplar `server/.env` içindeki `INVITE_CODE` ile açılır. Her tabloda `user_id` vardır, her endpoint sadece giriş yapan kullanıcının verisini döner.
+- **Sıralama:** `GET /leaderboard?period=week|all`. Haftalık XP (pazartesi `APP_TIMEZONE`'da sıfırlanır), XP her olayda `xp_events` tablosuna yazılır.
+- **Ek endpoint'ler:** `GET /auth/config`, `POST /auth/register`, `POST /auth/login`, `POST /auth/logout`, `GET/PUT /me`, `PUT /profile/settings`, `GET /sessions/days?days=`.
+- **Ödüller:** XP, seri ve rozet hesabı tek yerde (`server/src/gamification.ts` → `applyRewards`); yanıtlar `rewards` nesnesi taşır (XP, seviye atlama, yeni rozetler, seri artışı). Uygulama kutlamaları bu nesneden sıraya koyar.
+- **Demo modu:** `EXPO_PUBLIC_API_URL` boşsa ya da `EXPO_PUBLIC_DEMO=1` ise uygulama sunucusuz, bellekteki örnek verilerle çalışır (`app/src/api/demo/`). Sunucu kuralları değişirse demo da güncellenir.
+- **Web önizleme:** `npm run build:preview` tek dosyalık önizleme ve kurulabilir web uygulaması (`web-build/pwa`) üretir. Web'de çalışmayan şeylerin sade bir yedeği olur.
