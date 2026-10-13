@@ -1,49 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
-import { useReducedMotion } from 'react-native-reanimated';
-import { useTheme } from '../../theme';
-import { AppText } from '../AppText';
+import { Odometer, type OdometerProps } from './Odometer';
 
-type AppTextProps = React.ComponentProps<typeof AppText>;
+type Props = OdometerProps;
 
-interface Props extends Omit<AppTextProps, 'children'> {
-  value: number;
-  format?: (n: number) => string;
-}
-
-/** Counts up (or down) to `value` with an ease-out, e.g. XP and net totals. */
-export function AnimatedNumber({ value, format = (n) => String(Math.round(n)), ...text }: Props) {
-  const theme = useTheme();
-  const reduceMotion = useReducedMotion();
-  const [shown, setShown] = useState(reduceMotion ? value : 0);
-  const from = useRef(reduceMotion ? value : 0);
-
-  useEffect(() => {
-    if (reduceMotion) {
-      setShown(value);
-      from.current = value;
-      return;
-    }
-    const start = from.current;
-    const duration = theme.motion.duration.slow * 2;
-    let raf = 0;
-    let t0: number | null = null;
-    const step = (now: number) => {
-      t0 ??= now;
-      const t = Math.min(1, (now - t0) / duration);
-      const eased = 1 - Math.pow(1 - t, 3);
-      const v = start + (value - start) * eased;
-      setShown(v);
-      from.current = v;
-      if (t < 1) raf = requestAnimationFrame(step);
-    };
-    raf = requestAnimationFrame(step);
-    return () => cancelAnimationFrame(raf);
-  }, [value, reduceMotion, theme.motion.duration.slow]);
-
-  // Tabular digits, so the number doesn't jitter sideways while it counts.
-  return (
-    <AppText {...text} style={[{ fontVariant: ['tabular-nums'] }, text.style]}>
-      {format(shown)}
-    </AppText>
-  );
+/**
+ * @deprecated Use `Odometer`. Kept so existing call sites compile: the digits of `format(value)`
+ * now roll into place (Odometer) instead of counting through every number in between.
+ */
+export function AnimatedNumber({ variant = 'body', ...props }: Props) {
+  return <Odometer variant={variant} {...props} />;
 }

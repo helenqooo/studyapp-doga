@@ -124,7 +124,7 @@ function Analysis() {
   if (overview.isPending) {
     return (
       <Skeleton>
-        <SkeletonCard lines={2} block={theme.layout.chart.trendHeight} />
+        <SkeletonCard lines={2} block={theme.layout.chart.trendHeight.compact} />
         <SkeletonCard lines={4} />
       </Skeleton>
     );

@@ -4,13 +4,11 @@ import { View } from 'react-native';
 import { useLeaderboard, useProfile, useReviewsToday, useStudyDay } from '../../api/hooks';
 import { ErrorState } from '../../components/states/ErrorState';
 import { TodayRings, type RingValue } from '../../components/TodayRings';
-import type { Leaderboard } from '../../api/types';
 import { AppText } from '../../components/AppText';
 import { Button } from '../../components/Button';
 import { Avatar } from '../../components/Avatar';
 import { Card } from '../../components/Card';
 import { MascotNote } from '../../components/mascot/MascotNote';
-import type { MascotMood } from '../../components/mascot/Mascot';
 import { DemoBanner } from '../../components/DemoBanner';
 import { Icon } from '../../components/Icon';
 import { PressableScale } from '../../components/motion/PressableScale';
@@ -24,7 +22,7 @@ import { DAILY_GOALS, DEMO_MODE } from '../../config';
 import { YKS_DATE } from '../../data/exam';
 import { dayTitle, daysBetween, localToday, upperTr } from '../../lib/format';
 import { useResponsive } from '../../lib/layout';
-import { suffix } from '../../lib/turkish';
+import { lumiLine, raceLine } from '../../lib/lumiLines';
 import { formatClock, useNow } from '../../lib/useNow';
 import { haptics } from '../../lib/haptics';
 import { useAuthStore } from '../../store/authStore';
@@ -118,23 +116,6 @@ function GoalRow({ color, label, value, caption, onPress }: { color: string; lab
 /** Once per day: a light success tap when all three rings close. */
 let ringsLitFor: string | null = null;
 
-/** "You're 2nd this week, 35 XP behind Elif" — a one-line race status. */
-function raceLine(board: Leaderboard | undefined): { title: string; detail: string } | null {
-  const items = board?.items ?? [];
-  const me = items.find((e) => e.isMe);
-  if (!me || items.length < 2) return null;
-  if (me.rank === 1) {
-    const second = items.find((e) => !e.isMe);
-    const lead = second ? me.xp - second.xp : 0;
-    return { title: 'Bu hafta 1. sıradasın', detail: lead > 0 ? `${second!.displayName} ${lead} XP geride.` : 'Zirvede başa baş gidiyorsunuz.' };
-  }
-  const ahead = items.filter((e) => e.xp > me.xp).at(-1);
-  return {
-    title: `Bu hafta ${me.rank}. sıradasın`,
-    detail: ahead ? `${suffix(ahead.displayName, 'acc')} geçmek için ${ahead.xp - me.xp + 1} XP.` : '',
-  };
-}
-
 function LeagueCard() {
   const theme = useTheme();
   const board = useLeaderboard('week');
@@ -181,26 +162,6 @@ function PressableCard({ children, onPress, label }: { children: React.ReactNode
       {children}
     </PressableScale>
   );
-}
-
-/** What Lumi says (and how it looks) on the home screen, from the most useful next step down. */
-function lumiLine(o: {
-  phase: 'idle' | 'focus' | 'break';
-  due?: number;
-  streak: number;
-  streakToday: boolean;
-  hour: number;
-  /** All of today's rings are closed. */
-  ringsClosed: boolean;
-}): { mood: MascotMood; title: string; body: string } {
-  if (o.phase === 'focus') return { mood: 'focus', title: 'Odaktasın.', body: 'Bitince haber veririm, molayı ben başlatırım.' };
-  if (o.phase === 'break') return { mood: 'break', title: 'Mola zamanı.', body: 'Biraz su iç, gözlerini dinlendir.' };
-  if (o.ringsClosed) return { mood: 'celebrate', title: 'Bugünün halkası tamam!', body: 'Üç hedef de kapandı. Gerisi bonus; istersen bir soru daha.' };
-  if (o.hour >= 0 && o.hour < 5) return { mood: 'sleepy', title: 'Geç oldu…', body: 'Uykusuz beyin unutkan olur. Yarın taze kafayla devam edelim.' };
-  if (o.due) return { mood: 'reading', title: `Bugün ${o.due} soru tekrar bekliyor.`, body: 'Unutmadan önce bir bakalım; birkaç dakika sürer.' };
-  if (o.streak > 0 && !o.streakToday) return { mood: 'cheer', title: `Serin ${o.streak} gün!`, body: 'Bugün bir pomodoro ya da tekrar seriyi korur.' };
-  if (o.streakToday) return { mood: 'proud', title: 'Bugünlük harikasın.', body: 'Takıldığın bir soru olursa çek, birlikte bakalım.' };
-  return { mood: 'wave', title: 'Merhaba, ben Lumi!', body: 'Takıldığın soruyu çek: önce ipucu veririm, istersen tam çözümü.' };
 }
 
 function HomeContent() {

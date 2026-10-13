@@ -112,7 +112,7 @@ export function NetTrendChart({ data, max, unit = 'net' }: Props) {
   const [width, setWidth] = useState(0);
   const [active, setActive] = useState<number | null>(null);
 
-  const height = dims.trendHeight;
+  const height = dims.trendHeight.compact;
   const top = theme.spacing.md;
   const bottom = theme.spacing.xl;
   const left = dims.axisWidth;

@@ -29,6 +29,7 @@ export function Badge({ label, color, background, icon, dot, style }: Props) {
           paddingHorizontal: theme.spacing.md,
           paddingVertical: theme.spacing.xs,
           borderRadius: theme.radius.pill,
+          borderCurve: 'continuous',
           backgroundColor: background ?? theme.colors.surfaceAlt,
         },
         style,

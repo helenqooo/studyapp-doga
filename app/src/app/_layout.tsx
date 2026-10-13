@@ -1,11 +1,3 @@
-import { Lora_400Regular } from '@expo-google-fonts/lora/400Regular';
-import { Lora_500Medium } from '@expo-google-fonts/lora/500Medium';
-import { Lora_600SemiBold } from '@expo-google-fonts/lora/600SemiBold';
-import { Lora_700Bold } from '@expo-google-fonts/lora/700Bold';
-import { Poppins_400Regular } from '@expo-google-fonts/poppins/400Regular';
-import { Poppins_500Medium } from '@expo-google-fonts/poppins/500Medium';
-import { Poppins_600SemiBold } from '@expo-google-fonts/poppins/600SemiBold';
-import { Poppins_700Bold } from '@expo-google-fonts/poppins/700Bold';
 import { focusManager, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useFonts } from 'expo-font';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
@@ -14,25 +6,29 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo, useState } from 'react';
 import { AppState, Platform } from 'react-native';
+import { CompanionHost } from '../components/companion/CompanionHost';
 import { CelebrationProvider } from '../components/motion/Celebration';
 import { TimerPill } from '../components/TimerPill';
 import { TimerSupervisor } from '../components/TimerSupervisor';
 import { isTabletDevice } from '../lib/layout';
 import { useAuthStore } from '../store/authStore';
+import { usePrefsStore } from '../store/prefsStore';
 import { fonts, useTheme } from '../theme';
 
 // Keep the splash up until the fonts are ready, so text never flashes in a system font.
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
+// Vendored OFL fonts (assets/fonts), one family name per weight as in theme.fonts. The
+// display keys load one weight heavier than their names (condensed figures read light).
 const FONT_FILES = {
-  [fonts.sans.regular]: Poppins_400Regular,
-  [fonts.sans.medium]: Poppins_500Medium,
-  [fonts.sans.semibold]: Poppins_600SemiBold,
-  [fonts.sans.bold]: Poppins_700Bold,
-  [fonts.serif.regular]: Lora_400Regular,
-  [fonts.serif.medium]: Lora_500Medium,
-  [fonts.serif.semibold]: Lora_600SemiBold,
-  [fonts.serif.bold]: Lora_700Bold,
+  [fonts.sans.regular]: require('../../assets/fonts/BeVietnamPro-Regular.ttf'),
+  [fonts.sans.medium]: require('../../assets/fonts/BeVietnamPro-Medium.ttf'),
+  [fonts.sans.semibold]: require('../../assets/fonts/BeVietnamPro-SemiBold.ttf'),
+  [fonts.sans.bold]: require('../../assets/fonts/BeVietnamPro-Bold.ttf'),
+  [fonts.display.regular]: require('../../assets/fonts/BarlowCondensed-Medium.ttf'),
+  [fonts.display.medium]: require('../../assets/fonts/BarlowCondensed-SemiBold.ttf'),
+  [fonts.display.semibold]: require('../../assets/fonts/BarlowCondensed-Bold.ttf'),
+  [fonts.display.bold]: require('../../assets/fonts/BarlowCondensed-ExtraBold.ttf'),
 };
 
 // The single-file web preview ships these fonts as inline CSS (see scripts/build-web-preview.mjs).
@@ -54,9 +50,11 @@ export default function RootLayout() {
     useAuthStore.getState().hydrate();
   }, []);
 
-  // Another account (or signing out) must never see the previous account's cached data.
+  // Another account (or signing out) must never see the previous account's cached data
+  // or preferences.
   useEffect(() => {
     queryClient.clear();
+    usePrefsStore.getState().loadFor(userId);
   }, [userId, queryClient]);
 
   // iPad supports every orientation (and split view); iPhone stays portrait.
@@ -98,8 +96,10 @@ export default function RootLayout() {
         <CelebrationProvider>
           <Stack
             screenOptions={{
+              // The header sits on the paper: same color, no shadow, a graphite (or lamp) back chevron.
               headerTintColor: theme.colors.primaryText,
-              headerTitleStyle: { color: theme.colors.text, fontFamily: theme.fonts.serif.semibold },
+              headerTitleStyle: { color: theme.colors.text, fontFamily: theme.fonts.sans.semibold, fontSize: theme.fontSize.lg },
+              headerStyle: { backgroundColor: theme.colors.background },
               headerShadowVisible: false,
               headerBackButtonDisplayMode: 'minimal',
               contentStyle: { backgroundColor: theme.colors.background },
@@ -110,7 +110,7 @@ export default function RootLayout() {
               <Stack.Screen name="camera" options={{ presentation: 'fullScreenModal', headerShown: false, animation: 'fade' }} />
               <Stack.Screen name="crop" options={{ presentation: 'fullScreenModal', headerShown: false, gestureEnabled: false }} />
               <Stack.Screen name="question/[id]/index" options={{ title: 'Çözüm' }} />
-              <Stack.Screen name="question/[id]/chat" options={{ title: 'Anlamadım' }} />
+              <Stack.Screen name="question/[id]/chat" options={{ title: 'Soru sohbeti' }} />
               <Stack.Screen name="review-session" options={{ title: 'Tekrar' }} />
               <Stack.Screen name="topic-picker" options={{ presentation: 'modal', title: 'Konu seç' }} />
               <Stack.Screen name="exam/new" options={{ title: 'Deneme ekle' }} />
@@ -119,6 +119,7 @@ export default function RootLayout() {
               <Stack.Screen name="timer" options={{ title: 'Sayaç' }} />
               <Stack.Screen name="leaderboard" options={{ title: 'Sıralama' }} />
               <Stack.Screen name="assistant" options={{ title: 'Lumi' }} />
+              <Stack.Screen name="dev-kit" options={{ title: 'Dev kit' }} />
             </Stack.Protected>
             <Stack.Protected guard={!signedIn}>
               <Stack.Screen name="login" options={{ headerShown: false, animation: 'fade' }} />
@@ -128,6 +129,7 @@ export default function RootLayout() {
             <>
               <TimerSupervisor />
               <TimerPill />
+              <CompanionHost />
             </>
           ) : null}
         </CelebrationProvider>

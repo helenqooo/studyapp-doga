@@ -41,7 +41,7 @@ export function AnswerDock({ children, note }: { children: ReactNode; note?: Rea
       ]}
     >
       {note ? <View style={{ paddingHorizontal: theme.spacing.sm, paddingTop: theme.spacing.xs }}>{note}</View> : null}
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm, minHeight: theme.layout.dock - theme.spacing.lg }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm, minHeight: theme.layout.dock.height - theme.spacing.lg }}>
         {children}
       </View>
     </Animated.View>

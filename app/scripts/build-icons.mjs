@@ -23,6 +23,10 @@ const ICONS = [
   'circle-question-mark', 'send', 'message-circle', 'heart', 'hand',
   // Answer dock, polish
   'text-align-start',
+  // Fosfor redesign (design spec 3.1)
+  'highlighter', 'sticky-note', 'notebook-pen', 'pen-line', 'shirt', 'glasses', 'headphones', 'party-popper',
+  'calendar-days', 'list-checks', 'chart-spline', 'trending-up', 'trending-down', 'circle-dot', 'vibrate',
+  'message-circle-more', 'image', 'hourglass', 'chevrons-up',
 ];
 
 const require = createRequire(import.meta.url);

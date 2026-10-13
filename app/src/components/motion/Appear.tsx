@@ -1,36 +1,28 @@
 import type { ReactNode } from 'react';
-import { Platform, type StyleProp, type ViewStyle } from 'react-native';
-import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
-import { useTheme } from '../../theme';
+import type { StyleProp, ViewStyle } from 'react-native';
+import Animated from 'react-native-reanimated';
+import { enter } from './presets';
 
 interface Props {
   children: ReactNode;
-  /** Position in a list; each step delays the entrance by `motion.stagger`. */
+  /** Position in a list; each step delays the entrance by `motion.stagger` (at most `motion.staggerMax` steps). */
   index?: number;
   /** Fade only, without the upward drift (for large blocks). */
   still?: boolean;
+  /** Extra delay before the entrance (ms). */
+  delay?: number;
   style?: StyleProp<ViewStyle>;
 }
 
 /**
- * Fades its children in with a short upward drift when first mounted. Layout
- * animations follow the system "Reduce Motion" setting by default.
+ * Content that arrives because of an action (a hint, a verdict, a solution, a grid that
+ * replaced its skeleton): a fade with an 8 pt rise on the enter easing. Screens don't wrap
+ * their sections in it on mount (design spec 5.3). Layout animations follow the system
+ * "Reduce Motion" setting; on web the stock preset is used (see presets.enter).
  */
-export function Appear({ children, index = 0, still = false, style }: Props) {
-  const theme = useTheme();
-  const { duration, stagger, rise } = theme.motion;
-  const delay = Math.min(index, 10) * stagger;
-  // On web, custom keyframes get pinned in place (position: absolute) after they finish,
-  // so the browser preview uses the stock preset.
-  const entering = still
-    ? FadeIn.duration(duration.slow).delay(delay)
-    : Platform.OS === 'web'
-      ? FadeInDown.duration(duration.slow).delay(delay)
-      : FadeInDown.duration(duration.slow)
-          .delay(delay)
-          .withInitialValues({ opacity: 0, transform: [{ translateY: rise }] });
+export function Appear({ children, index = 0, still = false, delay = 0, style }: Props) {
   return (
-    <Animated.View entering={entering} style={style}>
+    <Animated.View entering={enter({ index, still, delay })} style={style}>
       {children}
     </Animated.View>
   );

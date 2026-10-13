@@ -2,10 +2,14 @@
 // Components read tokens through `useTheme()` and never hardcode values.
 // Design changes: edit this file first, then the component.
 //
-// Aesthetic: warm and calm, after Anthropic's Claude — ivory and charcoal surfaces, clay
-// accent, olive/kraft/slate-blue supporting hues, a serif for titles and for Claude's
-// own words (solutions, hints, chat), a geometric sans for the interface.
-// Contrast was measured, not eyeballed: body and label text ≥ 4.5:1, chart marks ≥ 3:1.
+// Aesthetic: "Fosfor", a study desk. Cool question-book paper, a graphite pencil for every
+// mark the student makes (`mark`, light `primary`), printed optik ink for what is not marked
+// yet (`optik`), a fosfor highlighter that is Lumi's light (`accent`, `highlight`), a red pen
+// for wrong answers only (`danger`), and one highlighter per subject (`subject`, `subjectSoft`).
+// Be Vietnam Pro reads, Barlow Condensed counts (every number that moves or compares).
+// Contrast was measured, not eyeballed: text ≥ 4.5:1, large text and UI marks ≥ 3:1.
+//
+// Keys marked @deprecated stay until the post-merge cleanup so every consumer compiles.
 
 import { useColorScheme, type TextStyle } from 'react-native';
 import type { Subject } from './data/topics';
@@ -13,22 +17,53 @@ import type { Subject } from './data/topics';
 export type ColorScheme = 'light' | 'dark';
 
 export interface ColorTokens {
+  /** Kâğıt (paper) / night desk. */
   background: string;
+  /** A sheet on the paper. */
   surface: string;
+  /** Wells, inputs, thumbnails, tracks, the segmented track. */
   surfaceAlt: string;
+  /** The 1 pt sheet edge, in both schemes. */
   border: string;
+  /** Kurşun: body text is this, not grey. */
   text: string;
+  /** Secondary lines only. */
   textMuted: string;
+  /** White on the *Strong fills and avatars only. Never on `primary`: use `onPrimary`. */
   textOnAccent: string;
+  /** Label and icon on a `primary` fill (white on graphite, ink on the dark-mode lamp). */
+  onPrimary: string;
   transparent: string;
 
-  /** Filled buttons and selected states (white text on it is ≥ 4.5:1). */
+  /** The primary button fill (one per screen): graphite in light, the fosfor lamp in dark. */
   primary: string;
-  /** Clay for text and icons on light surfaces (links, secondary labels). */
+  /** Ghost and link labels (always with a leading icon), header tint, focus ring. */
   primaryText: string;
+  /** Quiet selected fill, the user's chat bubble, a pressed row tint. */
   primarySoft: string;
-  /** Brand clay for decoration only (flame, spark, confetti); not for text. */
+  /** Fosfor: Lumi's light, the XP fill, badge discs, "you" and "today". Never text on light. */
   accent: string;
+  /** A filled optik bubble (active tab, chosen answer, finished goal, selected chip). */
+  mark: string;
+  /** Icon or letter on a `mark`. */
+  markInk: string;
+  /** Printed outline of an empty bubble. Decorative: always beside a full-contrast label. */
+  optik: string;
+  /** Rails, ladder tracks and hairlines inside optik blocks. */
+  optikSoft: string;
+  /** The highlighter swipe. */
+  highlight: string;
+  /** Text sitting on a swipe. */
+  highlightInk: string;
+  /** Lumi's sticky note, its text and its lifted-corner shade. */
+  note: string;
+  noteInk: string;
+  noteEdge: string;
+  /** Lumi's speech bubble (MascotNote): the same paper as `note`. */
+  bubble: string;
+  /** Hint sheets (with a 3 pt fosfor left edge). */
+  hintBackground: string;
+
   success: string;
   successSoft: string;
   danger: string;
@@ -43,62 +78,70 @@ export interface ColorTokens {
   neutralStrong: string;
   info: string;
 
-  /** XP bar fill (decoration); `xpText` is the readable tone on `xpTrack`. */
+  /** XP fill (fosfor); `xpText` is the readable tone for XP numbers; `xpTrack` the graphite groove. */
   xp: string;
   xpText: string;
   xpTrack: string;
-  hintBackground: string;
+  /** Lumi orange: an icon or fill only (never text). */
   streak: string;
   streakSoft: string;
 
+  /** The floating optik strip is a sheet. */
   tabBar: string;
   tabActive: string;
   tabInactive: string;
+  /** A control that can't be used yet: quiet paper-grey with readable text. */
+  disabledBg: string;
+  disabledFg: string;
+  /** Timer focus mode: the darkened edges. */
+  focusVignette: string;
+  /** Veil behind the result badge so it reads over busy content. */
+  celebrationScrim: string;
 
   // Camera / crop screens are always dark, regardless of system theme.
   cameraBackground: string;
   cameraForeground: string;
   cameraScrim: string;
+  /** Fosfor crop handles. */
   cropFrame: string;
 
-  /** Celebration particles (correct answer, level up). */
+  /** Celebration pieces, drawn as highlighter strokes. */
   confetti: string[];
-  /** Veil behind the result badge so it reads over busy content. */
-  celebrationScrim: string;
 
-  /** Badge medallions by tier, plus the muted look of a badge not earned yet. */
-  badge: { bronze: string; silver: string; gold: string; ink: string; locked: string; lockedInk: string };
+  /** Badge medallions by tier, the foil sheen, and the muted look of a badge not earned yet. */
+  badge: { bronze: string; silver: string; gold: string; ink: string; locked: string; lockedInk: string; foil: string };
 
   /** Lumi, the assistant character (components/mascot): its own flat palette. */
   mascot: MascotColors;
 
   /**
    * Depth, as CSS box-shadow strings (RN New Architecture and the web both read them).
-   * Light: soft warm shadows, like thick paper on a desk. Dark: a faint top-edge highlight
-   * instead (raised glass), with deep shadows only for floating things.
+   * Paper lies flat (a 1 pt edge, almost no shadow); only objects float (strip, dock, note,
+   * timer ear). Dark: a faint top-edge highlight, deep shadows only for floating things,
+   * and a lamp glow around the fosfor CTA.
    */
-  shadow: { card: string; raised: string; floating: string; accent: string; none: string };
-  /** Home's goal rings: reviews (clay), focus minutes (olive), questions solved (sky). */
+  shadow: { card: string; raised: string; floating: string; accent: string; note: string; none: string };
+  /** @deprecated Home's old goal rings; removed with TodayRings. */
   rings: { review: string; focus: string; solve: string };
-  /** Lumi's speech bubble. */
-  bubble: string;
-  /** Exam pills: TYT clay, AYT slate-blue, so the exam is clear at a glance. */
+  /** Exam pills: TYT in fosfor ink, AYT in violet, so the exam is clear at a glance. */
   exam: Record<'TYT' | 'AYT', { fg: string; bg: string }>;
-  /** A control that can't be used yet: quiet paper-grey with readable text. */
-  disabledBg: string;
-  disabledFg: string;
 
-  /** Avatar circle fills (initial in `textOnAccent`, all ≥ 4.5:1 under white). */
+  /** Avatar circle fills (initial in `textOnAccent`). The key names are stored server-side. */
   avatar: Record<'clay' | 'kraft' | 'olive' | 'sky' | 'plum' | 'sand' | 'slate' | 'rose', string>;
 
+  /** Subject ink: dots, edges, meters, chart strokes. */
   subject: Record<Subject, string>;
+  /** Subject highlighter tint (chip fills, swipes). Text on it is `text`, never the ink. */
+  subjectSoft: Record<Subject, string>;
 
-  /** Chart roles. The line/bar hue passes the dataviz checks (band, chroma, ≥3:1) on the surface. */
+  /** Chart roles. Light: a pencil line. Dark: a glowing fosfor line. */
   chart: {
     line: string;
-    /** Area wash under a line: the line hue at ~10%. */
+    /** Area wash under a line. */
     area: string;
     bar: string;
+    /** Today's bar or point. */
+    today: string;
     grid: string;
     axisText: string;
     crosshair: string;
@@ -116,7 +159,7 @@ export interface MascotColors {
   ink: string;
   eyeShine: string;
   cheek: string;
-  /** The light on its antenna, its halo and highlight. */
+  /** The light on its antenna (it *is* the highlighter), its halo and highlight. */
   glow: string;
   glowSoft: string;
   glowShine: string;
@@ -134,21 +177,24 @@ export interface MascotColors {
   flame: string;
   accentBlue: string;
   accentGreen: string;
+  /** The held highlighter: its body and cap. */
+  marker: string;
+  markerCap: string;
   shadow: string;
 }
 
+/** Lumi: a brighter tangerine, so it reads as made of highlighter colors. */
 const MASCOT_BASE = {
-  body: '#E07B54',
-  shade: '#C9623F',
-  highlight: '#F4A27F',
-  arm: '#D96F4B',
-  foot: '#B4553A',
+  body: '#F28A55',
+  shade: '#DB6E3C',
+  highlight: '#FFB287',
+  arm: '#EC7D48',
+  foot: '#C9612F',
   ink: '#2A1C17',
   eyeShine: '#FFFFFF',
-  cheek: '#F59C93',
-  glow: '#FFC94D',
-  glowSoft: 'rgba(255, 201, 77, 0.28)',
-  glowShine: '#FFF3C4',
+  cheek: '#FF9E92',
+  glow: '#FFDC6E',
+  glowShine: '#FFF7CF',
   gear: '#3B3633',
   gearSoft: '#5A524C',
   gold: '#E9B23E',
@@ -160,215 +206,271 @@ const MASCOT_BASE = {
   water: '#7FB8E6',
   steam: '#B9B2A6',
   flame: '#F08A3C',
-  accentBlue: '#6A9BCC',
-  accentGreen: '#7FA36A',
+  accentBlue: '#2F7FE0',
+  accentGreen: '#2E9F57',
+  marker: '#FFDC6E',
+  markerCap: '#4B5567',
+};
+
+/** Avatar fills shared by both schemes (dark lifts the three darkest). */
+const AVATAR_BASE = {
+  clay: '#D2552E',
+  kraft: '#A66A1E',
+  olive: '#5A7F1C',
+  sky: '#2D6CC0',
+  plum: '#9437A8',
+  sand: '#8A7350',
+  slate: '#4F5D73',
+  rose: '#C53A6B',
 };
 
 const light: ColorTokens = {
-  background: '#F4F2EC',
-  surface: '#FFFEFB',
-  surfaceAlt: '#EEEBE3',
-  border: '#E4E1D8',
-  text: '#141413',
-  textMuted: '#6B6962',
+  background: '#F1F4F8',
+  surface: '#FFFFFF',
+  surfaceAlt: '#E9EDF3',
+  border: '#E0E5EC',
+  text: '#2A2F38',
+  textMuted: '#5E6878',
   textOnAccent: '#FFFFFF',
+  onPrimary: '#FFFFFF',
   transparent: 'transparent',
 
-  primary: '#B5573A',
-  primaryText: '#A84F33',
-  primarySoft: '#F6E8E1',
-  accent: '#D97757',
-  success: '#566F3D',
-  successSoft: '#E9EEDF',
-  danger: '#A8443A',
-  dangerSoft: '#F9EAE6',
-  warning: '#8A5E1A',
-  warningSoft: '#F6EDDB',
-  neutral: '#66635C',
-  neutralSoft: '#ECEAE2',
-  successStrong: '#566F3D',
-  dangerStrong: '#A8443A',
-  neutralStrong: '#6E6B63',
-  info: '#4F79A8',
-  rings: { review: '#B5573A', focus: '#6F8A4E', solve: '#4F79A8' },
-  bubble: '#F3EEE4',
+  primary: '#4B5567',
+  primaryText: '#3A4352',
+  primarySoft: '#E9EDF5',
+  accent: '#FFDC6E',
+  mark: '#4B5567',
+  markInk: '#FFFFFF',
+  optik: '#B9C2E4',
+  optikSoft: '#E5E9F6',
+  highlight: '#FFEC94',
+  highlightInk: '#2A2F38',
+  note: '#FFF6CF',
+  noteInk: '#2A2F38',
+  noteEdge: '#F3E4A6',
+  bubble: '#FFF6CF',
+  hintBackground: '#FFF9E0',
 
-  xp: '#C9954C',
-  xpText: '#7E5616',
-  xpTrack: '#EFE6D8',
-  hintBackground: '#F7EFE2',
-  streak: '#D97757',
-  streakSoft: '#F6E8E1',
+  success: '#2B804C',
+  successSoft: '#E4F4E8',
+  danger: '#C9473A',
+  dangerSoft: '#FCE8E4',
+  warning: '#8F5A00',
+  warningSoft: '#FFF1D2',
+  neutral: '#5F6876',
+  neutralSoft: '#E9EDF2',
+  successStrong: '#2B804C',
+  dangerStrong: '#C9473A',
+  neutralStrong: '#6D7685',
+  info: '#2B62C9',
 
-  tabBar: '#F5F4EE',
-  tabActive: '#A84F33',
-  tabInactive: '#6B6962',
+  xp: '#FFDC6E',
+  xpText: '#2A2F38',
+  xpTrack: '#E6EAF1',
+  streak: '#F48B5A',
+  streakSoft: '#FFE7DA',
+
+  tabBar: '#FFFFFF',
+  tabActive: '#4B5567',
+  tabInactive: '#6D7685',
+  disabledBg: '#E9EDF2',
+  disabledFg: '#7C8594',
+  focusVignette: 'rgba(42, 47, 56, 0.08)',
+  celebrationScrim: 'rgba(241, 244, 248, 0.84)',
 
   cameraBackground: '#000000',
   cameraForeground: '#FFFFFF',
   cameraScrim: 'rgba(0, 0, 0, 0.55)',
-  cropFrame: '#FFFFFF',
+  cropFrame: '#FFDC6E',
 
-  confetti: ['#D97757', '#C9954C', '#788C5D', '#6A9BCC', '#E4B9A3'],
-  celebrationScrim: 'rgba(245, 244, 238, 0.72)',
-  badge: { bronze: '#B87A45', silver: '#7D8794', gold: '#B8862F', ink: '#FFFFFF', locked: '#E4E1D8', lockedInk: '#8F8C84' },
-  mascot: { ...MASCOT_BASE, shadow: 'rgba(0, 0, 0, 0.10)' },
+  confetti: ['#FFDC6E', '#FF6FA8', '#4FD08A', '#5AA2FF', '#FF9A4D'],
+  badge: { gold: '#B88A12', silver: '#7A8698', bronze: '#A85F2C', ink: '#FFFFFF', locked: '#DDE3EB', lockedInk: '#8792A3', foil: '#FFF3B0' },
+  mascot: { ...MASCOT_BASE, glowSoft: 'rgba(255, 220, 110, 0.30)', shadow: 'rgba(20, 28, 40, 0.12)' },
   shadow: {
-    card: '0px 1px 2px rgba(48, 36, 24, 0.06), 0px 4px 14px rgba(48, 36, 24, 0.05)',
-    raised: '0px 2px 6px rgba(48, 36, 24, 0.07), 0px 14px 32px -10px rgba(48, 36, 24, 0.18)',
-    floating: '0px 10px 24px rgba(48, 36, 24, 0.10), 0px 30px 60px -20px rgba(48, 36, 24, 0.28)',
-    accent: '0px 8px 18px -8px rgba(181, 87, 58, 0.55)',
+    card: '0px 1px 0px rgba(28, 36, 52, 0.04)',
+    raised: '0px 1px 0px rgba(28, 36, 52, 0.04), 0px 12px 24px -14px rgba(28, 36, 52, 0.16)',
+    floating: '0px 2px 4px rgba(28, 36, 52, 0.04), 0px 16px 32px -12px rgba(28, 36, 52, 0.18)',
+    accent: '0px 6px 14px -6px rgba(75, 85, 103, 0.30)',
+    note: '1px 2px 0px rgba(28, 36, 52, 0.03), 4px 14px 22px -10px rgba(28, 36, 52, 0.20)',
     none: '0px 0px 0px rgba(0, 0, 0, 0)',
   },
-  exam: { TYT: { fg: '#A84F33', bg: '#F6E8E1' }, AYT: { fg: '#3F6D9C', bg: '#E5EDF6' } },
-  disabledBg: '#ECE9E1',
-  disabledFg: '#7A776F',
-  avatar: {
-    clay: '#B5573A',
-    kraft: '#8F6328',
-    olive: '#566F3D',
-    sky: '#3F6D9C',
-    plum: '#8A4F75',
-    sand: '#7A6A4F',
-    slate: '#56606B',
-    rose: '#A8484F',
-  },
+  rings: { review: '#E0457F', focus: '#2E9F57', solve: '#2F7FE0' },
+  exam: { TYT: { fg: '#7A4B00', bg: '#FFF0B8' }, AYT: { fg: '#3A2FA8', bg: '#E4E0FF' } },
+  avatar: AVATAR_BASE,
 
-  // Every subject has its own hue (TYT and AYT maths, Fen and Biyoloji no longer share one).
   subject: {
-    'Türkçe': '#C4603D',
-    'Sosyal': '#A8783A',
-    'Temel Matematik': '#4A7AAE',
-    'Fen': '#788C5D',
-    'Matematik': '#5468B0',
-    'Fizik': '#2F8A87',
-    'Kimya': '#B0739B',
-    'Biyoloji': '#5E9442',
+    'Türkçe': '#C02C6B',
+    'Sosyal': '#A65512',
+    'Temel Matematik': '#2365C8',
+    'Fen': '#2C8240',
+    'Matematik': '#5A3FC8',
+    'Fizik': '#0B7D86',
+    'Kimya': '#9837AE',
+    'Biyoloji': '#5A820F',
+  },
+  subjectSoft: {
+    'Türkçe': '#FFD8E8',
+    'Sosyal': '#FFE3C7',
+    'Temel Matematik': '#D8E7FF',
+    'Fen': '#D4F2DB',
+    'Matematik': '#E3DEFF',
+    'Fizik': '#CCF1EE',
+    'Kimya': '#F3DBF9',
+    'Biyoloji': '#E5F3C8',
   },
 
   chart: {
-    line: '#C96442',
-    area: 'rgba(201, 100, 66, 0.10)',
-    bar: '#C96442',
-    grid: '#E4E1D8',
-    axisText: '#6B6962',
-    crosshair: '#6B6962',
-    markerRing: '#FBFAF7',
+    line: '#4B5567',
+    area: 'rgba(255, 220, 110, 0.32)',
+    bar: '#4B5567',
+    today: '#FFDC6E',
+    grid: '#E1E6EE',
+    axisText: '#6A7380',
+    crosshair: '#4B5567',
+    markerRing: '#FFFFFF',
   },
 };
 
 const dark: ColorTokens = {
-  background: '#1A1917',
-  surface: '#252422',
-  surfaceAlt: '#302E2B',
-  border: '#3B3A36',
-  text: '#F3F0E9',
-  textMuted: '#ABA79C',
+  background: '#1B2029',
+  surface: '#232934',
+  surfaceAlt: '#2B323D',
+  border: '#323A47',
+  text: '#E3E7EE',
+  textMuted: '#A4ADBA',
   textOnAccent: '#FFFFFF',
+  onPrimary: '#2A2F38',
   transparent: 'transparent',
 
-  primary: '#B5573A',
-  primaryText: '#E08B6D',
-  primarySoft: '#3B2A22',
-  accent: '#D97757',
-  success: '#A3B886',
-  successSoft: '#2B3224',
-  danger: '#E48A7D',
-  dangerSoft: '#3D2622',
-  warning: '#DDB377',
-  warningSoft: '#3A3023',
-  neutral: '#B3B0A6',
-  neutralSoft: '#33322F',
-  successStrong: '#5E7A44',
-  dangerStrong: '#B04A3E',
-  neutralStrong: '#76736A',
-  info: '#8DB4DE',
-  rings: { review: '#E08B6D', focus: '#A3B886', solve: '#8DB4DE' },
-  bubble: '#33312D',
+  primary: '#F2D373',
+  primaryText: '#F2D373',
+  primarySoft: '#2C333F',
+  accent: '#F2D373',
+  mark: '#CDD3DE',
+  markInk: '#232934',
+  optik: '#4F5A7A',
+  optikSoft: '#2D3445',
+  highlight: '#EBCB66',
+  highlightInk: '#232934',
+  // Dark mode: a dim warm paper note instead of a bright yellow block (soft palette).
+  note: '#3A3526',
+  noteInk: '#F1E7C4',
+  noteEdge: '#4A4230',
+  bubble: '#3A3526',
+  hintBackground: '#2F2B1C',
 
-  xp: '#D4A27F',
-  xpText: '#E3B98F',
-  xpTrack: '#3A332B',
-  hintBackground: '#322C24',
-  streak: '#E08B6D',
-  streakSoft: '#3B2A22',
+  success: '#6CC892',
+  successSoft: '#1C3326',
+  danger: '#F08A7C',
+  dangerSoft: '#3B2220',
+  // Orange in dark, so a warning never reads as the fosfor CTA.
+  warning: '#FFAA5E',
+  warningSoft: '#3A2A1A',
+  neutral: '#A9B1BE',
+  neutralSoft: '#2A303A',
+  successStrong: '#2E8552',
+  dangerStrong: '#C24A3F',
+  neutralStrong: '#5E6776',
+  info: '#82AEFF',
 
-  tabBar: '#1F1E1D',
-  tabActive: '#E08B6D',
-  tabInactive: '#908D84',
+  xp: '#F2D373',
+  xpText: '#F2D373',
+  xpTrack: '#2B323D',
+  streak: '#F79A6C',
+  streakSoft: '#3A251B',
+
+  tabBar: '#262C37',
+  tabActive: '#CDD3DE',
+  tabInactive: '#8F99A8',
+  disabledBg: '#2A303A',
+  disabledFg: '#8A93A1',
+  focusVignette: 'rgba(5, 7, 12, 0.55)',
+  celebrationScrim: 'rgba(27, 32, 41, 0.84)',
 
   cameraBackground: '#000000',
   cameraForeground: '#FFFFFF',
   cameraScrim: 'rgba(0, 0, 0, 0.55)',
-  cropFrame: '#FFFFFF',
+  cropFrame: '#F2D373',
 
-  confetti: ['#E08B6D', '#D4A27F', '#A3B886', '#8DB4DE', '#F0C6B3'],
-  celebrationScrim: 'rgba(31, 30, 29, 0.72)',
-  badge: { bronze: '#B87A45', silver: '#7D8794', gold: '#B8862F', ink: '#FFFFFF', locked: '#3B3A36', lockedInk: '#85827A' },
-  mascot: { ...MASCOT_BASE, shadow: 'rgba(0, 0, 0, 0.45)' },
+  confetti: ['#F2D373', '#FF7DB3', '#5FD07C', '#72A9FF', '#FF9A5C'],
+  badge: { gold: '#D4A52A', silver: '#9AA6B8', bronze: '#C27A45', ink: '#FFFFFF', locked: '#2F3642', lockedInk: '#7D8796', foil: '#FFF3B0' },
+  mascot: { ...MASCOT_BASE, glowSoft: 'rgba(242, 211, 115, 0.34)', shadow: 'rgba(0, 0, 0, 0.45)' },
   shadow: {
-    card: 'inset 0px 1px 0px rgba(255, 248, 240, 0.04)',
-    raised: 'inset 0px 1px 0px rgba(255, 248, 240, 0.06), 0px 16px 40px -12px rgba(0, 0, 0, 0.55)',
-    floating: 'inset 0px 1px 0px rgba(255, 248, 240, 0.07), 0px 24px 60px -16px rgba(0, 0, 0, 0.70)',
-    accent: '0px 0px 0px rgba(0, 0, 0, 0)',
+    card: 'inset 0px 1px 0px rgba(255, 255, 255, 0.04)',
+    raised: 'inset 0px 1px 0px rgba(255, 255, 255, 0.05), 0px 16px 36px -14px rgba(0, 0, 0, 0.40)',
+    floating: 'inset 0px 1px 0px rgba(255, 255, 255, 0.06), 0px 24px 48px -16px rgba(0, 0, 0, 0.46)',
+    // A subtle lamp glow around the fosfor CTA.
+    accent: '0px 0px 0px 1px rgba(242, 211, 115, 0.22), 0px 8px 24px -8px rgba(242, 211, 115, 0.22)',
+    note: '0px 18px 30px -14px rgba(0, 0, 0, 0.42)',
     none: '0px 0px 0px rgba(0, 0, 0, 0)',
   },
-  exam: { TYT: { fg: '#E08B6D', bg: '#3B2A22' }, AYT: { fg: '#8DB4DE', bg: '#22303D' } },
-  disabledBg: '#33312E',
-  disabledFg: '#9D998F',
-  avatar: {
-    clay: '#B5573A',
-    kraft: '#8F6328',
-    olive: '#566F3D',
-    sky: '#3F6D9C',
-    plum: '#8A4F75',
-    sand: '#7A6A4F',
-    slate: '#56606B',
-    rose: '#A8484F',
-  },
+  rings: { review: '#FF6FA0', focus: '#5CCB86', solve: '#6FA8FF' },
+  exam: { TYT: { fg: '#F2D373', bg: '#3A3218' }, AYT: { fg: '#B4A8FF', bg: '#2B2748' } },
+  avatar: { ...AVATAR_BASE, olive: '#5E8424', sand: '#8C7552', slate: '#66758D' },
 
   subject: {
-    'Türkçe': '#E08B6D',
-    'Sosyal': '#D4A27F',
-    'Temel Matematik': '#8DB4DE',
-    'Fen': '#A3B886',
-    'Matematik': '#9AA8E0',
-    'Fizik': '#7CC4C0',
-    'Kimya': '#C99BB8',
-    'Biyoloji': '#9CC685',
+    'Türkçe': '#FF7DB3',
+    'Sosyal': '#F2A562',
+    'Temel Matematik': '#72A9FF',
+    'Fen': '#5FD07C',
+    'Matematik': '#A898FF',
+    'Fizik': '#4CD0C9',
+    'Kimya': '#DB8FEC',
+    'Biyoloji': '#AAD45C',
+  },
+  subjectSoft: {
+    'Türkçe': '#44233A',
+    'Sosyal': '#42301F',
+    'Temel Matematik': '#1F2F4D',
+    'Fen': '#1D3A28',
+    'Matematik': '#2D2852',
+    'Fizik': '#153B3A',
+    'Kimya': '#3B2445',
+    'Biyoloji': '#2F3A1B',
   },
 
   chart: {
-    line: '#D4714F',
-    area: 'rgba(212, 113, 79, 0.12)',
-    bar: '#D4714F',
-    grid: '#3B3A36',
-    axisText: '#A8A59B',
-    crosshair: '#A8A59B',
-    markerRing: '#2A2927',
+    line: '#F2D373',
+    area: 'rgba(242, 211, 115, 0.12)',
+    bar: '#CDD3DE',
+    today: '#F2D373',
+    grid: '#2C333F',
+    axisText: '#8E98A7',
+    crosshair: '#E3E7EE',
+    markerRing: '#232934',
   },
 };
 
 /**
- * Font families, one per weight (iOS custom fonts don't synthesize weights). Loaded in
- * the root layout from @expo-google-fonts. Poppins and Lora are the open fonts of
- * Anthropic's brand guidelines.
+ * Font families, one per weight (iOS custom fonts don't synthesize weights). Vendored OFL
+ * TTFs in assets/fonts, loaded in the root layout (FONT_FILES) and inlined by the web
+ * preview (scripts/build-web-preview.mjs): the same family names in all three places.
  */
-export const fonts = {
-  sans: {
-    regular: 'Poppins_400Regular',
-    medium: 'Poppins_500Medium',
-    semibold: 'Poppins_600SemiBold',
-    bold: 'Poppins_700Bold',
-  },
-  serif: {
-    regular: 'Lora_400Regular',
-    medium: 'Lora_500Medium',
-    semibold: 'Lora_600SemiBold',
-    bold: 'Lora_700Bold',
-  },
+const sans = {
+  regular: 'BeVietnamPro_400Regular',
+  medium: 'BeVietnamPro_500Medium',
+  semibold: 'BeVietnamPro_600SemiBold',
+  bold: 'BeVietnamPro_700Bold',
 } as const;
 
+// Condensed figures read light, so each key loads one weight heavier than its name.
+const display = {
+  regular: 'BarlowCondensed_500Medium',
+  medium: 'BarlowCondensed_600SemiBold',
+  semibold: 'BarlowCondensed_700Bold',
+  bold: 'BarlowCondensed_800ExtraBold',
+} as const;
+
+export const fonts = {
+  /** Be Vietnam Pro: everything that reads. It has no tabular figures. */
+  sans,
+  /** Barlow Condensed: every number that counts, moves or compares (always tabular-nums). */
+  display,
+  /** @deprecated alias of `display`; removed in cleanup. */
+  serif: display,
+} as const;
+
+/** `serif` is a deprecated alias of `display`. */
 export type FontKind = keyof typeof fonts;
 export type FontWeightName = keyof typeof fonts.sans;
 
@@ -388,110 +490,409 @@ export const spacing = {
   xxxl: 48,
 } as const;
 
+/** Use with `borderCurve: 'continuous'` everywhere. */
 export const radius = {
+  /** The highlighter swipe, note corners. */
+  xs: 4,
+  /** Thumbnails, podium tops. */
   sm: 8,
-  md: 14,
-  lg: 22,
-  xl: 28,
+  /** Inputs, small buttons, rows. */
+  md: 12,
+  /** Every button. */
+  button: 14,
+  /** Sheets, including the hero. */
+  lg: 16,
+  /** Floating objects: the strip, the dock, modal sheets, the timer ear, TimerPill. */
+  xl: 24,
+  /** Bubbles, chips, badges, the segmented thumb. */
   pill: 999,
 } as const;
 
+/**
+ * Raw font sizes for text drawn outside AppText (SvgText, TextInput, tab labels), phone
+ * sizes. `fontSizeTablet` has the same keys for windows ≥ 560 pt; pick the table with
+ * `useFontScale()` (lib/layout.tsx).
+ */
 export const fontSize = {
-  xs: 12,
-  sm: 13,
-  md: 15,
+  xxs: 11,
+  xs: 13,
+  sm: 14,
+  md: 16,
   lg: 17,
-  xl: 21,
-  xxl: 30,
+  xl: 20,
+  xxl: 32,
   display: 44,
-  /** Hero numbers: the timer, the streak count. */
-  numeral: 64,
+  hero: 64,
+  /** The timer clock. */
+  numeral: 96,
 } as const;
 
-/** Line height as a multiple of the font size, per text style (tighter for big serif titles). */
+export const fontSizeTablet = {
+  xxs: 12,
+  xs: 14,
+  sm: 15,
+  md: 17,
+  lg: 19,
+  xl: 22,
+  xxl: 44,
+  display: 52,
+  hero: 88,
+  numeral: 132,
+} as const;
+
+/** One font-size table (`fontSize` or `fontSizeTablet`). */
+export type FontScale = { readonly [K in keyof typeof fontSize]: number };
+
+export type TypeVariant = 'hero' | 'numeral' | 'title' | 'stat' | 'numeric' | 'heading' | 'body' | 'note' | 'label' | 'caption' | 'micro';
+
+export interface TypeStyle {
+  /** `display` = Barlow Condensed (numbers and titles), `sans` = Be Vietnam Pro. */
+  kind: 'sans' | 'display';
+  weight: FontWeightName;
+  /** Phone size, and the size once the window is ≥ 560 pt wide (never the content width). */
+  size: number;
+  sizeTablet: number;
+  /** Line height as a multiple of the font size. */
+  lineRatio: number;
+  /** Letter spacing on phone and tablet. */
+  tracking: number;
+  trackingTablet: number;
+  /** Tabular figures (only the display family has them). */
+  tabular: boolean;
+  /** Dynamic Type cap (maxFontSizeMultiplier). */
+  maxScale: number;
+}
+
+/**
+ * The text styles AppText reads. Rule: any number that animates, aligns in a column or
+ * compares uses a display variant (Be Vietnam Pro has no tabular figures). Units after a
+ * number are a separate label/caption, never inside the numeral string.
+ */
+export const typography: Record<TypeVariant, TypeStyle> = {
+  /** YKS countdown, deneme net hero, review count. */
+  hero: { kind: 'display', weight: 'bold', size: fontSize.hero, sizeTablet: fontSizeTablet.hero, lineRatio: 1.0, tracking: -0.5, trackingTablet: -1.0, tabular: true, maxScale: 1.2 },
+  /** The timer clock. */
+  numeral: { kind: 'display', weight: 'regular', size: fontSize.numeral, sizeTablet: fontSizeTablet.numeral, lineRatio: 1.0, tracking: -1.0, trackingTablet: -1.0, tabular: true, maxScale: 1.2 },
+  /** Screen titles, on tab and stack screens alike. */
+  title: { kind: 'display', weight: 'semibold', size: fontSize.xxl, sizeTablet: fontSizeTablet.xxl, lineRatio: 1.1, tracking: -0.2, trackingTablet: -0.2, tabular: false, maxScale: 1.2 },
+  /** Card numbers: 6, 82,25, 1275. */
+  stat: { kind: 'display', weight: 'medium', size: 30, sizeTablet: 40, lineRatio: 1.05, tracking: 0, trackingTablet: 0, tabular: true, maxScale: 1.3 },
+  /** Inline numbers: 0/5, 12/50 dk, D Y B, XP, ranks, the clock in the timer ear. */
+  numeric: { kind: 'display', weight: 'medium', size: 18, sizeTablet: 20, lineRatio: 1.2, tracking: 0, trackingTablet: 0, tabular: true, maxScale: 1.6 },
+  /** Section headings on the paper, sheet titles. */
+  heading: { kind: 'sans', weight: 'semibold', size: fontSize.lg, sizeTablet: fontSizeTablet.lg, lineRatio: 1.32, tracking: -0.2, trackingTablet: -0.2, tabular: false, maxScale: 1.6 },
+  /** The default, in `text`. */
+  body: { kind: 'sans', weight: 'regular', size: fontSize.md, sizeTablet: fontSizeTablet.md, lineRatio: 1.5, tracking: 0, trackingTablet: 0, tabular: false, maxScale: 1.6 },
+  /** Lumi's notes and hints. */
+  note: { kind: 'sans', weight: 'medium', size: 15, sizeTablet: 16, lineRatio: 1.45, tracking: 0, trackingTablet: 0, tabular: false, maxScale: 1.6 },
+  /** Controls, row titles. */
+  label: { kind: 'sans', weight: 'medium', size: fontSize.sm, sizeTablet: fontSizeTablet.sm, lineRatio: 1.36, tracking: 0, trackingTablet: 0, tabular: false, maxScale: 1.6 },
+  /** Secondary lines (in `textMuted`). */
+  caption: { kind: 'sans', weight: 'regular', size: fontSize.xs, sizeTablet: fontSizeTablet.xs, lineRatio: 1.38, tracking: 0, trackingTablet: 0, tabular: false, maxScale: 1.6 },
+  /** Tab labels and badge text only. */
+  micro: { kind: 'sans', weight: 'semibold', size: fontSize.xxs, sizeTablet: fontSizeTablet.xxs, lineRatio: 1.27, tracking: 0.1, trackingTablet: 0.1, tabular: false, maxScale: 1.6 },
+};
+
+/** @deprecated Read `typography[variant].lineRatio`. */
 export const lineRatio = {
-  display: 1.18,
-  title: 1.2,
-  heading: 1.4,
-  body: 1.47,
-  label: 1.38,
-  caption: 1.34,
-  eyebrow: 1.34,
+  display: typography.stat.lineRatio,
+  title: typography.title.lineRatio,
+  heading: typography.heading.lineRatio,
+  body: typography.body.lineRatio,
+  label: typography.label.lineRatio,
+  caption: typography.caption.lineRatio,
+  eyebrow: typography.label.lineRatio,
 } as const;
 
-/** Letter spacing for the serif display sizes (slightly tight, like editorial titles). */
+/** @deprecated Read `typography[variant].tracking`. Eyebrows are sentence case now (no tracking). */
 export const letterSpacing = {
-  display: -0.8,
-  title: -0.4,
+  display: typography.stat.tracking,
+  title: typography.title.tracking,
   normal: 0,
-  /** Small uppercase labels above a title (date, section). */
-  eyebrow: 1.2,
+  eyebrow: 0,
 } as const;
 
-/** Durations (ms) and springs for every animation. Reduced-motion users get fades only. */
-export const motion = {
-  duration: { fast: 160, base: 260, slow: 420, celebrate: 1400 },
-  /** Delay between items appearing one after another. */
-  stagger: 45,
-  /** How far content travels when it fades in (pt). */
-  rise: 10,
-  spring: { damping: 16, stiffness: 190, mass: 0.9 },
-  springBouncy: { damping: 11, stiffness: 220, mass: 0.8 },
-  /** Scale of a pressed button or card, and how much it fades. */
-  pressScale: 0.97,
-  pressFade: 0.12,
-  /** Sideways shake of the "wrong" badge: distance (pt) and step durations (ms). */
-  shake: { distance: 8, steps: [50, 70, 60, 60] },
-  /**
-   * A right answer's local burst: confetti pieces, how far they fly (pt) and for how long
-   * (ms); the XP chip's rise and sideways sway (pt), its width, and where the row's letter
-   * disc sits from the row's left edge.
-   */
-  inlineBurst: { particles: 12, distance: 64, ms: 760, rise: 44, sway: 14, chipWidth: 96, letterInset: 24 },
-  /** The pause between "Cevabım B" and the verdict, so the beat reads (ms), and its haptic ticks. */
-  verdictDwell: 380,
+/** Bezier control points [x1, y1, x2, y2]. */
+type Bezier = readonly [number, number, number, number];
+interface SpringConfig {
+  damping: number;
+  stiffness: number;
+  mass: number;
+}
+
+const springs = {
+  press: { damping: 20, stiffness: 520, mass: 0.6 },
+  settle: { damping: 16, stiffness: 190, mass: 0.9 },
+  bouncy: { damping: 11, stiffness: 220, mass: 0.8 },
+  /** Lumi touching down. */
+  land: { damping: 9, stiffness: 260, mass: 0.7 },
+  note: { damping: 14, stiffness: 260, mass: 0.8 },
+  /** The segmented thumb, list reflow. */
+  thumb: { damping: 18, stiffness: 260, mass: 0.8 },
+} as const satisfies Record<string, SpringConfig>;
+
+const verdict = {
+  /** The pause between "Kodla" and the verdict, so the beat reads, and its haptic ticks. */
+  dwell: 380,
   drumroll: [110, 220],
+  checkDraw: 260,
+  penCircle: 320,
+  penSweepDeg: 380,
+  penStartDeg: -30,
+  shakeDistance: 6,
+  shakeMs: 300,
 } as const;
 
-/** Opacity of disabled controls. */
+/** Bezier easings by role; `presets.ease(name)` turns one into Easing.bezier(...). */
+const easing = {
+  standard: [0.2, 0, 0, 1],
+  enter: [0, 0, 0.2, 1],
+  exit: [0.4, 0, 1, 1],
+  /** The scribble fill of a bubble. */
+  pencil: [0.45, 0.05, 0.55, 0.95],
+  /** The highlighter swipe and Lumi's glide along it. */
+  highlighter: [0.65, 0, 0.35, 1],
+  /** Lumi's flight. */
+  flight: [0.45, 0, 0.2, 1],
+  /** Loops (replaces Easing.inOut(Easing.sin)). */
+  breath: [0.37, 0, 0.63, 1],
+} as const satisfies Record<string, Bezier>;
+
+const press = { button: 0.96, card: 0.985, bubble: 0.9, row: 1, nudgeY: 1, fade: 0.08, rmOpacity: 0.72 } as const;
+
+/** Durations (ms), easings and springs for every animation. Reduced-motion users get fades only. */
+export const motion = {
+  duration: { instant: 90, fast: 140, base: 220, slow: 360, page: 420, celebrate: 1400 },
+  easing,
+  springs,
+  /** @deprecated alias of `springs.settle`. */
+  spring: springs.settle,
+  /** @deprecated alias of `springs.bouncy`. */
+  springBouncy: springs.bouncy,
+  /** Press feedback per PressableScale kind: scale, the button's sink (pt), the card fade and the reduced-motion opacity. */
+  press,
+  /** @deprecated alias of `press.button`. */
+  pressScale: press.button,
+  /** @deprecated alias of `press.fade`. */
+  pressFade: press.fade,
+  /** Delay between items appearing one after another, and the most items that stagger. */
+  stagger: 40,
+  staggerMax: 6,
+  /** How far content travels when it fades in (pt). */
+  rise: 8,
+  /** The gap between the two selection ticks of the `grain` haptic (pencil on paper). */
+  grainGap: 60,
+  /** A bubble filling: zigzag strokes, then the solid fill; and its erase. */
+  scribble: { ms: 200, fillFade: 90, eraseMs: 140, eraseScale: 0.82, strokes: 6 },
+  verdict,
+  /** @deprecated alias of `verdict.dwell`. */
+  verdictDwell: verdict.dwell,
+  /** @deprecated alias of `verdict.drumroll`. */
+  drumroll: verdict.drumroll,
+  /** @deprecated Sideways shake of the "wrong" badge; replaced by the red-pen loop (verdict). */
+  shake: { distance: verdict.shakeDistance, steps: [50, 70, 60, 60] },
+  highlight: { draw: 420, retract: 220, pressGrow: 140, strike: 260 },
+  /** "Netleşme": two ghost copies converge on the real text. */
+  focusPull: { ms: 420, ghostOffset: 4, ghostOpacity: 0.35, startScale: 1.06, startOpacity: 0.5 },
+  odometer: { digitStagger: 30 },
+  progress: { fill: 720, shine: 600 },
+  tabs: { fade: 140, compact: 220, labelDrop: 6, wiggleDeg: 4, wiggleMs: 180, longPress: 450, keyboard: 200, compactVelocity: 900 },
+  companion: {
+    takeoffScale: 0.86,
+    takeoffMs: 90,
+    flightMin: 700,
+    flightMax: 1150,
+    msPerPt: 1.1,
+    glideMs: 420,
+    homeHopMs: 420,
+    returnMs: 600,
+    trailSpawnMs: 60,
+    trailFadeMs: 360,
+    noteFromScale: 0.92,
+    noteFromDeg: -4,
+    notePeelMs: 220,
+    notePeelDeg: 6,
+    notePeelRise: 8,
+    holdBaseMs: 4000,
+    holdPerCharMs: 55,
+    holdMaxMs: 9000,
+    firstLineDelayMs: 1200,
+    quietAfterTouchMs: 1500,
+    dwellMs: 4000,
+    navQuietMs: 2000,
+    rmFadeMs: 160,
+    typePerWordMs: 22,
+    typeMaxMs: 600,
+    nestBlink: [4000, 7000],
+    /** A perch shows its own still Lumi when the companion hasn't landed on it by then. */
+    perchFallbackMs: 600,
+  },
+  mascot: {
+    poseSpring: { damping: 13, stiffness: 140, mass: 0.8 },
+    hopUp: 240,
+    hopDown: 220,
+    reactionMs: 1600,
+    fidget: [2200, 5400],
+    blinkMs: 110,
+    enterFrom: 0.4,
+    enterRise: 18,
+    flapDeg: 18,
+    flapPeriodMs: 140,
+    fxPhaseMs: 750,
+  },
+  /**
+   * A right answer's local burst: pieces (highlighter strokes w × h), how far they fly (pt)
+   * and for how long (ms); the XP chip's rise and sideways sway (pt), its width, and where
+   * the row's letter disc sits from the row's left edge.
+   */
+  inlineBurst: { particles: 12, distance: 64, ms: 760, rise: 44, sway: 14, chipWidth: 96, letterInset: 24, stroke: { w: 10, h: 3 } },
+  /** Timer focus mode: how fast and how far the rest of the screen dims. */
+  timerFocus: { dimMs: 600, dim: 0.4 },
+} as const;
+
+export type EasingName = keyof typeof motion.easing;
+export type SpringName = keyof typeof motion.springs;
+
 export const opacity = {
+  /** Disabled controls. */
   disabled: 0.5,
   /** Loading placeholders breathe between these. */
   skeleton: { low: 0.45, high: 1 },
+  /** The graph-paper band's lines, per scheme. */
+  kareli: { light: 0.18, dark: 0.14 },
+  /** FocusPull ghosts and other echoes. */
+  ghost: 0.35,
+  /** Analysis content while it refetches. */
+  analysisRefetch: 0.6,
+  /** The camera's framing guide. */
+  cameraGuide: 0.7,
 } as const;
 
 /**
- * Size classes. `window` decides navigation chrome (sidebar vs bottom tabs) and the
- * split two-pane screens; `content` is measured inside a screen and decides grids.
+ * Size classes. `window` decides chrome and type size (tablet ≥ 560), the 12-column wide
+ * grid (landscape ≥ 1000) and split two-pane screens; `content` is measured inside a screen
+ * and decides grids.
  */
 export const breakpoints = {
-  window: { sidebar: 1000, split: 960 },
+  window: { tablet: 560, landscape: 1000, split: 960 },
   content: { regular: 560, wide: 860 },
 } as const;
 
+const minTouch = 44;
+const borderWidth = 1;
+const selectedBorder = 1.5;
+const iconSize = { sm: 18, md: 22, lg: 28, xl: 40 } as const;
+const iconStroke = 2.0;
+
 export const layout = {
+  /** Interaction basics: the minimum touch target (Apple HIG), hairlines, icon sizes. */
+  system: { minTouch, borderWidth, selectedBorder, hitSlop: 8, iconSize, iconStroke },
+  /** Window grid: 4 / 8 / 12 columns by window width (< 560, < 1000, ≥ 1000). */
+  grid: {
+    compact: { columns: 4, gutter: 12, margin: 16 },
+    regular: { columns: 8, gutter: 20, margin: 28 },
+    wide: { columns: 12, gutter: 20, margin: 32 },
+  },
+  /** Cap for tab screens (dashboards), so the title never jumps between tabs. */
+  dashboardWidth: 1116,
+  /** Comfortable reading width for single-column content (solutions, forms, chat). */
+  readableWidth: 720,
+  /** Inside a sheet. */
+  sheetPadding: { compact: 16, tablet: 20 },
+  /** The floating optik strip (navigation), its badge, the timer ear and the paper fade above it. */
+  tabBar: {
+    height: { compact: 66, tablet: 72 },
+    compactHeight: 54,
+    maxWidth: 520,
+    sideInset: { compact: 12, tablet: 32 },
+    bottomGap: 12,
+    insetTrim: 8,
+    bubble: { compact: { w: 52, h: 32 }, tablet: { w: 58, h: 36 } },
+    itemMinWidth: { compact: 48, tablet: 72 },
+    labelGap: 4,
+    padY: 8,
+    nestGap: { compact: 8, tablet: 12 },
+    badge: { compact: 20, tablet: 22 },
+    badgeRing: 2,
+    ear: { height: 44, minWidth: 92, ring: 28, gap: 6 },
+    fadeAbove: 56,
+    reserveExtra: 16,
+  },
+  /** Lumi, the companion: size, hit area, its note, the flight trail and the landing. */
+  companion: {
+    size: { compact: 44, tablet: 56 },
+    hit: { compact: 48, tablet: 56 },
+    noteMaxWidth: { compact: 260, tablet: 320 },
+    perchInset: 8,
+    trailDots: 5,
+    trailDot: { max: 5, min: 2 },
+    arcLift: 0.35,
+    arcLiftMax: 200,
+    bankMaxDeg: 12,
+    bobAmp: 3,
+    hop: 20,
+    haloScale: 1.8,
+    ember: 6,
+  },
+  /** Optik bubbles (ellipses 1.6:1) by size, their printed outline and the scribble fill. */
+  bubble: {
+    dot: { w: 30, h: 20 },
+    row: { w: 32, h: 22 },
+    letter: { w: 52, h: 36 },
+    outline: 1.6,
+    scribbleStroke: 3.2,
+    scribbleMinWidth: 28,
+  },
+  /** The highlighter swipe behind a line of text, and the graphite strike through it. */
+  highlight: { heightRatio: 0.62, leadIn: 4, tail: 6, skewDeg: -8, rotateDeg: -1, passes: 2, radii: [3, 6, 4, 7], strikeWidth: 2 },
+  /** Lumi's sticky note: tilt, the lifted corner, padding, and the hint sheet's fosfor edge. */
+  note: { tiltDeg: -1.2, liftCorner: 18, padding: 14, edge: 3 },
+  /** The graph-paper band behind headers. */
+  kareli: { cell: 24, bandHeight: 220, heroShare: 0.45 },
+  timer: {
+    ring: { compact: 260, regular: 380, wide: 340 },
+    stroke: 12,
+    tick: { major: 10, minor: 5 },
+    headDot: 14,
+    roundControl: 68,
+  },
+  podium: { step: { compact: [96, 72, 56], tablet: [120, 92, 72] }, avatar: { first: 64, other: 52 } },
+  /** Question photo thumbnails. */
+  thumb: { compact: 56, card: { w: 88, h: 66 }, recent: 72 },
+  /** The floating answer dock: its row height and its widest. */
+  dock: { height: 64, maxWidth: 560 },
+  question: { imageCap: { compact: 360, tablet: 420, split: 540 }, chatImageCap: 220 },
+  /** Spaced-repetition intervals in days (mirrors the server). */
+  ladder: { rungs: [1, 3, 7, 14, 30] },
+  /**
+   * Stacking, bottom to top: screen content (in-tree highlights and perches), the strip's
+   * paper fade, the strip, the timer ear, the companion's note, the companion and its trail,
+   * TimerPill; then InlineBurst and RewardBurst (CelebrationProvider), then native modals.
+   */
+  z: { strip: 10, ear: 11, companionNote: 20, companion: 30, timerPill: 40 },
+
   screenPadding: spacing.lg,
-  /** Inside a card. */
+  /** @deprecated use `sheetPadding`. Inside a card. */
   cardPadding: 20,
   /** Side padding once the window is tablet-sized. */
   screenPaddingRegular: spacing.xl,
-  /** Comfortable reading width for single-column content (solutions, forms, chat). */
-  readableWidth: 760,
-  /** Cap for dashboards so cards don't stretch across a large iPad. */
+  /** @deprecated use `dashboardWidth`. */
   maxContentWidth: 1180,
-  /** Tab sidebar on large windows. */
+  /** @deprecated the sidebar is gone; the optik strip is used at every width. */
   sidebarWidth: 220,
   /** Width of the left pane in split screens, as a fraction. */
   splitLeft: 0.46,
   /** Minimum touch target (Apple HIG). */
-  minTouch: 44,
-  borderWidth: 1,
+  minTouch,
+  borderWidth,
+  /** A selected outline (chips, secondary buttons). */
+  selectedBorder,
   progressHeight: 10,
   frameBorder: 2,
   shutterBorder: 4,
-  iconSize: { sm: 18, md: 22, lg: 28, xl: 40 },
+  iconSize,
   /** Line icons are drawn at this stroke width (24-unit grid). */
-  iconStroke: 1.8,
+  iconStroke,
   shutterSize: 76,
   /** Camera guide frame width as a share of the screen width (before fitting the height). */
   cameraFrameShare: 0.86,
@@ -507,8 +908,6 @@ export const layout = {
   /** Question photos: the tallest they show before "Tamamını gör", and the fade height. */
   questionImageCap: { compact: 150, regular: 360, large: 540 },
   questionImageFade: 72,
-  /** The floating answer dock: its row height (letters, buttons) and its lift off the bottom edge. */
-  dock: 64,
   /** Letter buttons in the dock (their touch area grows to `minTouch` with hit slop). */
   dockLetter: 40,
   /** Progress pips (hints used). */
@@ -528,7 +927,7 @@ export const layout = {
   avatar: 40,
   /** Lumi, the assistant: in a note (home, empty states) and large (sign-in, celebrations). */
   mascot: { note: 84, hero: 150 },
-  /** Home's three goal rings (outer diameter, stroke, space between rings) and the legend dot. */
+  /** @deprecated Home's three goal rings; removed with TodayRings. */
   todayRings: { size: 132, stroke: 11, gap: 4, dot: 10 },
   /** The little diamond under Lumi's speech bubble. */
   bubbleTail: 14,
@@ -543,10 +942,12 @@ export const layout = {
     ringWidth: 2,
     barThickness: 12,
     barEndRadius: 4,
-    trendHeight: 180,
+    trendHeight: { compact: 180, tablet: 240 },
     sparkHeight: 44,
     axisWidth: 34,
     endLabelWidth: 44,
+    /** The week's bars: bar width as a share of its slot, and the gap to the day label. */
+    weekBar: { barShare: 0.5, labelGap: 6 },
   },
 } as const;
 
@@ -557,6 +958,8 @@ export interface Theme {
   spacing: typeof spacing;
   radius: typeof radius;
   fontSize: typeof fontSize;
+  fontSizeTablet: typeof fontSizeTablet;
+  typography: typeof typography;
   letterSpacing: typeof letterSpacing;
   lineRatio: typeof lineRatio;
   fonts: typeof fonts;
@@ -565,7 +968,7 @@ export interface Theme {
   layout: typeof layout;
 }
 
-const shared = { breakpoints, spacing, radius, fontSize, lineRatio, letterSpacing, fonts, motion, opacity, layout };
+const shared = { breakpoints, spacing, radius, fontSize, fontSizeTablet, typography, lineRatio, letterSpacing, fonts, motion, opacity, layout };
 
 const themes: Record<ColorScheme, Theme> = {
   light: { scheme: 'light', colors: light, ...shared },
@@ -576,22 +979,59 @@ export function useTheme(): Theme {
   return themes[useColorScheme() === 'dark' ? 'dark' : 'light'];
 }
 
+/** A subject's ink (dots, edges, meters, chart strokes). */
 export function subjectColor(theme: Theme, subject: string): string {
   return theme.colors.subject[subject as Subject] ?? theme.colors.primary;
 }
 
+/** A subject's highlighter tint (chip fills, swipes); text on it stays `text`. */
+export function subjectSoftColor(theme: Theme, subject: string): string {
+  return theme.colors.subjectSoft[subject as Subject] ?? theme.colors.primarySoft;
+}
+
 /**
- * The look of a raised surface (cards, tiles, list rows): paper with a soft shadow in
- * light mode, a hairline edge and top highlight in dark mode, continuous corners.
+ * How a surface sits on the paper:
+ * - `flat`: a well in the paper (surfaceAlt, no edge, no shadow): steppers, chart wells, composer.
+ * - `sheet` (alias `card`): every content sheet, a 1 pt edge and almost no shadow.
+ * - `raised`: the segmented thumb, a pressed hero.
+ * - `floating`: objects above the paper (strip, dock, ear, TimerPill, the companion's note frame);
+ *   the strip swaps in `colors.tabBar`.
+ * - `note`: Lumi's sticky note only (radius xs with the lifted bottom-right corner).
  */
-export function elevated(theme: Theme, level: 'card' | 'raised' | 'floating' = 'card') {
-  const dark = theme.scheme === 'dark';
-  return {
-    backgroundColor: theme.colors.surface,
-    borderRadius: theme.radius.lg,
-    borderCurve: 'continuous' as const,
-    borderWidth: dark ? theme.layout.borderWidth : 0,
-    borderColor: theme.colors.border,
-    boxShadow: theme.colors.shadow[level],
-  };
+export type ElevationLevel = 'flat' | 'sheet' | 'card' | 'raised' | 'floating' | 'note';
+
+export interface ElevatedStyle {
+  backgroundColor: string;
+  borderRadius: number;
+  borderBottomRightRadius?: number;
+  borderCurve: 'continuous';
+  borderWidth: number;
+  borderColor: string;
+  boxShadow: string;
+}
+
+export function elevated(theme: Theme, level: ElevationLevel = 'sheet'): ElevatedStyle {
+  const { colors, radius: r, layout: l } = theme;
+  switch (level) {
+    case 'flat':
+      return { backgroundColor: colors.surfaceAlt, borderRadius: r.lg, borderCurve: 'continuous', borderWidth: 0, borderColor: colors.transparent, boxShadow: colors.shadow.none };
+    case 'note':
+      return {
+        backgroundColor: colors.note,
+        borderRadius: r.xs,
+        borderBottomRightRadius: l.note.liftCorner,
+        borderCurve: 'continuous',
+        borderWidth: 0,
+        borderColor: colors.transparent,
+        boxShadow: colors.shadow.note,
+      };
+    case 'floating':
+      return { backgroundColor: colors.surface, borderRadius: r.xl, borderCurve: 'continuous', borderWidth: l.borderWidth, borderColor: colors.border, boxShadow: colors.shadow.floating };
+    case 'raised':
+      return { backgroundColor: colors.surface, borderRadius: r.lg, borderCurve: 'continuous', borderWidth: l.borderWidth, borderColor: colors.border, boxShadow: colors.shadow.raised };
+    case 'sheet':
+    case 'card':
+    default:
+      return { backgroundColor: colors.surface, borderRadius: r.lg, borderCurve: 'continuous', borderWidth: l.borderWidth, borderColor: colors.border, boxShadow: colors.shadow.card };
+  }
 }

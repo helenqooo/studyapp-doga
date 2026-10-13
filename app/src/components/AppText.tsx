@@ -1,72 +1,64 @@
-import { StyleSheet, Text, type TextProps, type TextStyle } from 'react-native';
-import { font, useTheme, type ColorTokens, type FontKind, type FontWeightName, type Theme } from '../theme';
+import { StyleSheet, Text, useWindowDimensions, type TextProps, type TextStyle } from 'react-native';
+import { font, useTheme, type ColorTokens, type FontKind, type FontWeightName, type TypeVariant } from '../theme';
 
-type Variant = 'display' | 'title' | 'heading' | 'body' | 'label' | 'caption' | 'eyebrow';
-type ColorName = Exclude<keyof ColorTokens, 'subject' | 'chart' | 'confetti' | 'celebrationScrim' | 'badge' | 'avatar' | 'mascot' | 'shadow' | 'exam' | 'rings' | 'bubble'>;
+/** The variants of `theme.typography`, plus two deprecated aliases: `display` (= stat) and `eyebrow` (= label, muted). */
+type Variant = TypeVariant | 'display' | 'eyebrow';
+type ColorName = Exclude<
+  keyof ColorTokens,
+  'subject' | 'subjectSoft' | 'chart' | 'confetti' | 'celebrationScrim' | 'focusVignette' | 'badge' | 'avatar' | 'mascot' | 'shadow' | 'exam' | 'rings' | 'bubble'
+>;
 
 interface Props extends TextProps {
   variant?: Variant;
+  /** Defaults to `text` (`textMuted` for the deprecated `eyebrow`). */
   color?: ColorName;
   /** Overrides `color` with a raw token value (e.g. a subject color from the theme). */
   tint?: string;
   weight?: FontWeightName;
-  /** Overrides the variant's family (e.g. a serif number inside a sans row). */
+  /** Overrides the variant's family (e.g. a display number inside a sans row). */
   family?: FontKind;
   align?: TextStyle['textAlign'];
+  /**
+   * Tabular figures. On by default for the number variants (hero, numeral, stat, numeric)
+   * and whenever `family` switches to the display face; Be Vietnam Pro has none.
+   */
+  tabular?: boolean;
 }
 
-const VARIANTS: Record<Variant, { kind: FontKind; weight: FontWeightName }> = {
-  // Titles speak in the serif, like Claude's own writing; the interface uses the sans.
-  display: { kind: 'serif', weight: 'semibold' },
-  title: { kind: 'serif', weight: 'semibold' },
-  heading: { kind: 'sans', weight: 'semibold' },
-  body: { kind: 'sans', weight: 'regular' },
-  label: { kind: 'sans', weight: 'medium' },
-  caption: { kind: 'sans', weight: 'regular' },
-  // Pass text already in capitals (upperTr): textTransform would turn "i" into "I", not "İ".
-  eyebrow: { kind: 'sans', weight: 'semibold' },
-};
+const ALIAS: Partial<Record<Variant, TypeVariant>> = { display: 'stat', eyebrow: 'label' };
 
-function sizeStyle(theme: Theme, variant: Variant): TextStyle {
-  const { fontSize, letterSpacing } = theme;
-  switch (variant) {
-    case 'display':
-      return { fontSize: fontSize.display, letterSpacing: letterSpacing.display };
-    case 'title':
-      return { fontSize: fontSize.xxl, letterSpacing: letterSpacing.title };
-    case 'heading':
-      return { fontSize: fontSize.lg };
-    case 'label':
-      return { fontSize: fontSize.sm };
-    case 'caption':
-      return { fontSize: fontSize.xs };
-    case 'eyebrow':
-      return { fontSize: fontSize.xs, letterSpacing: letterSpacing.eyebrow };
-    case 'body':
-    default:
-      return { fontSize: fontSize.md };
-  }
-}
-
-export function AppText({ variant = 'body', color = 'text', tint, weight, family, align, style, ...rest }: Props) {
+/**
+ * Text in one of the theme's type styles. Sizes follow the WINDOW size class (tablet once
+ * the window is ≥ 560 pt), never the content width, so nested columns don't shrink type.
+ */
+export function AppText({ variant = 'body', color, tint, weight, family, align, tabular, style, maxFontSizeMultiplier, ...rest }: Props) {
   const theme = useTheme();
-  const base = VARIANTS[variant];
-  const size = sizeStyle(theme, variant);
+  const { width } = useWindowDimensions();
+  const tablet = width >= theme.breakpoints.window.tablet;
+  const type = theme.typography[ALIAS[variant] ?? (variant as TypeVariant)];
+  const kind = family ?? type.kind;
+  const fontSize = tablet ? type.sizeTablet : type.size;
   // Every style has a line height; a size override keeps the style's proportion.
   const flat = StyleSheet.flatten(style) as TextStyle | undefined;
-  const lineHeight = flat?.lineHeight ?? Math.round((flat?.fontSize ?? size.fontSize!) * theme.lineRatio[variant]);
+  const lineHeight = flat?.lineHeight ?? Math.round((flat?.fontSize ?? fontSize) * type.lineRatio);
+  const figures = tabular ?? (type.tabular || (family !== undefined && kind !== 'sans'));
+  const colorName: ColorName = color ?? (variant === 'eyebrow' ? 'textMuted' : 'text');
   return (
     <Text
       {...rest}
-      maxFontSizeMultiplier={variant === 'display' || variant === 'title' ? 1.3 : 1.6}
+      maxFontSizeMultiplier={maxFontSizeMultiplier ?? type.maxScale}
       style={[
-        size,
-        { lineHeight },
-        font(family ?? base.kind, weight ?? base.weight),
-        { color: tint ?? theme.colors[color] },
+        { fontSize, lineHeight, letterSpacing: tablet ? type.trackingTablet : type.tracking },
+        font(kind, weight ?? type.weight),
+        { color: tint ?? theme.colors[colorName] },
+        figures ? styles.tabular : null,
         align ? { textAlign: align } : null,
         style,
       ]}
     />
   );
 }
+
+const styles = StyleSheet.create({
+  tabular: { fontVariant: ['tabular-nums'] },
+});

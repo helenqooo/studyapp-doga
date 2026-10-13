@@ -49,7 +49,7 @@ function useFallbackSpot() {
   const theme = useTheme();
   return useCallback(() => {
     const w = Math.min(width - theme.spacing.xl * 2, theme.layout.readableWidth);
-    const y = height - insets.bottom - theme.layout.dock - theme.spacing.xl;
+    const y = height - insets.bottom - theme.layout.dock.height - theme.spacing.xl;
     return { x: (width - w) / 2, y, width: w, height: theme.layout.minTouch };
   }, [width, height, insets.bottom, theme]);
 }

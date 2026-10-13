@@ -114,7 +114,7 @@ function WeekBars() {
   const theme = useTheme();
   const days = useStudyDays(7);
   const items = days.data?.days ?? [];
-  const height = theme.layout.chart.trendHeight * 0.7;
+  const height = theme.layout.chart.trendHeight.compact * 0.7;
   const top = theme.spacing.lg;
   const bottom = theme.spacing.xl;
   const width = 7 * 44;

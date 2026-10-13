@@ -67,19 +67,20 @@ js = js.replace(/uri:"(\/assets\/[^"]+?(\.png|\.jpe?g|\.gif))"/g, (match, uri, e
 // Keep the bundle from closing or confusing the inline <script> element.
 js = js.replace(/<\/script/gi, '<\\/script').replace(/<!--/g, '<\\!--');
 
-// Fonts: same family names the app uses (see src/theme.ts), so no runtime loading is needed.
+// Fonts: the vendored TTFs in assets/fonts under the same family names the app uses
+// (theme.fonts, FONT_FILES in src/app/_layout.tsx), so no runtime loading is needed.
 const FONTS = [
-  ['poppins', '400Regular', 'Poppins_400Regular'],
-  ['poppins', '500Medium', 'Poppins_500Medium'],
-  ['poppins', '600SemiBold', 'Poppins_600SemiBold'],
-  ['poppins', '700Bold', 'Poppins_700Bold'],
-  ['lora', '400Regular', 'Lora_400Regular'],
-  ['lora', '500Medium', 'Lora_500Medium'],
-  ['lora', '600SemiBold', 'Lora_600SemiBold'],
-  ['lora', '700Bold', 'Lora_700Bold'],
+  ['BeVietnamPro-Regular.ttf', 'BeVietnamPro_400Regular'],
+  ['BeVietnamPro-Medium.ttf', 'BeVietnamPro_500Medium'],
+  ['BeVietnamPro-SemiBold.ttf', 'BeVietnamPro_600SemiBold'],
+  ['BeVietnamPro-Bold.ttf', 'BeVietnamPro_700Bold'],
+  ['BarlowCondensed-Medium.ttf', 'BarlowCondensed_500Medium'],
+  ['BarlowCondensed-SemiBold.ttf', 'BarlowCondensed_600SemiBold'],
+  ['BarlowCondensed-Bold.ttf', 'BarlowCondensed_700Bold'],
+  ['BarlowCondensed-ExtraBold.ttf', 'BarlowCondensed_800ExtraBold'],
 ];
-const fontCss = FONTS.map(([pkg, dir, family]) => {
-  const file = path.join(appDir, 'node_modules/@expo-google-fonts', pkg, dir, `${family}.ttf`);
+const fontCss = FONTS.map(([fileName, family]) => {
+  const file = path.join(appDir, 'assets', 'fonts', fileName);
   return `@font-face{font-family:'${family}';src:url(${dataUri(file, 'font/ttf')}) format('truetype');font-display:block}`;
 }).join('\n');
 
@@ -88,9 +89,9 @@ const page = `<title>${appName}</title>
 <style>
 /* react-native-web root: one full-height app view. */
 html { height: 100%; box-sizing: border-box; }
-body { height: 100%; overflow: hidden; background: #F4F2EC; }
+body { height: 100%; overflow: hidden; background: #EEF1F5; }
 #root { display: flex; height: 100%; flex: 1; }
-@media (prefers-color-scheme: dark) { body { background: #1A1917; } }
+@media (prefers-color-scheme: dark) { body { background: #161A21; } }
 ${fontCss}
 </style>
 <div id="root"></div>
@@ -133,8 +134,9 @@ fs.mkdirSync(path.join(pwaDir, 'icons'), { recursive: true });
 for (const f of fs.readdirSync(path.join(appDir, 'assets', 'pwa'))) {
   fs.copyFileSync(path.join(appDir, 'assets', 'pwa', f), path.join(pwaDir, 'icons', f));
 }
-const IVORY = '#F4F2EC';
-const CHARCOAL = '#1A1917';
+// theme.ts colors.background (light paper, dark night desk).
+const PAPER = '#EEF1F5';
+const NIGHT = '#161A21';
 fs.writeFileSync(
   path.join(pwaDir, 'manifest.webmanifest'),
   JSON.stringify(
@@ -146,8 +148,8 @@ fs.writeFileSync(
       scope: './',
       display: 'standalone',
       orientation: 'any',
-      background_color: IVORY,
-      theme_color: IVORY,
+      background_color: PAPER,
+      theme_color: PAPER,
       icons: [
         { src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png' },
         { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png' },
@@ -184,8 +186,8 @@ fs.writeFileSync(
   path.join(pwaDir, 'index.html'),
   `<!doctype html><html lang="tr"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="${IVORY}" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="${CHARCOAL}" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="${PAPER}" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="${NIGHT}" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">

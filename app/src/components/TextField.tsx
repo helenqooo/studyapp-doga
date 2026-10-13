@@ -1,9 +1,14 @@
 import { useState, type Ref } from 'react';
 import { TextInput, View, type TextInputProps } from 'react-native';
+import Animated, { ReduceMotion, useAnimatedStyle, useReducedMotion, withTiming } from 'react-native-reanimated';
 import { font, useTheme } from '../theme';
 import { AppText } from './AppText';
 import { Icon } from './Icon';
 import { PressableScale } from './motion/PressableScale';
+import { ease } from './motion/presets';
+
+// TOKEN-PENDING: motion.duration.rmFade = 120 (the Reduce Motion cross-fade, spec 0.7 / 5.6)
+const RM_FADE_MS = 120;
 
 interface Props extends Omit<TextInputProps, 'style'> {
   label: string;
@@ -19,22 +24,33 @@ export function TextField({ label, hint, error = false, secret = false, ref, ...
   const theme = useTheme();
   const [focused, setFocused] = useState(false);
   const [shown, setShown] = useState(false);
+  const reduceMotion = useReducedMotion();
+  const { borderWidth, selectedBorder, minTouch } = theme.layout.system;
+  // Paper field with a soft edge; focus darkens the edge to graphite, an error to red pen.
+  const edge = error ? theme.colors.danger : focused ? theme.colors.mark : theme.colors.border;
+  const fade = { duration: reduceMotion ? RM_FADE_MS : theme.motion.duration.base, easing: ease('standard'), reduceMotion: ReduceMotion.Never };
+  const edgeStyle = useAnimatedStyle(() => ({ borderColor: withTiming(edge, fade) }), [edge, reduceMotion]);
+  // The thicker focus edge is drawn inward (the padding shrinks) so the text holds still.
+  const thick = focused || error;
   return (
     <View style={{ gap: theme.spacing.xs }}>
       <AppText variant="label" color="textMuted">
         {label}
       </AppText>
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          minHeight: theme.layout.minTouch + theme.spacing.sm,
-          borderRadius: theme.radius.md,
-          backgroundColor: theme.colors.surfaceAlt,
-          borderWidth: theme.layout.borderWidth,
-          borderColor: error ? theme.colors.danger : focused ? theme.colors.primaryText : theme.colors.transparent,
-          paddingLeft: theme.spacing.md,
-        }}
+      <Animated.View
+        style={[
+          {
+            flexDirection: 'row',
+            alignItems: 'center',
+            minHeight: minTouch + theme.spacing.sm,
+            borderRadius: theme.radius.md,
+            borderCurve: 'continuous',
+            backgroundColor: theme.colors.surface,
+            borderWidth: thick ? selectedBorder : borderWidth,
+            paddingLeft: theme.spacing.md - (thick ? selectedBorder - borderWidth : 0),
+          },
+          edgeStyle,
+        ]}
       >
         <TextInput
           {...input}
@@ -57,12 +73,12 @@ export function TextField({ label, hint, error = false, secret = false, ref, ...
             accessibilityRole="button"
             accessibilityLabel={shown ? 'Şifreyi gizle' : 'Şifreyi göster'}
             onPress={() => setShown((v) => !v)}
-            style={{ width: theme.layout.minTouch, height: theme.layout.minTouch, alignItems: 'center', justifyContent: 'center' }}
+            style={{ width: minTouch, height: minTouch, alignItems: 'center', justifyContent: 'center' }}
           >
             <Icon name={shown ? 'eye-off' : 'eye'} size={theme.layout.iconSize.sm} color={theme.colors.textMuted} />
           </PressableScale>
         ) : null}
-      </View>
+      </Animated.View>
       {hint ? (
         <AppText variant="caption" color={error ? 'danger' : 'textMuted'}>
           {hint}

@@ -1,9 +1,12 @@
 import type { ColorValue, StyleProp, ViewStyle } from 'react-native';
-import Svg, { Circle, Line, Path, Rect } from 'react-native-svg';
+import Svg, { Circle, G, Line, Path, Rect } from 'react-native-svg';
 import { useTheme } from '../theme';
 import { ICONS, type IconName } from './icons/icons.generated';
 
 export type { IconName };
+
+// TOKEN-PENDING: layout.system.iconStrokeBold = 2.4 (Icon weight 'bold', spec 3)
+const ICON_STROKE_BOLD = 2.4;
 
 interface Props {
   name: IconName;
@@ -12,16 +15,26 @@ interface Props {
   color?: ColorValue;
   /** Fills closed shapes too (e.g. a solid star or flame). */
   filled?: boolean;
+  /** A soft fosfor glow (`mascot.glowSoft`) fills the shapes under the stroke. */
+  duotone?: boolean;
+  /** Stroke weight: regular `layout.iconStroke` (2.0) or bold (2.4). */
+  weight?: 'regular' | 'bold';
   style?: StyleProp<ViewStyle>;
 }
 
 const ELEMENTS = { path: Path, circle: Circle, line: Line, rect: Rect } as const;
 
 /** Line icon drawn with react-native-svg on a 24-unit grid (same on iOS and web). */
-export function Icon({ name, size, color, filled = false, style }: Props) {
+export function Icon({ name, size, color, filled = false, duotone = false, weight = 'regular', style }: Props) {
   const theme = useTheme();
   const s = size ?? theme.layout.iconSize.md;
   const c = color ?? theme.colors.text;
+  const shapes = (keyPrefix: string) =>
+    ICONS[name].map(([tag, attrs], i) => {
+      const El = ELEMENTS[tag as keyof typeof ELEMENTS];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return El ? <El key={`${keyPrefix}${i}`} {...(attrs as any)} /> : null;
+    });
   return (
     <Svg
       width={s}
@@ -29,17 +42,18 @@ export function Icon({ name, size, color, filled = false, style }: Props) {
       viewBox="0 0 24 24"
       fill={filled ? c : 'none'}
       stroke={c}
-      strokeWidth={theme.layout.iconStroke}
+      strokeWidth={weight === 'bold' ? ICON_STROKE_BOLD : theme.layout.iconStroke}
       strokeLinecap="round"
       strokeLinejoin="round"
       style={style}
       pointerEvents="none"
     >
-      {ICONS[name].map(([tag, attrs], i) => {
-        const El = ELEMENTS[tag as keyof typeof ELEMENTS];
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return El ? <El key={i} {...(attrs as any)} /> : null;
-      })}
+      {duotone && !filled ? (
+        <G fill={theme.colors.mascot.glowSoft} stroke="none">
+          {shapes('d')}
+        </G>
+      ) : null}
+      {shapes('s')}
     </Svg>
   );
 }
