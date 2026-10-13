@@ -22,3 +22,8 @@ web-build/
 # Python
 __pycache__/
 *.pyc
+
+# Question bank material: books are copyrighted, keep them out of git
+*.pdf
+/bank/
+*.zip

@@ -1,0 +1,160 @@
+{
+ "id": "345-tyt-matematik",
+ "title": "ÜçDörtBeş TYT Matematik Soru Bankası",
+ "short": "345 TYT Mat",
+ "exam": "TYT",
+ "subject": "Temel Matematik",
+ "year": "2023-2024",
+ "sections": [
+  {
+   "start": 6,
+   "name": "Gerçel Sayılar 1",
+   "topicId": "tyt-mat-temel-kavramlar"
+  },
+  {
+   "start": 30,
+   "name": "Gerçel Sayılar 2",
+   "topicId": "tyt-mat-rasyonel-sayilar"
+  },
+  {
+   "start": 46,
+   "name": "Faktöriyel Kavramı",
+   "topicId": "tyt-mat-faktoriyel"
+  },
+  {
+   "start": 50,
+   "name": "Basamak Kavramı",
+   "topicId": "tyt-mat-sayi-basamaklari"
+  },
+  {
+   "start": 58,
+   "name": "Görsel Zeka",
+   "topicId": "tyt-mat-gorsel-zeka"
+  },
+  {
+   "start": 68,
+   "name": "Sayısal - Sözel Mantık",
+   "topicId": "tyt-mat-problem-rutin-olmayan"
+  },
+  {
+   "start": 74,
+   "name": "Örüntülü Sayı Grupları",
+   "topicId": "tyt-mat-oruntuler"
+  },
+  {
+   "start": 86,
+   "name": "I ve II Bilinmeyenli Denklemler",
+   "topicId": "tyt-mat-denklem-cozme"
+  },
+  {
+   "start": 96,
+   "name": "I ve II Bilinmeyenli Eşitsizlikler",
+   "topicId": "tyt-mat-basit-esitsizlikler"
+  },
+  {
+   "start": 112,
+   "name": "Mutlak Değer",
+   "topicId": "tyt-mat-mutlak-deger"
+  },
+  {
+   "start": 128,
+   "name": "Üslü Sayılar",
+   "topicId": "tyt-mat-uslu-sayilar"
+  },
+  {
+   "start": 148,
+   "name": "Köklü Sayılar",
+   "topicId": "tyt-mat-koklu-sayilar"
+  },
+  {
+   "start": 170,
+   "name": "Tanım ve Formül Kullanabilme",
+   "topicId": "tyt-mat-tanim-formul"
+  },
+  {
+   "start": 174,
+   "name": "Oran - Orantı",
+   "topicId": "tyt-mat-oran-oranti"
+  },
+  {
+   "start": 188,
+   "name": "Çarpanlara Ayırma",
+   "topicId": "tyt-mat-carpanlara-ayirma"
+  },
+  {
+   "start": 204,
+   "name": "Sayı Problemleri",
+   "topicId": "tyt-mat-problem-sayi"
+  },
+  {
+   "start": 236,
+   "name": "Kesir Problemleri",
+   "topicId": "tyt-mat-problem-kesir"
+  },
+  {
+   "start": 250,
+   "name": "Yaş Problemleri",
+   "topicId": "tyt-mat-problem-yas"
+  },
+  {
+   "start": 266,
+   "name": "Yüzde Problemleri",
+   "topicId": "tyt-mat-problem-yuzde"
+  },
+  {
+   "start": 284,
+   "name": "Karışım Problemleri",
+   "topicId": "tyt-mat-problem-karisim"
+  },
+  {
+   "start": 296,
+   "name": "Hız Problemleri",
+   "topicId": "tyt-mat-problem-hareket"
+  },
+  {
+   "start": 312,
+   "name": "Grafik Yorumlama",
+   "topicId": "tyt-mat-problem-grafik"
+  },
+  {
+   "start": 320,
+   "name": "Emek Problemleri",
+   "topicId": "tyt-mat-problem-isci"
+  },
+  {
+   "start": 328,
+   "name": "Asal Çarpanlar",
+   "topicId": "tyt-mat-asal-carpanlar"
+  },
+  {
+   "start": 334,
+   "name": "Bölme - Bölünebilme",
+   "topicId": "tyt-mat-bolme-bolunebilme"
+  },
+  {
+   "start": 344,
+   "name": "EBOB - EKOK",
+   "topicId": "tyt-mat-ebob-ekok"
+  },
+  {
+   "start": 354,
+   "name": "Mantık",
+   "topicId": "tyt-mat-mantik"
+  },
+  {
+   "start": 366,
+   "name": "Kümeler - Kartezyen Çarpım",
+   "topicId": "tyt-mat-kumeler"
+  },
+  {
+   "start": 382,
+   "name": "Fonksiyonlar",
+   "topicId": "tyt-mat-fonksiyonlar"
+  },
+  {
+   "start": 402,
+   "name": "Sayma - Olasılık",
+   "topicId": "tyt-mat-perm-komb"
+  }
+ ]
+}
