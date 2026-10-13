@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { View, type StyleProp, type ViewStyle } from 'react-native';
+import Animated from 'react-native-reanimated';
 import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 import { useTheme } from '../../theme';
 import { MATH_HTML } from './mathHtml.generated';
-import { handleMathMessage, useMathPayload, type MathViewProps } from './payload';
+import { handleMathMessage, useMathPayload, useSmoothHeight, type MathViewProps } from './payload';
 
-export type { ChoiceState } from './payload';
+export type { ChoiceState, ChoiceVerdict } from './payload';
 
 const SOURCE = { html: MATH_HTML };
 
@@ -14,27 +15,30 @@ const SOURCE = { html: MATH_HTML };
  * optionally with answer-choice buttons and a typing animation.
  * KaTeX and its fonts are bundled (see scripts/build-math-html.mjs), so it works offline.
  */
-export function MathView({ style, onChoice, onTyped, ...props }: MathViewProps & { style?: StyleProp<ViewStyle> }) {
+export function MathView({ style, onChoice, onTyped, onVerdict, ...props }: MathViewProps & { style?: StyleProp<ViewStyle> }) {
   const theme = useTheme();
   const ref = useRef<WebView>(null);
+  const box = useRef<View>(null);
   const [ready, setReady] = useState(false);
-  const [height, setHeight] = useState(0);
+  const { shown, setHeight, heightStyle } = useSmoothHeight();
   const payload = useMathPayload(props);
   // Latest callbacks, so a re-render doesn't need to re-send the page anything.
-  const handlers = useRef({ onChoice, onTyped });
-  handlers.current = { onChoice, onTyped };
+  const handlers = useRef({ onChoice, onTyped, onVerdict });
+  handlers.current = { onChoice, onTyped, onVerdict };
 
   useEffect(() => {
     if (ready) ref.current?.injectJavaScript(`window.__render(${JSON.stringify(payload)}); true;`);
   }, [ready, payload]);
 
   const onMessage = (e: WebViewMessageEvent) => {
-    const h = handleMathMessage(e.nativeEvent.data, handlers.current);
+    const h = handleMathMessage(e.nativeEvent.data, handlers.current, (rect, done) =>
+      box.current?.measureInWindow((x, y) => done({ ...rect, x: x + rect.x, y: y + rect.y })),
+    );
     if (h !== null) setHeight(h);
   };
 
   return (
-    <View style={[{ height, opacity: height > 0 ? 1 : 0 }, style]}>
+    <Animated.View ref={box} style={[{ opacity: shown ? 1 : 0, overflow: 'hidden' }, heightStyle, style]}>
       <WebView
         ref={ref}
         source={SOURCE}
@@ -52,6 +56,6 @@ export function MathView({ style, onChoice, onTyped, ...props }: MathViewProps &
         style={{ backgroundColor: theme.colors.transparent }}
         containerStyle={{ backgroundColor: theme.colors.transparent }}
       />
-    </View>
+    </Animated.View>
   );
 }

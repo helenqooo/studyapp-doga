@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { ActivityIndicator, View, type StyleProp, type ViewStyle } from 'react-native';
 import { haptics } from '../lib/haptics';
 import { useTheme, type Theme } from '../theme';
@@ -17,6 +18,8 @@ interface Props {
   disabled?: boolean;
   /** Visually marks a chosen option in a group (e.g. the selected result). */
   selected?: boolean;
+  /** Shown after the label (e.g. hint pips). */
+  trailing?: ReactNode;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -48,6 +51,7 @@ export function Button({
   loading = false,
   disabled = false,
   selected = false,
+  trailing,
   style,
 }: Props) {
   const theme = useTheme();
@@ -100,6 +104,7 @@ export function Button({
         >
           {label}
         </AppText>
+        {trailing}
       </View>
     </PressableScale>
   );

@@ -434,6 +434,15 @@ export const motion = {
   pressFade: 0.12,
   /** Sideways shake of the "wrong" badge: distance (pt) and step durations (ms). */
   shake: { distance: 8, steps: [50, 70, 60, 60] },
+  /**
+   * A right answer's local burst: confetti pieces, how far they fly (pt) and for how long
+   * (ms); the XP chip's rise and sideways sway (pt), its width, and where the row's letter
+   * disc sits from the row's left edge.
+   */
+  inlineBurst: { particles: 12, distance: 64, ms: 760, rise: 44, sway: 14, chipWidth: 96, letterInset: 24 },
+  /** The pause between "Cevabım B" and the verdict, so the beat reads (ms), and its haptic ticks. */
+  verdictDwell: 380,
+  drumroll: [110, 220],
 } as const;
 
 /** Opacity of disabled controls. */
@@ -488,6 +497,18 @@ export const layout = {
   /** Question photos: the tallest they show before "Tamamını gör", and the fade height. */
   questionImageCap: { compact: 150, regular: 360, large: 540 },
   questionImageFade: 72,
+  /** The floating answer dock: its row height (letters, buttons) and its lift off the bottom edge. */
+  dock: 64,
+  /** Letter buttons in the dock (their touch area grows to `minTouch` with hit slop). */
+  dockLetter: 40,
+  /** Progress pips (hints used). */
+  pip: 6,
+  /**
+   * Guided scroll: something new counts as "in view" when this much of it shows (pt); if
+   * not, the page scrolls so it starts this far down the viewport (fraction).
+   */
+  revealPeek: 120,
+  revealAt: 0.18,
   /** Round timer controls (pause, stop). */
   roundControl: 68,
   /** Pomodoro ring diameter and stroke. */

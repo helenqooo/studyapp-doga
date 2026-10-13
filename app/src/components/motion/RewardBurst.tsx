@@ -20,7 +20,7 @@ import { Mascot } from '../mascot/Mascot';
 import { BadgeSeal } from '../BadgeSeal';
 import { Icon } from '../Icon';
 
-export type RewardKind = { kind: 'badge'; badgeId: string } | { kind: 'streak'; days: number };
+export type RewardKind = { kind: 'badge'; badgeId: string } | { kind: 'streak'; days: number } | { kind: 'level'; level: number };
 
 const RAYS = 12;
 const EMBERS = 10;
@@ -64,7 +64,7 @@ interface Props {
   onDone: () => void;
 }
 
-/** Full-screen, non-interactive moment for a new badge or a longer streak. */
+/** Full-screen, non-interactive moment for a new level, a new badge or a longer streak. */
 export function RewardBurst({ reward, onDone }: Props) {
   const theme = useTheme();
   const reduceMotion = useReducedMotion();
@@ -120,6 +120,29 @@ export function RewardBurst({ reward, onDone }: Props) {
     title = info.title;
     detail = info.description;
     rayColor = theme.colors.badge[info.tier];
+  } else if (reward.kind === 'level') {
+    hero = (
+      <View
+        style={{
+          width: size,
+          height: size,
+          borderRadius: size / 2,
+          backgroundColor: theme.colors.xpTrack,
+          borderWidth: theme.layout.shutterBorder,
+          borderColor: theme.colors.xp,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <AppText variant="display" tint={theme.colors.xpText} style={{ fontVariant: ['tabular-nums'] }}>
+          {reward.level}
+        </AppText>
+      </View>
+    );
+    eyebrow = 'SEVİYE ATLADIN';
+    title = `Seviye ${reward.level}`;
+    detail = 'Her gün biraz daha net. Böyle devam.';
+    rayColor = theme.colors.xp;
   } else {
     hero = (
       <View
@@ -152,7 +175,7 @@ export function RewardBurst({ reward, onDone }: Props) {
         <Animated.View style={heroStyle}>{hero}</Animated.View>
       </View>
       <Animated.View style={[{ alignItems: 'center', gap: theme.spacing.xs, marginTop: theme.spacing.xl, maxWidth: theme.layout.readableWidth / 2 }, textStyle]}>
-        <Mascot mood={reward.kind === 'badge' ? 'love' : 'cheer'} size={theme.layout.mascot.note} />
+        <Mascot mood={reward.kind === 'badge' ? 'love' : reward.kind === 'level' ? 'proud' : 'cheer'} size={theme.layout.mascot.note} />
         <AppText variant="caption" weight="semibold" color="primaryText" style={{ letterSpacing: 1.2 }}>
           {eyebrow}
         </AppText>

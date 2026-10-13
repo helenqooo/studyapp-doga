@@ -21,6 +21,8 @@ const ICONS = [
   'users', 'volume-2', 'volume-x',
   // Multiple choice, assistant chat
   'circle-question-mark', 'send', 'message-circle', 'heart', 'hand',
+  // Answer dock, polish
+  'text-align-start',
 ];
 
 const require = createRequire(import.meta.url);

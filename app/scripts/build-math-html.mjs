@@ -37,7 +37,7 @@ const fontCss = [loraFace('400Regular/Lora_400Regular.ttf', '400 500'), loraFace
 const pageCss = `
 :root {
   --text: #141413; --muted: #6B6962; --accent: #A84F33; --answer-bg: #F6E8E1; --border: #E4E1D8; --code-bg: #EEECE4; --font-size: 16px;
-  --surface: #FFFFFF; --on-accent: #FFFFFF; --success: #566F3D; --success-soft: #E9EEDF; --danger: #A8443A; --danger-soft: #F9EAE6;
+  --surface: #FFFFFF; --on-accent: #FFFFFF; --success: #566F3D; --success-soft: #E9EEDF; --success-ring: rgba(86, 111, 61, 0.4); --danger: #A8443A; --danger-soft: #F9EAE6;
 }
 html, body { margin: 0; padding: 0; background: transparent; }
 body {
@@ -67,10 +67,18 @@ blockquote p:last-child { margin-bottom: 0; }
 /* Answer choices: whole-width buttons; the app passes the state in. */
 .choices { display: flex; flex-direction: column; gap: 8px; margin: 0.4em 0 0; }
 .choice {
+  position: relative; overflow: hidden; isolation: isolate;
   display: flex; align-items: center; gap: 12px; width: 100%; min-height: 48px; box-sizing: border-box;
   padding: 8px 12px 8px 8px; margin: 0; text-align: left; font: inherit; color: var(--text);
   background: var(--surface); border: 1.5px solid var(--border); border-radius: 14px; cursor: pointer;
-  -webkit-tap-highlight-color: transparent; transition: transform 140ms ease, background-color 160ms ease, border-color 160ms ease, opacity 160ms ease;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 140ms ease, background-color 180ms ease, border-color 180ms ease, box-shadow 180ms ease, opacity 240ms ease;
+}
+.choice > * { position: relative; z-index: 1; }
+/* The verdict's colour floods out of the letter disc (see .v-correct / .v-reveal). */
+.choice::before {
+  content: ''; position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  background: var(--success-soft); clip-path: circle(0% at 24px 50%);
 }
 .choice:active { transform: scale(0.98); }
 .choice[disabled] { cursor: default; }
@@ -78,9 +86,11 @@ blockquote p:last-child { margin-bottom: 0; }
 .choice .letter {
   flex: none; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
   background: var(--code-bg); color: var(--text); font-family: -apple-system, 'Poppins', system-ui, sans-serif; font-weight: 600; font-size: 0.92em;
+  transition: background-color 180ms ease, color 180ms ease, transform 180ms ease;
 }
 .choice .ctext { flex: 1; min-width: 0; }
-.choice .mark { flex: none; font-weight: 700; font-family: -apple-system, system-ui, sans-serif; }
+.choice .mark { flex: none; width: 22px; height: 22px; }
+.choice .mark path { fill: none; stroke: currentColor; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 17; }
 .choice.selected { border-color: var(--accent); background: var(--answer-bg); }
 .choice.selected .letter { background: var(--accent); color: var(--on-accent); }
 .choice.correct { border-color: var(--success); background: var(--success-soft); }
@@ -89,7 +99,37 @@ blockquote p:last-child { margin-bottom: 0; }
 .choice.wrong { border-color: var(--danger); background: var(--danger-soft); }
 .choice.wrong .letter { background: var(--danger); color: var(--on-accent); }
 .choice.wrong .mark { color: var(--danger); }
-.choice.dim { opacity: 0.55; }
+.choice.dim { opacity: 0.55; transition-delay: 0ms, 0ms, 0ms, 0ms, calc(var(--i, 0) * 30ms); }
+/* Picked: the letter pops. Sealing (being graded): the border thickens, the letter breathes. */
+.choice.v-pick .letter { animation: pick 260ms cubic-bezier(.34, 1.56, .64, 1); }
+.choice.sealing { box-shadow: inset 0 0 0 1px var(--accent); }
+.choice.sealing .letter { animation: breathe 600ms ease-in-out infinite alternate; }
+/* Right pick: green floods across the row, it pops, the check draws itself. */
+.choice.v-correct { background: var(--surface); animation: pop 300ms cubic-bezier(.34, 1.56, .64, 1); }
+.choice.v-correct::before { animation: flood 340ms cubic-bezier(.2, 0, 0, 1) forwards; }
+.choice.v-correct .mark path { animation: draw 240ms ease-out 120ms both; }
+/* Wrong pick: one headshake; then the right row fills in and its ring pulses twice. */
+.choice.v-wrong { animation: shake 320ms linear; }
+.choice.v-wrong .mark .m1 { animation: draw 160ms ease-out 140ms both; }
+.choice.v-wrong .mark .m2 { animation: draw 160ms ease-out 260ms both; }
+.choice.v-reveal { background: var(--surface); border-color: var(--border); animation: reveal-border 1ms linear 380ms forwards, ring 640ms ease-out 760ms 2; }
+.choice.v-reveal::before { animation: flood 420ms cubic-bezier(.2, 0, 0, 1) 380ms forwards; }
+.choice.v-reveal .letter { background: var(--code-bg); color: var(--text); animation: reveal-letter 1ms linear 380ms forwards; }
+.choice.v-reveal .mark path { animation: draw 260ms ease-out 640ms both; }
+@keyframes pick { 50% { transform: scale(1.14); } }
+@keyframes breathe { to { transform: scale(1.08); } }
+@keyframes flood { to { clip-path: circle(150% at 24px 50%); } }
+@keyframes pop { 40% { transform: scale(1.035); } }
+@keyframes draw { from { stroke-dashoffset: 17; } to { stroke-dashoffset: 0; } }
+@keyframes shake { 20% { transform: translateX(-6px); } 45% { transform: translateX(6px); } 70% { transform: translateX(-3px); } 100% { transform: none; } }
+@keyframes reveal-border { to { border-color: var(--success); } }
+@keyframes reveal-letter { to { background: var(--success); color: var(--on-accent); } }
+@keyframes ring { from { box-shadow: 0 0 0 0 var(--success-ring); } to { box-shadow: 0 0 0 8px transparent; } }
+/* Reduce motion: colours change, nothing moves. */
+.no-motion .choice, .no-motion .choice::before, .no-motion .choice .letter, .no-motion .choice .mark path { animation: none !important; }
+.no-motion .choice.v-correct::before, .no-motion .choice.v-reveal::before { clip-path: circle(150% at 24px 50%); }
+.no-motion .choice.v-reveal { border-color: var(--success); }
+.no-motion .choice.v-reveal .letter { background: var(--success); color: var(--on-accent); }
 /* Typing: words not yet "typed" take no space; the caret blinks at the end. */
 .tw-hidden { display: none !important; }
 .caret { display: inline-block; width: 0.5em; height: 1.05em; margin-left: 1px; vertical-align: -0.15em; border-radius: 2px; background: var(--accent); animation: blink 1s steps(2, start) infinite; }

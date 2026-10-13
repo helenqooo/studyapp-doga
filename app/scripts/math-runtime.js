@@ -103,35 +103,94 @@
   }
 
   // ---- Answer choices -------------------------------------------------------------
-  // Buttons under the stem. The app owns the state (picked, right, wrong) and passes it
-  // in; a tap only reports the letter back.
+  // Buttons under the stem. The app owns the state (picked, sealing, right, wrong) and
+  // passes it in; a tap only reports the letter back. A state change on the same choices
+  // updates the buttons in place, so the verdict can animate on the row itself.
+
+  var MARKS = {
+    check: '<svg class="mark" viewBox="0 0 24 24" aria-hidden="true"><path class="m1" d="M6.5 12.5 L10.5 16.5 L17.5 8.5"/></svg>',
+    cross: '<svg class="mark" viewBox="0 0 24 24" aria-hidden="true"><path class="m1" d="M7.5 7.5 L16.5 16.5"/><path class="m2" d="M16.5 7.5 L7.5 16.5"/></svg>',
+  };
+
+  function choiceLook(label, state) {
+    var cls = ['choice'];
+    var mark = null;
+    if (state.correct === label) {
+      cls.push('correct');
+      mark = 'check';
+    } else if (state.wrong === label) {
+      cls.push('wrong');
+      mark = 'cross';
+    } else if (state.selected === label) {
+      cls.push('selected');
+      if (state.sealing) cls.push('sealing');
+    } else if (state.correct || state.wrong) {
+      cls.push('dim');
+    }
+    var aria = label + ' şıkkı' + (state.correct === label ? ', doğru cevap' : state.wrong === label ? ', senin cevabın, yanlış' : '');
+    return { cls: cls, mark: mark, aria: aria, checked: state.selected === label || state.wrong === label };
+  }
 
   function choicesHtml(choices, state) {
     state = state || {};
     var html = '<div class="choices" role="radiogroup" aria-label="Şıklar">';
     for (var i = 0; i < choices.length; i++) {
       var c = choices[i];
-      var cls = 'choice';
-      var mark = '';
-      if (state.correct === c.label) {
-        cls += ' correct';
-        mark = '<span class="mark" aria-hidden="true">✓</span>';
-      } else if (state.wrong === c.label) {
-        cls += ' wrong';
-        mark = '<span class="mark" aria-hidden="true">✕</span>';
-      } else if (state.selected === c.label) {
-        cls += ' selected';
-      } else if (state.correct || state.wrong) {
-        cls += ' dim';
-      }
-      var label = c.label + ' şıkkı' + (state.correct === c.label ? ', doğru cevap' : state.wrong === c.label ? ', senin cevabın, yanlış' : '');
+      var look = choiceLook(c.label, state);
       html +=
-        '<button type="button" class="' + cls + '" data-label="' + escapeHtml(c.label) + '" role="radio" aria-checked="' +
-        (state.selected === c.label || state.wrong === c.label ? 'true' : 'false') + '" aria-label="' + escapeHtml(label) + '"' +
+        '<button type="button" class="' + look.cls.join(' ') + '" style="--i:' + i + '" data-label="' + escapeHtml(c.label) +
+        '" role="radio" aria-checked="' + (look.checked ? 'true' : 'false') + '" aria-label="' + escapeHtml(look.aria) + '"' +
         (state.disabled ? ' disabled' : '') + '><span class="letter">' + escapeHtml(c.label) + '</span><span class="ctext">' +
-        renderMarkdown(c.text, true) + '</span>' + mark + '</button>';
+        renderMarkdown(c.text, true) + '</span>' + (look.mark ? MARKS[look.mark] : '') + '</button>';
     }
     return html + '</div>';
+  }
+
+  function rectOf(el) {
+    var r = el.getBoundingClientRect();
+    return { x: r.left, y: r.top, width: r.width, height: r.height };
+  }
+
+  // Updates the existing buttons to a new state. Going from "not graded" to "graded" plays
+  // the verdict once: a right pick floods green and pops, a wrong pick shakes and the right
+  // row fills in after a beat (so the eye travels from your answer to the right one).
+  function applyChoiceState(prev, state) {
+    prev = prev || {};
+    state = state || {};
+    var buttons = content.querySelectorAll('.choice');
+    var verdict = !(prev.correct || prev.wrong) && !!(state.correct || state.wrong);
+    var focus = null;
+    var kind = null;
+    for (var i = 0; i < buttons.length; i++) {
+      var el = buttons[i];
+      var label = el.getAttribute('data-label');
+      var look = choiceLook(label, state);
+      if (verdict) {
+        if (state.correct === label) {
+          if (state.wrong) look.cls.push('v-reveal');
+          else if (prev.selected === label) look.cls.push('v-correct');
+          else look.cls.push('v-reveal');
+        }
+        if (state.wrong === label) look.cls.push('v-wrong');
+      } else if (state.selected === label && prev.selected !== label && !state.correct) {
+        look.cls.push('v-pick');
+      }
+      el.className = look.cls.join(' ');
+      el.setAttribute('aria-checked', look.checked ? 'true' : 'false');
+      el.setAttribute('aria-label', look.aria);
+      el.disabled = !!state.disabled;
+      var old = el.querySelector('.mark');
+      if (old) old.remove();
+      if (look.mark) el.insertAdjacentHTML('beforeend', MARKS[look.mark]);
+      if (verdict && state.wrong === label) {
+        focus = el;
+        kind = 'wrong';
+      } else if (verdict && state.correct === label && !focus) {
+        focus = el;
+        kind = state.wrong ? 'wrong' : prev.selected === label ? 'correct' : 'blank';
+      }
+    }
+    if (focus) send({ type: 'verdict', kind: kind, label: focus.getAttribute('data-label'), rect: rectOf(focus) });
   }
 
   content.addEventListener('click', function (e) {
@@ -255,15 +314,29 @@
 
   // ---- Render -----------------------------------------------------------------------
 
+  var lastContent = null;
+  var lastState = null;
+
   window.__render = function (payload) {
     var vars = payload.vars || {};
     for (var key in vars) {
       document.documentElement.style.setProperty('--' + key, vars[key]);
     }
+    document.body.classList.toggle('no-motion', payload.motion === false);
     var typing = payload.typing || null;
+    var hasChoices = !!(payload.choices && payload.choices.length);
+    // Same text and choices, only the choice state changed: update in place.
+    var contentKey = JSON.stringify([payload.markdown, payload.choices || null]);
+    if (!typing && hasChoices && contentKey === lastContent) {
+      applyChoiceState(lastState, payload.choiceState);
+      lastState = payload.choiceState || null;
+      return;
+    }
+    lastContent = typing ? null : contentKey;
+    lastState = payload.choiceState || null;
     var md = typing && typing.streaming ? completePrefix(payload.markdown || '') : payload.markdown;
     var html = renderMarkdown(md, false);
-    if (payload.choices && payload.choices.length) html += choicesHtml(payload.choices, payload.choiceState);
+    if (hasChoices) html += choicesHtml(payload.choices, payload.choiceState);
     content.innerHTML = html;
 
     if (typing && typing.animate) {

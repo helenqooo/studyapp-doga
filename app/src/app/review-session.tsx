@@ -1,8 +1,9 @@
 import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { View } from 'react-native';
 import { useReviewResult, useReviewsToday } from '../api/hooks';
 import type { ChoiceLabel, Question, ReviewResultInput, ReviewState } from '../api/types';
+import { AnswerDock, DockLetters, DockStatus } from '../components/AnswerDock';
 import { AppText } from '../components/AppText';
 import { Badge } from '../components/Badge';
 import { Button } from '../components/Button';
@@ -14,9 +15,10 @@ import { Appear } from '../components/motion/Appear';
 import { Loader } from '../components/motion/Loader';
 import { ProgressBar } from '../components/ProgressBar';
 import { QuestionImage } from '../components/QuestionImage';
-import { Screen, SplitScreen } from '../components/Screen';
+import { RevealOnMount, Screen, SplitScreen } from '../components/Screen';
+import { TextToggle } from '../components/TextToggle';
 import { getTopic, topicLabel } from '../data/topics';
-import { useResultCelebration } from '../lib/celebrate';
+import { useVerdict } from '../lib/celebrate';
 import { reviewDueLabel } from '../lib/format';
 import { haptics } from '../lib/haptics';
 import { useWindowLayout } from '../lib/layout';
@@ -56,9 +58,6 @@ function Feedback({ outcome }: { outcome: Outcome }) {
             {detail}
           </AppText>
         </View>
-        {outcome.xpGained > 0 ? (
-          <Badge label={`+${outcome.xpGained} XP`} icon="star" color={theme.colors.xpText} background={theme.colors.xpTrack} />
-        ) : null}
       </View>
     </Card>
   );
@@ -69,7 +68,7 @@ export default function ReviewSessionScreen() {
   const today = useReviewsToday();
   const submit = useReviewResult();
   const { split } = useWindowLayout();
-  const celebrate = useResultCelebration();
+  const verdict = useVerdict();
 
   // Freeze the queue when the session starts so answering doesn't reshuffle it.
   const [queue, setQueue] = useState<Question[] | null>(null);
@@ -79,6 +78,8 @@ export default function ReviewSessionScreen() {
   const [showText, setShowText] = useState(false);
   const [outcome, setOutcome] = useState<Outcome | null>(null);
   const [picked, setPicked] = useState<ChoiceLabel | null>(null);
+  // The answer is being graded: the pick "seals" for a beat before the verdict shows.
+  const [sealing, setSealing] = useState(false);
   const [tally, setTally] = useState({ correct: 0, wrong: 0, xp: 0 });
 
   useEffect(() => {
@@ -141,23 +142,40 @@ export default function ReviewSessionScreen() {
   const graded = isGradedChoice(q);
   const key = gradingKey(q);
 
+  const busy = submit.isPending || sealing;
   const answer = (input: Pick<ReviewResultInput, 'choice' | 'result'>) => {
+    if (busy) return;
+    setSealing(true);
+    verdict.begin();
     submit.mutate(
       { questionId: q.id, ...input, viewedSolution: showSolution },
       {
+        // A picked choice is graded by the server; the row shows it.
         onSuccess: (res) => {
-          // A picked choice is graded by the server.
           const correct = res.attempt.result === 'correct';
-          celebrate(correct ? 'correct' : 'wrong', res.rewards);
-          setRevealed(true);
-          setOutcome({ correct, review: res.review, xpGained: res.xpGained, pick: input.choice ?? null });
-          setTally((t) => ({
-            correct: t.correct + (correct ? 1 : 0),
-            wrong: t.wrong + (correct ? 0 : 1),
-            xp: t.xp + res.xpGained,
-          }));
+          verdict.finish(
+            correct ? 'correct' : 'wrong',
+            res.rewards,
+            () => {
+              setSealing(false);
+              setRevealed(true);
+              // A miss opens the solution right away: that's what to read now.
+              if (!correct && graded) setShowSolution(true);
+              setOutcome({ correct, review: res.review, xpGained: res.xpGained, pick: input.choice ?? null });
+              setTally((t) => ({
+                correct: t.correct + (correct ? 1 : 0),
+                wrong: t.wrong + (correct ? 0 : 1),
+                xp: t.xp + res.xpGained,
+              }));
+            },
+            { fromRow: graded && !!input.choice },
+          );
         },
-        onError: () => haptics.error(),
+        onError: () => {
+          verdict.cancel();
+          setSealing(false);
+          haptics.error();
+        },
       },
     );
   };
@@ -170,6 +188,12 @@ export default function ReviewSessionScreen() {
     setOutcome(null);
     setPicked(null);
     submit.reset();
+  };
+
+  const pick = (label: ChoiceLabel) => {
+    if (outcome || busy) return;
+    haptics.select();
+    setPicked((p) => (p === label ? null : label));
   };
 
   const questionPane = (
@@ -203,12 +227,8 @@ export default function ReviewSessionScreen() {
       <Appear>
         <Card>
           <QuestionImage questionId={q.id} size="large" />
+          <TextToggle open={showText} onToggle={() => setShowText((v) => !v)} />
           {showText ? <MathView markdown={q.questionText} /> : null}
-          <Button
-            label={showText ? 'Soru metnini gizle' : 'Soru metnini göster'}
-            variant="ghost"
-            onPress={() => setShowText((v) => !v)}
-          />
           {graded ? (
             <MathView
               markdown=""
@@ -216,126 +236,116 @@ export default function ReviewSessionScreen() {
               choiceState={
                 outcome
                   ? { correct: key, wrong: outcome.pick && outcome.pick !== key ? outcome.pick : null, disabled: true }
-                  : { selected: picked, disabled: submit.isPending }
+                  : { selected: picked, disabled: busy, sealing }
               }
-              onChoice={(label) => {
-                if (outcome || submit.isPending) return;
-                haptics.select();
-                setPicked((p) => (p === label ? null : label));
-              }}
+              onChoice={pick}
+              onVerdict={(v) => verdict.onVerdict(v.rect)}
             />
           ) : null}
         </Card>
       </Appear>
     </>
   );
-  // Multiple choice: pick first, the app grades it, then the answer and solution open.
-  const pickFirst = graded && !outcome ? (
-    <>
-      <AppText color="textMuted" align="center">
-        {picked ? `${picked} şıkkını seçtin.` : 'Soruyu kağıtta çöz, bulduğun şıkkı seç.'}
-      </AppText>
-      {submit.isError ? <AppText color="danger">{submit.error.message}</AppText> : null}
-      <Button
-        label={picked ? `Cevabım ${picked}` : 'Önce bir şık seç'}
-        icon="check"
-        size="lg"
-        disabled={!picked || submit.isPending}
-        loading={submit.isPending && !!picked}
-        onPress={() => picked && answer({ choice: picked })}
-      />
-      <Button label="Bilmiyorum" icon="circle-question-mark" variant="ghost" disabled={submit.isPending} onPress={() => answer({ result: 'wrong' })} />
-    </>
-  ) : null;
 
-  const answerPane = pickFirst ?? (
-    <>
-      {!revealed ? (
-        <>
-          <AppText color="textMuted" align="center">
-            Soruyu kağıtta çöz, hazır olunca cevabı aç.
-          </AppText>
-          <Button
-            label="Cevabı göster"
-            icon="eye"
-            size="lg"
-            onPress={() => {
-              haptics.press();
-              setRevealed(true);
-            }}
-          />
-        </>
-      ) : (
-        <>
-          <Appear>
-            <Card title="Doğru cevap">
+  // What the student reads after answering (or after opening the answer to self-mark).
+  const answerPane =
+    revealed || outcome ? (
+      <>
+        <RevealOnMount delay={outcome ? theme.motion.duration.celebrate / 2 : 0}>
+          <Appear style={{ gap: theme.spacing.lg }}>
+            {outcome ? <Feedback outcome={outcome} /> : null}
+            <Card title={showSolution ? 'Çözüm' : 'Doğru cevap'}>
               <MathView markdown={showSolution ? solutionMarkdown(q) : answerMarkdown(q)} />
             </Card>
           </Appear>
-          <View style={{ flexDirection: 'row', gap: theme.spacing.sm }}>
-            <Button
-              label={showSolution ? 'Çözümü gizle' : 'Çözümü gör'}
-              icon="book-open"
-              variant="secondary"
-              onPress={() => setShowSolution((v) => !v)}
-              style={{ flex: 1 }}
-            />
-            <Button
-              label="Anlamadım"
-              icon="message-circle-question-mark"
-              variant="secondary"
-              onPress={() => router.push(`/question/${q.id}/chat`)}
-              style={{ flex: 1 }}
-            />
-          </View>
+        </RevealOnMount>
+        <View style={{ flexDirection: 'row', gap: theme.spacing.sm }}>
+          <Button
+            label={showSolution ? 'Sadece cevap' : 'Çözümü gör'}
+            icon="book-open"
+            variant="secondary"
+            onPress={() => setShowSolution((v) => !v)}
+            style={{ flex: 1 }}
+          />
+          <Button
+            label="Anlamadım"
+            icon="message-circle-question-mark"
+            variant="secondary"
+            onPress={() => router.push(`/question/${q.id}/chat`)}
+            style={{ flex: 1 }}
+          />
+        </View>
+      </>
+    ) : (
+      <AppText color="textMuted" align="center">
+        {graded ? 'Soruyu kâğıtta çöz, bulduğun şıkkı aşağıdan seç.' : 'Soruyu kâğıtta çöz, hazır olunca cevabı aç.'}
+      </AppText>
+    );
 
-          {outcome ? (
-            <>
-              <Appear>
-                <Feedback outcome={outcome} />
-              </Appear>
-              <Appear index={1}>
-                <Button
-                  label={index + 1 < queue.length ? 'Sonraki soru' : 'Bitir'}
-                  icon={index + 1 < queue.length ? 'arrow-right' : 'flag'}
-                  size="lg"
-                  onPress={next}
-                />
-              </Appear>
-            </>
-          ) : (
-            <>
-              {submit.isError ? <AppText color="danger">{submit.error.message}</AppText> : null}
-              <View style={{ flexDirection: 'row', gap: theme.spacing.sm }}>
-                <Button
-                  label="Yanlış yaptım"
-                  icon="x"
-                  variant="danger"
-                  disabled={submit.isPending}
-                  onPress={() => answer({ result: 'wrong' })}
-                  style={{ flex: 1 }}
-                />
-                <Button
-                  label="Doğru yaptım"
-                  icon="check"
-                  variant="success"
-                  loading={submit.isPending}
-                  onPress={() => answer({ result: 'correct' })}
-                  style={{ flex: 1 }}
-                />
-              </View>
-            </>
-          )}
-        </>
-      )}
-    </>
-  );
+  // The dock: answer without scrolling, then go on.
+  const errorNote = submit.isError ? (
+    <AppText variant="label" color="danger">
+      {submit.error.message}
+    </AppText>
+  ) : null;
+  const last = index + 1 >= queue.length;
+  let dock: ReactNode;
+  if (outcome) {
+    dock = (
+      <AnswerDock>
+        <DockStatus
+          title={outcome.correct ? (outcome.review.status === 'graduated' ? 'Öğrendin!' : 'Doğru') : 'Yarın yine sorarım'}
+          tone={outcome.correct ? theme.colors.success : theme.colors.text}
+          xp={outcome.xpGained}
+        />
+        <Button label={last ? 'Bitir' : 'Sonraki'} icon={last ? 'flag' : 'arrow-right'} onPress={next} style={{ flex: 1 }} />
+      </AnswerDock>
+    );
+  } else if (graded) {
+    dock = (
+      <AnswerDock note={errorNote}>
+        <DockLetters labels={q.choices?.map((c) => c.label) ?? []} selected={picked} sealing={sealing} disabled={busy} onPick={pick} />
+        {picked ? (
+          <Button label="Cevapla" loading={busy} onPress={() => answer({ choice: picked })} style={{ flex: 1, paddingHorizontal: theme.spacing.sm }} />
+        ) : (
+          <Button
+            label="Bilmiyorum"
+            variant="neutral"
+            disabled={busy}
+            onPress={() => answer({ result: 'wrong' })}
+            style={{ flex: 1, paddingHorizontal: theme.spacing.sm }}
+          />
+        )}
+      </AnswerDock>
+    );
+  } else if (!revealed) {
+    dock = (
+      <AnswerDock>
+        <Button
+          label="Cevabı göster"
+          icon="eye"
+          onPress={() => {
+            haptics.press();
+            setRevealed(true);
+          }}
+          style={{ flex: 1 }}
+        />
+      </AnswerDock>
+    );
+  } else {
+    dock = (
+      <AnswerDock note={errorNote}>
+        <Button label="Yanlış yaptım" icon="x" variant="danger" disabled={busy} onPress={() => answer({ result: 'wrong' })} style={{ flex: 1 }} />
+        <Button label="Doğru yaptım" icon="check" variant="success" loading={busy} onPress={() => answer({ result: 'correct' })} style={{ flex: 1 }} />
+      </AnswerDock>
+    );
+  }
 
   // Keyed by question so scroll positions start at the top for each one.
-  if (split) return <SplitScreen key={q.id} left={questionPane} right={answerPane} />;
+  if (split) return <SplitScreen key={q.id} left={questionPane} right={answerPane} dock={dock} />;
 
   return (
-    <Screen key={q.id} safeTop={false} width="readable">
+    <Screen key={q.id} safeTop={false} width="readable" dock={dock}>
       {questionPane}
       {answerPane}
     </Screen>
