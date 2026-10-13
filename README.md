@@ -43,6 +43,20 @@ Notlar:
 - Firewall'da portu aç (ör. `sudo ufw allow 3000`).
 - Önüne nginx koyarsan: `proxy_read_timeout 300s;` ve `client_max_body_size 10m;` ekle. Zor sorularda çözüm bir dakikayı geçebilir.
 
+### VDS'te sürekli çalıştırma (systemd + yedek)
+
+`deploy/` klasöründe hazır:
+
+```bash
+deploy/install-services.sh [genel-ip]   # lumi-server (backend) + lumi-expo (Metro, 8081) servislerini kurar ve başlatır
+```
+
+- İki servis de senin kullanıcınla (root değil) çalışır, açılışta kalkar, çökerse 5 sn sonra yeniden başlar. Node yolu kurulum anındaki `node`'dan alınır; Node sürümünü değiştirirsen betiği yeniden çalıştır.
+- `lumi-expo`, `npx expo start --no-dev --minify` çalıştırır ve Expo Go'ya genel IP'yi bildirir (`REACT_NATIVE_PACKAGER_HOSTNAME`). Expo Go'da adres: `exp://<genel-ip>:8081`.
+- `.env` değişince: `sudo systemctl restart lumi-server` veya `lumi-expo`. Loglar: `journalctl -u lumi-server -f`.
+- Güvenlik duvarı: `sudo ufw allow 22/tcp && sudo ufw allow 3000/tcp && sudo ufw allow 8081/tcp && sudo ufw enable`.
+- Yedek: `deploy/backup-data.sh`, `server/data/`'yı `~/backups/lumi-data-YYYY-MM-DD.tar.gz` olarak alır (veritabanı SQLite'ın canlı yedeğiyle, sunucu çalışırken de tutarlı), en yeni 7 dosyayı tutar. Günlük cron: `15 0 * * * <depo>/deploy/backup-data.sh >> ~/backups/backup.log 2>&1` (sunucu saati UTC ise İstanbul'da 03:15).
+
 ## 2. Uygulama (Expo Go)
 
 ```bash

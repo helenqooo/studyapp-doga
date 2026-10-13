@@ -1,0 +1,19 @@
+# Rendered by deploy/install-services.sh: @USER@, @REPO@ and @NODE_BIN@ are filled in there.
+[Unit]
+Description=Lumi backend (Fastify + SQLite)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=@USER@
+Group=@USER@
+WorkingDirectory=@REPO@/server
+Environment=PATH=@NODE_BIN@:/usr/local/bin:/usr/bin:/bin
+ExecStart=@NODE_BIN@/npm start
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

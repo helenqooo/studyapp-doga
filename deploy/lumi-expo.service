@@ -1,0 +1,23 @@
+# Rendered by deploy/install-services.sh: @USER@, @REPO@, @NODE_BIN@ and @PUBLIC_HOST@ are filled in there.
+# Metro serves the bundle on 8081; REACT_NATIVE_PACKAGER_HOSTNAME makes the manifest point
+# Expo Go at the public address instead of the VDS's private interface.
+[Unit]
+Description=Lumi app (Expo / Metro for Expo Go)
+After=network-online.target lumi-server.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=@USER@
+Group=@USER@
+WorkingDirectory=@REPO@/app
+Environment=PATH=@NODE_BIN@:/usr/local/bin:/usr/bin:/bin
+Environment=REACT_NATIVE_PACKAGER_HOSTNAME=@PUBLIC_HOST@
+Environment=EXPO_NO_TELEMETRY=1
+ExecStart=@NODE_BIN@/npx expo start --no-dev --minify --port 8081
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target
