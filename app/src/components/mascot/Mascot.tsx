@@ -174,17 +174,44 @@ const EFFECT_ORIGIN: Record<Effect, [{ x: number; y: number }, { x: number; y: n
   steam: [{ x: 11, y: -12 }, { x: 11, y: -12 }],
 };
 
+/**
+ * A full-size view whose animated `style` turns and scales around `origin` (grid units).
+ * Instead of `transformOrigin` (not applied to Reanimated-driven transforms on iOS, which
+ * left the arms swinging around the middle of the drawing, away from the body), the view is
+ * shifted so its centre sits on `origin`, transformed there, and its content shifted back.
+ */
+function Pivot({ size, origin, style, children }: { size: number; origin: { x: number; y: number }; style?: object; children: ReactNode }) {
+  const k = size / 200;
+  const dx = (origin.x - 100) * k;
+  const dy = (origin.y - 100) * k;
+  return (
+    <View pointerEvents="none" style={[StyleSheet.absoluteFill, { transform: [{ translateX: dx }, { translateY: dy }] }]}>
+      <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, style]}>
+        <View pointerEvents="none" style={[StyleSheet.absoluteFill, { transform: [{ translateX: -dx }, { translateY: -dy }] }]}>
+          {children}
+        </View>
+      </Animated.View>
+    </View>
+  );
+}
+
 /** A full-size SVG layer that turns and scales around `origin` (grid units). */
 function Layer({ size, origin, style, children }: { size: number; origin?: { x: number; y: number }; style?: object; children: ReactNode }) {
-  const k = size / 200;
+  const svg = (
+    <Svg width={size} height={size} viewBox="0 0 200 200">
+      {children}
+    </Svg>
+  );
+  if (origin) {
+    return (
+      <Pivot size={size} origin={origin} style={style}>
+        {svg}
+      </Pivot>
+    );
+  }
   return (
-    <Animated.View
-      pointerEvents="none"
-      style={[StyleSheet.absoluteFill, origin ? { transformOrigin: `${origin.x * k}px ${origin.y * k}px` } : null, style]}
-    >
-      <Svg width={size} height={size} viewBox="0 0 200 200">
-        {children}
-      </Svg>
+    <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, style]}>
+      {svg}
     </Animated.View>
   );
 }
@@ -507,19 +534,19 @@ function LiveMascot({ mood, size, c }: { mood: MascotMood; size: number; c: Masc
       <Layer size={size} origin={{ x: 100, y: 190 }} style={shadowStyle}>
         <Shadow c={c} />
       </Layer>
-      <Animated.View style={[StyleSheet.absoluteFill, { transformOrigin: `${GROUND.x * k}px ${GROUND.y * k}px` }, rootStyle]}>
+      <Pivot size={size} origin={GROUND} style={rootStyle}>
         <Layer size={size}>
           <Feet c={c} />
         </Layer>
         {hasAntenna(pose) ? (
-          <Animated.View style={[StyleSheet.absoluteFill, { transformOrigin: `${ANTENNA_BASE.x * k}px ${ANTENNA_BASE.y * k}px` }, antennaStyle]}>
+          <Pivot size={size} origin={ANTENNA_BASE} style={antennaStyle}>
             <Layer size={size}>
               <AntennaStem c={c} />
             </Layer>
             <Layer size={size} origin={LIGHT} style={lightStyle}>
               <AntennaLight c={c} />
             </Layer>
-          </Animated.View>
+          </Pivot>
         ) : null}
         <Layer size={size}>
           <Body c={c} blush={pose.blush} />
@@ -558,7 +585,7 @@ function LiveMascot({ mood, size, c }: { mood: MascotMood; size: number; c: Masc
         {(pose.effects ?? []).map((e) => (
           <EffectLayer key={e} kind={e} size={size} c={c} a={fxA} b={fxB} pop={pop} cup={cup} />
         ))}
-      </Animated.View>
+      </Pivot>
     </View>
   );
 }
