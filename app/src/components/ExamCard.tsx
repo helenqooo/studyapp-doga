@@ -28,7 +28,7 @@ export function ExamCard({ exam }: { exam: ExamResult }) {
       }}
     >
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm }}>
-        <Badge label={exam.exam} color={theme.colors.primaryText} background={theme.colors.primarySoft} />
+        <Badge label={exam.exam} color={theme.colors.exam[exam.exam].fg} background={theme.colors.exam[exam.exam].bg} />
         <AppText weight="semibold" numberOfLines={1} style={{ flex: 1 }}>
           {examTitle(exam)}
         </AppText>

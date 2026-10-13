@@ -194,7 +194,7 @@ export default function ReviewSessionScreen() {
 
       <View style={{ gap: theme.spacing.xs }}>
         <View style={{ flexDirection: 'row', gap: theme.spacing.sm }}>
-          <Badge label={q.exam} color={theme.colors.primaryText} background={theme.colors.primarySoft} />
+          <Badge label={q.exam} color={theme.colors.exam[q.exam].fg} background={theme.colors.exam[q.exam].bg} />
           <Badge label={q.subject} dot={subjectColor(theme, q.subject)} />
         </View>
         {topic ? <AppText variant="heading">{topicLabel(topic)}</AppText> : null}

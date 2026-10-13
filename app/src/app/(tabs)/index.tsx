@@ -28,7 +28,7 @@ import { formatClock, formatMinutes, useNow } from '../../lib/useNow';
 import { useAuthStore } from '../../store/authStore';
 import { remainingMs, useTimerStore } from '../../store/timerStore';
 import { usePickImage } from '../../lib/usePickImage';
-import { useTheme } from '../../theme';
+import { elevated, useTheme } from '../../theme';
 
 function SolveActions({ stacked }: { stacked: boolean }) {
   const theme = useTheme();
@@ -121,11 +121,8 @@ function PressableCard({ children, onPress, label }: { children: React.ReactNode
       onPress={onPress}
       scaleTo={0.99}
       style={{
-        backgroundColor: theme.colors.surface,
-        borderRadius: theme.radius.lg,
-        borderWidth: theme.layout.borderWidth,
-        borderColor: theme.colors.border,
-        padding: theme.spacing.lg,
+        ...elevated(theme),
+        padding: theme.layout.cardPadding,
       }}
     >
       {children}

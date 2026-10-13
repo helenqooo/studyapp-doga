@@ -1,6 +1,6 @@
 import { View, type StyleProp, type ViewStyle } from 'react-native';
 import { haptics } from '../lib/haptics';
-import { useTheme } from '../theme';
+import { useTheme, elevated } from '../theme';
 import { AppText } from './AppText';
 import { Icon, type IconName } from './Icon';
 import { PressableScale } from './motion/PressableScale';
@@ -31,11 +31,8 @@ export function StatTile({ label, value, icon, color, softColor, caption, onPres
       style={[
         {
           flex: 1,
-          backgroundColor: theme.colors.surface,
-          borderRadius: theme.radius.lg,
-          borderWidth: theme.layout.borderWidth,
-          borderColor: theme.colors.border,
-          padding: theme.spacing.lg,
+          ...elevated(theme),
+          padding: theme.layout.cardPadding,
           gap: theme.spacing.sm,
         },
         style,

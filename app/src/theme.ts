@@ -72,6 +72,18 @@ export interface ColorTokens {
   /** Lumi, the assistant character (components/mascot): its own flat palette. */
   mascot: MascotColors;
 
+  /**
+   * Depth, as CSS box-shadow strings (RN New Architecture and the web both read them).
+   * Light: soft warm shadows, like thick paper on a desk. Dark: a faint top-edge highlight
+   * instead (raised glass), with deep shadows only for floating things.
+   */
+  shadow: { card: string; raised: string; floating: string; accent: string; none: string };
+  /** Exam pills: TYT clay, AYT slate-blue, so the exam is clear at a glance. */
+  exam: Record<'TYT' | 'AYT', { fg: string; bg: string }>;
+  /** A control that can't be used yet: quiet paper-grey with readable text. */
+  disabledBg: string;
+  disabledFg: string;
+
   /** Avatar circle fills (initial in `textOnAccent`, all ≥ 4.5:1 under white). */
   avatar: Record<'clay' | 'kraft' | 'olive' | 'sky' | 'plum' | 'sand' | 'slate' | 'rose', string>;
 
@@ -149,9 +161,9 @@ const MASCOT_BASE = {
 };
 
 const light: ColorTokens = {
-  background: '#F5F4EE',
-  surface: '#FBFAF7',
-  surfaceAlt: '#EEECE4',
+  background: '#F4F2EC',
+  surface: '#FFFEFB',
+  surfaceAlt: '#EEEBE3',
   border: '#E4E1D8',
   text: '#141413',
   textMuted: '#6B6962',
@@ -195,6 +207,16 @@ const light: ColorTokens = {
   celebrationScrim: 'rgba(245, 244, 238, 0.72)',
   badge: { bronze: '#B87A45', silver: '#7D8794', gold: '#B8862F', ink: '#FFFFFF', locked: '#E4E1D8', lockedInk: '#8F8C84' },
   mascot: { ...MASCOT_BASE, shadow: 'rgba(0, 0, 0, 0.10)' },
+  shadow: {
+    card: '0px 1px 2px rgba(48, 36, 24, 0.06), 0px 4px 14px rgba(48, 36, 24, 0.05)',
+    raised: '0px 2px 6px rgba(48, 36, 24, 0.07), 0px 14px 32px -10px rgba(48, 36, 24, 0.18)',
+    floating: '0px 10px 24px rgba(48, 36, 24, 0.10), 0px 30px 60px -20px rgba(48, 36, 24, 0.28)',
+    accent: '0px 8px 18px -8px rgba(181, 87, 58, 0.55)',
+    none: '0px 0px 0px rgba(0, 0, 0, 0)',
+  },
+  exam: { TYT: { fg: '#A84F33', bg: '#F6E8E1' }, AYT: { fg: '#3F6D9C', bg: '#E5EDF6' } },
+  disabledBg: '#ECE9E1',
+  disabledFg: '#7A776F',
   avatar: {
     clay: '#B5573A',
     kraft: '#8F6328',
@@ -206,15 +228,16 @@ const light: ColorTokens = {
     rose: '#A8484F',
   },
 
+  // Every subject has its own hue (TYT and AYT maths, Fen and Biyoloji no longer share one).
   subject: {
     'Türkçe': '#D97757',
     'Sosyal': '#C9954C',
     'Temel Matematik': '#6A9BCC',
     'Fen': '#788C5D',
-    'Matematik': '#6A9BCC',
-    'Fizik': '#4F79A8',
+    'Matematik': '#5468B0',
+    'Fizik': '#2F8A87',
     'Kimya': '#B0739B',
-    'Biyoloji': '#788C5D',
+    'Biyoloji': '#5E9442',
   },
 
   chart: {
@@ -229,12 +252,12 @@ const light: ColorTokens = {
 };
 
 const dark: ColorTokens = {
-  background: '#1F1E1D',
-  surface: '#2A2927',
-  surfaceAlt: '#33322F',
+  background: '#1A1917',
+  surface: '#252422',
+  surfaceAlt: '#302E2B',
   border: '#3B3A36',
-  text: '#F5F4EE',
-  textMuted: '#A8A59B',
+  text: '#F3F0E9',
+  textMuted: '#ABA79C',
   textOnAccent: '#FFFFFF',
   transparent: 'transparent',
 
@@ -275,6 +298,16 @@ const dark: ColorTokens = {
   celebrationScrim: 'rgba(31, 30, 29, 0.72)',
   badge: { bronze: '#B87A45', silver: '#7D8794', gold: '#B8862F', ink: '#FFFFFF', locked: '#3B3A36', lockedInk: '#85827A' },
   mascot: { ...MASCOT_BASE, shadow: 'rgba(0, 0, 0, 0.45)' },
+  shadow: {
+    card: 'inset 0px 1px 0px rgba(255, 248, 240, 0.04)',
+    raised: 'inset 0px 1px 0px rgba(255, 248, 240, 0.06), 0px 16px 40px -12px rgba(0, 0, 0, 0.55)',
+    floating: 'inset 0px 1px 0px rgba(255, 248, 240, 0.07), 0px 24px 60px -16px rgba(0, 0, 0, 0.70)',
+    accent: '0px 0px 0px rgba(0, 0, 0, 0)',
+    none: '0px 0px 0px rgba(0, 0, 0, 0)',
+  },
+  exam: { TYT: { fg: '#E08B6D', bg: '#3B2A22' }, AYT: { fg: '#8DB4DE', bg: '#22303D' } },
+  disabledBg: '#33312E',
+  disabledFg: '#9D998F',
   avatar: {
     clay: '#B5573A',
     kraft: '#8F6328',
@@ -291,10 +324,10 @@ const dark: ColorTokens = {
     'Sosyal': '#D4A27F',
     'Temel Matematik': '#8DB4DE',
     'Fen': '#A3B886',
-    'Matematik': '#8DB4DE',
-    'Fizik': '#7FA3CF',
+    'Matematik': '#9AA8E0',
+    'Fizik': '#7CC4C0',
     'Kimya': '#C99BB8',
-    'Biyoloji': '#A3B886',
+    'Biyoloji': '#9CC685',
   },
 
   chart: {
@@ -349,9 +382,9 @@ export const spacing = {
 
 export const radius = {
   sm: 8,
-  md: 12,
-  lg: 18,
-  xl: 24,
+  md: 14,
+  lg: 22,
+  xl: 28,
   pill: 999,
 } as const;
 
@@ -408,6 +441,8 @@ export const breakpoints = {
 
 export const layout = {
   screenPadding: spacing.lg,
+  /** Inside a card. */
+  cardPadding: 20,
   /** Side padding once the window is tablet-sized. */
   screenPaddingRegular: spacing.xl,
   /** Comfortable reading width for single-column content (solutions, forms, chat). */
@@ -491,4 +526,20 @@ export function useTheme(): Theme {
 
 export function subjectColor(theme: Theme, subject: string): string {
   return theme.colors.subject[subject as Subject] ?? theme.colors.primary;
+}
+
+/**
+ * The look of a raised surface (cards, tiles, list rows): paper with a soft shadow in
+ * light mode, a hairline edge and top highlight in dark mode, continuous corners.
+ */
+export function elevated(theme: Theme, level: 'card' | 'raised' | 'floating' = 'card') {
+  const dark = theme.scheme === 'dark';
+  return {
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.radius.lg,
+    borderCurve: 'continuous' as const,
+    borderWidth: dark ? theme.layout.borderWidth : 0,
+    borderColor: theme.colors.border,
+    boxShadow: theme.colors.shadow[level],
+  };
 }

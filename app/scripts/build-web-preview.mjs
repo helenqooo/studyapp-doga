@@ -88,9 +88,9 @@ const page = `<title>${appName}</title>
 <style>
 /* react-native-web root: one full-height app view. */
 html { height: 100%; box-sizing: border-box; }
-body { height: 100%; overflow: hidden; background: #F5F4EE; }
+body { height: 100%; overflow: hidden; background: #F4F2EC; }
 #root { display: flex; height: 100%; flex: 1; }
-@media (prefers-color-scheme: dark) { body { background: #1F1E1D; } }
+@media (prefers-color-scheme: dark) { body { background: #1A1917; } }
 ${fontCss}
 </style>
 <div id="root"></div>
@@ -133,8 +133,8 @@ fs.mkdirSync(path.join(pwaDir, 'icons'), { recursive: true });
 for (const f of fs.readdirSync(path.join(appDir, 'assets', 'pwa'))) {
   fs.copyFileSync(path.join(appDir, 'assets', 'pwa', f), path.join(pwaDir, 'icons', f));
 }
-const IVORY = '#F5F4EE';
-const CHARCOAL = '#1F1E1D';
+const IVORY = '#F4F2EC';
+const CHARCOAL = '#1A1917';
 fs.writeFileSync(
   path.join(pwaDir, 'manifest.webmanifest'),
   JSON.stringify(

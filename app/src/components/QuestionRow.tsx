@@ -3,7 +3,7 @@ import { View } from 'react-native';
 import type { AttemptResult, Question } from '../api/types';
 import { getTopic, topicLabel } from '../data/topics';
 import { plainSnippet, reviewDueLabel, shortDate } from '../lib/format';
-import { subjectColor, useTheme, type Theme } from '../theme';
+import { elevated, subjectColor, useTheme, type Theme } from '../theme';
 import { AppText } from './AppText';
 import { Icon, type IconName } from './Icon';
 import { QuestionImage } from './QuestionImage';
@@ -38,10 +38,7 @@ export function QuestionRow({ question }: { question: Question }) {
         flexDirection: 'row',
         gap: theme.spacing.md,
         padding: theme.spacing.md,
-        borderRadius: theme.radius.lg,
-        backgroundColor: theme.colors.surface,
-        borderWidth: theme.layout.borderWidth,
-        borderColor: theme.colors.border,
+        ...elevated(theme),
       }}
     >
       <QuestionImage questionId={question.id} size="thumb" />

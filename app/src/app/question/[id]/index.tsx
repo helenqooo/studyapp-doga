@@ -192,7 +192,7 @@ export default function QuestionScreen() {
     <>
       <View style={{ gap: theme.spacing.sm }}>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.sm }}>
-          <Badge label={q.exam} color={theme.colors.primaryText} background={theme.colors.primarySoft} />
+          <Badge label={q.exam} color={theme.colors.exam[q.exam].fg} background={theme.colors.exam[q.exam].bg} />
           <Badge label={q.subject} dot={color} />
           <Difficulty value={q.difficulty} />
         </View>

@@ -55,7 +55,7 @@ export function Button({
   // its colour under a spinner.
   const { bg, fg } =
     disabled && !loading && variant !== 'ghost'
-      ? { bg: theme.colors.surfaceAlt, fg: theme.colors.textMuted }
+      ? { bg: theme.colors.disabledBg, fg: theme.colors.disabledFg }
       : variantColors(theme, variant, selected);
   const inactive = disabled || loading;
   const height = size === 'lg' ? theme.layout.minTouch + theme.spacing.xl : theme.layout.minTouch + theme.spacing.xs;
@@ -76,6 +76,9 @@ export function Button({
           minHeight: height,
           backgroundColor: bg,
           borderRadius: size === 'lg' ? theme.radius.xl : theme.radius.md,
+          borderCurve: 'continuous',
+          // The main action glows softly in clay; secondary ones stay flat.
+          boxShadow: variant === 'primary' && !disabled ? theme.colors.shadow.accent : theme.colors.shadow.none,
           paddingHorizontal: theme.spacing.lg,
           justifyContent: 'center',
         },

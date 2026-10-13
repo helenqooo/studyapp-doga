@@ -1,7 +1,7 @@
 import { View } from 'react-native';
 import type { SubjectSummary } from '../api/types';
 import { formatDelta, formatNet } from '../lib/format';
-import { subjectColor, useTheme } from '../theme';
+import { subjectColor, useTheme, elevated } from '../theme';
 import { AppText } from './AppText';
 import { Sparkline } from './charts/Sparkline';
 import { Icon } from './Icon';
@@ -17,10 +17,7 @@ export function SubjectTrendTile({ summary, nets }: { summary: SubjectSummary; n
     <View
       style={{
         flex: 1,
-        backgroundColor: theme.colors.surface,
-        borderRadius: theme.radius.lg,
-        borderWidth: theme.layout.borderWidth,
-        borderColor: theme.colors.border,
+        ...elevated(theme),
         padding: theme.spacing.md,
         gap: theme.spacing.xs,
       }}

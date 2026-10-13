@@ -116,7 +116,7 @@ export default function ExamDetailScreen() {
       <Stack.Screen options={{ title: examTitle(e) }} />
 
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm }}>
-        <Badge label={e.exam} color={theme.colors.primaryText} background={theme.colors.primarySoft} />
+        <Badge label={e.exam} color={theme.colors.exam[e.exam].fg} background={theme.colors.exam[e.exam].bg} />
         <AppText color="textMuted">{longDate(e.date)}</AppText>
         {xp ? <Badge label={`+${xp} XP`} icon="star" color={theme.colors.xpText} background={theme.colors.xpTrack} /> : null}
       </View>
