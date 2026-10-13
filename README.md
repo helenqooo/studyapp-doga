@@ -53,6 +53,8 @@ deploy/install-services.sh [genel-ip]   # lumi-server (backend) + lumi-expo (Met
 
 - İki servis de senin kullanıcınla (root değil) çalışır, açılışta kalkar, çökerse 5 sn sonra yeniden başlar. Node yolu kurulum anındaki `node`'dan alınır; Node sürümünü değiştirirsen betiği yeniden çalıştır.
 - `lumi-expo`, `npx expo start --no-dev --minify` çalıştırır ve Expo Go'ya genel IP'yi bildirir (`REACT_NATIVE_PACKAGER_HOSTNAME`). Expo Go'da adres: `exp://<genel-ip>:8081`.
+  - iPhone/iPad'de Expo Go'da adres kutusu yok: Safari'ye `exp://<genel-ip>:8081` yaz → "Expo Go'da aç" (ya da Kamera ile QR okut: `qrencode -t ANSIUTF8 "exp://<genel-ip>:8081"`).
+  - Uzak sunucudaki projeyi açmak için Expo Go ve sunucudaki Expo CLI **aynı Expo hesabıyla** giriş yapmış olmalı: iPad'de Expo Go → profil → Log in; sunucuda servisin kullanıcısıyla `cd app && npx expo login`.
 - `.env` değişince: `sudo systemctl restart lumi-server` veya `lumi-expo`. Loglar: `journalctl -u lumi-server -f`.
 - Güvenlik duvarı: `sudo ufw allow 22/tcp && sudo ufw allow 3000/tcp && sudo ufw allow 8081/tcp && sudo ufw enable`.
 - Yedek: `deploy/backup-data.sh`, `server/data/`'yı `~/backups/lumi-data-YYYY-MM-DD.tar.gz` olarak alır (veritabanı SQLite'ın canlı yedeğiyle, sunucu çalışırken de tutarlı), en yeni 7 dosyayı tutar. Günlük cron: `15 0 * * * <depo>/deploy/backup-data.sh >> ~/backups/backup.log 2>&1` (sunucu saati UTC ise İstanbul'da 03:15).
