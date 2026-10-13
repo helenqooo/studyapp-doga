@@ -124,6 +124,9 @@ for p in pages:
     for col in (0, 1):
         col_anchors = [a for a in anchors if a['col'] == col]
         cx0, cx1 = (28.0, mid - 1) if col == 0 else (mid + 1, W - 28.0)
+        # Growth stops short of the thin column divider (it sits a few points either side of the
+        # middle depending on the page).
+        gx0, gx1 = (cx0, mid - 3.0) if col == 0 else (mid + 3.5, cx1)
         region_top = max(60, header_bottom)
         for i, a in enumerate(col_anchors):
             nxt = col_anchors[i + 1]['top'] if i + 1 < len(col_anchors) else footer_top
@@ -144,7 +147,7 @@ for p in pages:
             # Where the box may grow to take in artwork drawn in the page's background image
             # (panel frames, figures): its column, from the end of the previous question's
             # print to just above the next number.
-            region = [cx0, region_top, (W - 28.0) if wide else cx1, nxt - 2]
+            region = [gx0, region_top, (W - 28.0) if wide else gx1, nxt - 2]
             entry['questions'].append(dict(n=a['n'], answer=a['answer'], col=col, bbox=[round(bx0, 1), round(top, 1), round(bx1, 1), round(by1, 1)], region=[round(v, 1) for v in region], wide=bool(wide)))
             region_top = by1 + 2
     entry['questions'].sort(key=lambda q: q['n'])
