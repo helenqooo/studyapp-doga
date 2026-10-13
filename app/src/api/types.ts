@@ -317,6 +317,8 @@ export interface StudyDay {
   focusSec: number;
   pomodoros: number;
   bySubject: { subject: string | null; seconds: number }[];
+  /** Questions photographed and answered that day. */
+  solved: number;
 }
 
 export interface StudyDays {

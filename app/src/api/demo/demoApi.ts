@@ -679,6 +679,7 @@ export const demoApi = {
       focusSec: focus.reduce((sum, x) => sum + x.durationSec, 0),
       pomodoros: focus.filter((x) => x.completed && x.durationSec >= MIN_COUNTED_FOCUS_SEC).length,
       bySubject: [...bySubject].map(([subject, seconds]) => ({ subject: subject || null, seconds })).sort((a, b) => b.seconds - a.seconds),
+      solved: db.attempts.filter((a) => a.source === 'solve' && localDate(a.createdAt) === day).length,
     };
   },
   studyDays: async (days = 7): Promise<StudyDays> => {

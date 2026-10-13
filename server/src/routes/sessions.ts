@@ -3,7 +3,7 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import type { AppDeps } from '../app';
 import { currentUser } from '../auth';
-import { sessions } from '../db/schema';
+import { attempts, sessions } from '../db/schema';
 import { profileDto } from '../dto';
 import { applyRewards, XP } from '../gamification';
 import { addDays, localDate } from '../time';
@@ -99,7 +99,22 @@ export function sessionRoutes(app: FastifyInstance, { env, db, now }: AppDeps): 
 
   const DayQuery = z.object({ date: z.string().regex(DAY_RE).optional() });
 
-  // One day's sessions with the focus total and the split by subject.
+  /** Questions photographed and answered on a local date (their first attempt). */
+  const solvedOn = (userId: string, date: string) => {
+    // A window wide enough for any time zone, narrowed by the local date.
+    const [y, m, d] = date.split('-').map(Number) as [number, number, number];
+    const from = Date.UTC(y, m - 1, d) - 15 * 60 * 60 * 1000;
+    const to = from + 54 * 60 * 60 * 1000;
+    return db
+      .select({ createdAt: attempts.createdAt })
+      .from(attempts)
+      .where(and(eq(attempts.userId, userId), eq(attempts.source, 'solve'), gte(attempts.createdAt, from), lte(attempts.createdAt, to)))
+      .all()
+      .filter((a) => localDate(a.createdAt, env.APP_TIMEZONE) === date).length;
+  };
+
+  // One day's sessions with the focus total and the split by subject, plus how many
+  // questions were solved that day (for Home's rings).
   app.get('/sessions', async (req, reply) => {
     const query = DayQuery.safeParse(req.query);
     if (!query.success) return reply.code(400).send({ error: 'Tarih YYYY-AA-GG olmalı.' });
@@ -122,6 +137,7 @@ export function sessionRoutes(app: FastifyInstance, { env, db, now }: AppDeps): 
       bySubject: [...bySubject]
         .map(([subject, seconds]) => ({ subject: subject || null, seconds }))
         .sort((a, b) => b.seconds - a.seconds),
+      solved: solvedOn(user.id, date),
     };
   });
 
