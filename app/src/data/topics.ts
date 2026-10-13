@@ -1167,6 +1167,7 @@ export const UNITS: Record<string, { id: string; name: string }[]> = {
     { id: 'tyt-mat-gorsel-zeka-parca-birlestirme', name: 'Parça Birleştirme ve Yapboz' },
     { id: 'tyt-mat-gorsel-zeka-sekil-sayma', name: 'Şekil Sayma' },
     { id: 'tyt-mat-gorsel-zeka-kaplama-desen', name: 'Kaplama ve Desen' },
+    { id: 'tyt-mat-gorsel-zeka-bulmacalar', name: 'Mantık Bulmacaları ve Düzenekler (Latin Kare, Yol, Anahtar-Lamba, Yanma Süresi)' },
   ],
   'tyt-mat-oruntuler': [
     { id: 'tyt-mat-oruntuler-sayi-oruntuleri', name: 'Sayı Örüntüleri' },

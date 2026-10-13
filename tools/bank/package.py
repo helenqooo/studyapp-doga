@@ -84,6 +84,7 @@ sections = {x['name']: x['topicId'] for x in _book['sections']}
 _units = json.load(open(units_path)) if units_path else {}
 subtopic_of = _units.get('subtopics', {})
 question_topic = _units.get('questionTopics', {})
+unit_unsure = set(_units.get('unsure', []))
 by_page = {e['page']: e for e in boxes['pages']}
 dirs = topic_dirs()
 
@@ -150,6 +151,8 @@ for t in boxes['tests']:
                 subject=BOOK['subject'],
                 topicId=question_topic.get(qid, topic_id),
                 unitId=subtopic_of.get(qid),
+                # The unit was picked from the flattened PDF text; false when that was a guess.
+                unitSure=qid in subtopic_of and qid not in unit_unsure,
                 bookSection=t['section'],
                 series=t['series'],
                 test=t['number'],

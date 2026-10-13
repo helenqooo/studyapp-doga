@@ -48,74 +48,187 @@
     "ayt-bio-canlilar-cevre-varyasyon-mutasyon"
   ],
   "addUnits": {
-    "tyt-tr-ses-bilgisi": [{ "id": "tyt-tr-ses-bilgisi-hece-bilgisi", "name": "Hece Bilgisi ve Satır Sonu Bölme" }],
-    "tyt-tr-paragraf-yardimci-dusunce": [{ "id": "tyt-tr-paragraf-yardimci-dusunce-metin-turleri", "name": "Metin Türleri (Anı, Günlük, Deneme, Makale, Eleştiri, Gezi Yazısı, Fıkra)" }]
+    "tyt-tr-ses-bilgisi": [
+      {
+        "id": "tyt-tr-ses-bilgisi-hece-bilgisi",
+        "name": "Hece Bilgisi ve Satır Sonu Bölme"
+      }
+    ],
+    "tyt-tr-paragraf-yardimci-dusunce": [
+      {
+        "id": "tyt-tr-paragraf-yardimci-dusunce-metin-turleri",
+        "name": "Metin Türleri (Anı, Günlük, Deneme, Makale, Eleştiri, Gezi Yazısı, Fıkra)"
+      }
+    ],
+    "tyt-mat-gorsel-zeka": [
+      {
+        "id": "tyt-mat-gorsel-zeka-bulmacalar",
+        "name": "Mantık Bulmacaları ve Düzenekler (Latin Kare, Yol, Anahtar-Lamba, Yanma Süresi)"
+      }
+    ]
   },
   "addTopics": [
     {
       "after": "tyt-sos-din-anadoluda-islam",
-      "id": "tyt-sos-din-kuranda-kavramlar", "exam": "TYT", "subject": "Sosyal", "topic": "Din Kültürü", "subtopic": "Kur'an'da Bazı Kavramlar",
+      "id": "tyt-sos-din-kuranda-kavramlar",
+      "exam": "TYT",
+      "subject": "Sosyal",
+      "topic": "Din Kültürü",
+      "subtopic": "Kur'an'da Bazı Kavramlar",
       "units": [
-        { "id": "tyt-sos-din-kuranda-kavramlar-iman-islam", "name": "İman, İslam ve İhsan" },
-        { "id": "tyt-sos-din-kuranda-kavramlar-salih-amel", "name": "Salih Amel, Takva ve Tevekkül" },
-        { "id": "tyt-sos-din-kuranda-kavramlar-ayet-hadis", "name": "Ayet ve Hadis Yorumu" }
+        {
+          "id": "tyt-sos-din-kuranda-kavramlar-iman-islam",
+          "name": "İman, İslam ve İhsan"
+        },
+        {
+          "id": "tyt-sos-din-kuranda-kavramlar-salih-amel",
+          "name": "Salih Amel, Takva ve Tevekkül"
+        },
+        {
+          "id": "tyt-sos-din-kuranda-kavramlar-ayet-hadis",
+          "name": "Ayet ve Hadis Yorumu"
+        }
       ]
     },
     {
       "after": "tyt-sos-din-kuranda-kavramlar",
-      "id": "tyt-sos-din-inancla-ilgili-meseleler", "exam": "TYT", "subject": "Sosyal", "topic": "Din Kültürü", "subtopic": "İnançla İlgili Meseleler",
+      "id": "tyt-sos-din-inancla-ilgili-meseleler",
+      "exam": "TYT",
+      "subject": "Sosyal",
+      "topic": "Din Kültürü",
+      "subtopic": "İnançla İlgili Meseleler",
       "units": [
-        { "id": "tyt-sos-din-inancla-ilgili-meseleler-yaratilis", "name": "Yaratılış ve Evren" },
-        { "id": "tyt-sos-din-inancla-ilgili-meseleler-akimlar", "name": "Deizm, Ateizm, Agnostisizm ve Reenkarnasyon" },
-        { "id": "tyt-sos-din-inancla-ilgili-meseleler-kader", "name": "Kader, Kaza ve Özgür İrade" }
+        {
+          "id": "tyt-sos-din-inancla-ilgili-meseleler-yaratilis",
+          "name": "Yaratılış ve Evren"
+        },
+        {
+          "id": "tyt-sos-din-inancla-ilgili-meseleler-akimlar",
+          "name": "Deizm, Ateizm, Agnostisizm ve Reenkarnasyon"
+        },
+        {
+          "id": "tyt-sos-din-inancla-ilgili-meseleler-kader",
+          "name": "Kader, Kaza ve Özgür İrade"
+        }
       ]
     },
     {
       "after": "tyt-sos-din-inancla-ilgili-meseleler",
-      "id": "tyt-sos-din-yahudilik-hristiyanlik", "exam": "TYT", "subject": "Sosyal", "topic": "Din Kültürü", "subtopic": "Yahudilik ve Hristiyanlık",
+      "id": "tyt-sos-din-yahudilik-hristiyanlik",
+      "exam": "TYT",
+      "subject": "Sosyal",
+      "topic": "Din Kültürü",
+      "subtopic": "Yahudilik ve Hristiyanlık",
       "units": [
-        { "id": "tyt-sos-din-yahudilik-hristiyanlik-yahudilik", "name": "Yahudilik: İnanç, İbadet ve Kutsal Metinler" },
-        { "id": "tyt-sos-din-yahudilik-hristiyanlik-hristiyanlik", "name": "Hristiyanlık: İnanç, İbadet ve Mezhepler" }
+        {
+          "id": "tyt-sos-din-yahudilik-hristiyanlik-yahudilik",
+          "name": "Yahudilik: İnanç, İbadet ve Kutsal Metinler"
+        },
+        {
+          "id": "tyt-sos-din-yahudilik-hristiyanlik-hristiyanlik",
+          "name": "Hristiyanlık: İnanç, İbadet ve Mezhepler"
+        }
       ]
     },
     {
       "after": "tyt-sos-din-yahudilik-hristiyanlik",
-      "id": "tyt-sos-din-hint-cin-dinleri", "exam": "TYT", "subject": "Sosyal", "topic": "Din Kültürü", "subtopic": "Hint ve Çin Dinleri",
+      "id": "tyt-sos-din-hint-cin-dinleri",
+      "exam": "TYT",
+      "subject": "Sosyal",
+      "topic": "Din Kültürü",
+      "subtopic": "Hint ve Çin Dinleri",
       "units": [
-        { "id": "tyt-sos-din-hint-cin-dinleri-hinduizm-budizm", "name": "Hinduizm ve Budizm" },
-        { "id": "tyt-sos-din-hint-cin-dinleri-konfucyusculuk-taoculuk", "name": "Konfüçyüsçülük, Taoculuk ve Şintoizm" }
+        {
+          "id": "tyt-sos-din-hint-cin-dinleri-hinduizm-budizm",
+          "name": "Hinduizm ve Budizm"
+        },
+        {
+          "id": "tyt-sos-din-hint-cin-dinleri-konfucyusculuk-taoculuk",
+          "name": "Konfüçyüsçülük, Taoculuk ve Şintoizm"
+        }
       ]
     },
     {
       "before": "ayt-mat-fonksiyonlar",
-      "id": "ayt-mat-temel-konular", "exam": "AYT", "subject": "Matematik", "topic": "Temel Konular (Sayılar ve Cebir)",
+      "id": "ayt-mat-temel-konular",
+      "exam": "AYT",
+      "subject": "Matematik",
+      "topic": "Temel Konular (Sayılar ve Cebir)",
       "units": [
-        { "id": "ayt-mat-temel-konular-sayilar", "name": "Sayı Kümeleri, Basamak ve Bölünebilme" },
-        { "id": "ayt-mat-temel-konular-ebob-ekok", "name": "EBOB – EKOK" },
-        { "id": "ayt-mat-temel-konular-rasyonel", "name": "Rasyonel Sayılar" },
-        { "id": "ayt-mat-temel-konular-esitsizlik-mutlak", "name": "Basit Eşitsizlik ve Mutlak Değer" },
-        { "id": "ayt-mat-temel-konular-uslu-koklu", "name": "Üslü ve Köklü İfadeler" },
-        { "id": "ayt-mat-temel-konular-carpanlara-ayirma", "name": "Çarpanlara Ayırma" }
+        {
+          "id": "ayt-mat-temel-konular-sayilar",
+          "name": "Sayı Kümeleri, Basamak ve Bölünebilme"
+        },
+        {
+          "id": "ayt-mat-temel-konular-ebob-ekok",
+          "name": "EBOB – EKOK"
+        },
+        {
+          "id": "ayt-mat-temel-konular-rasyonel",
+          "name": "Rasyonel Sayılar"
+        },
+        {
+          "id": "ayt-mat-temel-konular-esitsizlik-mutlak",
+          "name": "Basit Eşitsizlik ve Mutlak Değer"
+        },
+        {
+          "id": "ayt-mat-temel-konular-uslu-koklu",
+          "name": "Üslü ve Köklü İfadeler"
+        },
+        {
+          "id": "ayt-mat-temel-konular-carpanlara-ayirma",
+          "name": "Çarpanlara Ayırma"
+        }
       ]
     },
     {
       "after": "ayt-mat-temel-konular",
-      "id": "ayt-mat-problemler", "exam": "AYT", "subject": "Matematik", "topic": "Problemler, Mantık ve Kümeler",
+      "id": "ayt-mat-problemler",
+      "exam": "AYT",
+      "subject": "Matematik",
+      "topic": "Problemler, Mantık ve Kümeler",
       "units": [
-        { "id": "ayt-mat-problemler-sozel", "name": "Sözel Problemler" },
-        { "id": "ayt-mat-problemler-mantik", "name": "Mantık" },
-        { "id": "ayt-mat-problemler-kumeler", "name": "Kümeler" }
+        {
+          "id": "ayt-mat-problemler-sozel",
+          "name": "Sözel Problemler"
+        },
+        {
+          "id": "ayt-mat-problemler-mantik",
+          "name": "Mantık"
+        },
+        {
+          "id": "ayt-mat-problemler-kumeler",
+          "name": "Kümeler"
+        }
       ]
     },
     {
       "before": "ayt-bio-sinir-sistemi",
-      "id": "ayt-bio-kalitim", "exam": "AYT", "subject": "Biyoloji", "topic": "Kalıtım",
+      "id": "ayt-bio-kalitim",
+      "exam": "AYT",
+      "subject": "Biyoloji",
+      "topic": "Kalıtım",
       "units": [
-        { "id": "ayt-bio-kalitim-mendel", "name": "Kalıtımın Genel İlkeleri (Mendel)" },
-        { "id": "ayt-bio-kalitim-esdominantlik", "name": "Eş Baskınlık, Eksik Baskınlık ve Çok Alellilik" },
-        { "id": "ayt-bio-kalitim-esey-bagli", "name": "Eşeye Bağlı Kalıtım" },
-        { "id": "ayt-bio-kalitim-soyagaci", "name": "Soyağacı Analizi" },
-        { "id": "ayt-bio-kalitim-bagli-genler", "name": "Bağlı Genler ve Krossing-over" }
+        {
+          "id": "ayt-bio-kalitim-mendel",
+          "name": "Kalıtımın Genel İlkeleri (Mendel)"
+        },
+        {
+          "id": "ayt-bio-kalitim-esdominantlik",
+          "name": "Eş Baskınlık, Eksik Baskınlık ve Çok Alellilik"
+        },
+        {
+          "id": "ayt-bio-kalitim-esey-bagli",
+          "name": "Eşeye Bağlı Kalıtım"
+        },
+        {
+          "id": "ayt-bio-kalitim-soyagaci",
+          "name": "Soyağacı Analizi"
+        },
+        {
+          "id": "ayt-bio-kalitim-bagli-genler",
+          "name": "Bağlı Genler ve Krossing-over"
+        }
       ]
     }
   ]

@@ -99,7 +99,13 @@ rename_units = patch.get('unitNames', {})
 for tid in list(units):
     units[tid] = [dict(u, name=rename_units.get(u['id'], u['name'])) for u in units[tid] if u['id'] not in drop]
 for tid, extra in patch.get('addUnits', {}).items():
-    units.setdefault(tid, []).extend(extra)
+    have = {u['id'] for u in units.setdefault(tid, [])}
+    units[tid].extend(u for u in extra if u['id'] not in have)
+# Topics the patch adds may already be in topics.ts (a re-run): drop that copy so the patch
+# puts them back in their intended place.
+added = {a['id'] for a in patch.get('addTopics', [])}
+final = [t for t in final if t['id'] not in added]
+problems = [p for p in problems if not any(p.endswith(a) for a in added)]
 for add in patch.get('addTopics', []):
     entry = {k: add.get(k) for k in ('id', 'exam', 'subject', 'topic', 'subtopic')}
     anchor = add.get('after') or add.get('before')
@@ -116,6 +122,8 @@ assert set(by_id) <= set(all_ids), 'lost an existing id'
 
 head = src[: src.index('export const TOPICS: Topic[] = [')]
 tail = src[src.index('const TOPIC_BY_ID'):]
+if 'const UNIT_BY_ID' in tail:  # a re-run: the helpers are written again below
+    tail = tail[: tail.index('const UNIT_BY_ID')]
 
 
 def lit(s):
