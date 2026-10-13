@@ -177,6 +177,9 @@ for i, t in enumerate(tests):
 import os
 LEVELS = ['Kolay', 'Kolay-Orta', 'Orta', 'Orta-Zor', 'Zor']
 CENTRES = [164.0, 128.0, 89.0, 48.0, 12.0]
+# Halfway between band centres, except Orta-Zor/Zor: the book's hardest tests park the needle in
+# the white gap just before the purple band (31-35°), which reads as Zor.
+BOUNDARIES = [146.0, 108.5, 68.5, 35.0]
 gauges = json.load(open(gauge_path)) if os.path.exists(gauge_path) else {}
 
 
@@ -199,8 +202,9 @@ for t in tests:
         if g and g.get('angle') is not None:
             sc = score_of(g['angle'])
             half = round(sc * 2) / 2
-            # Between two labels counts as the harder one.
-            label = LEVELS[min(4, int(-(-half // 1)) - 1)]
+            # The label is the coloured band the needle points into (boundaries halfway between
+            # the band centres); the score keeps the book's half steps for sorting.
+            label = LEVELS[sum(1 for b in BOUNDARIES if g['angle'] < b)]
             t['difficulty'] = dict(score=half, label=label, angle=g['angle'], page=pg)
             break
 

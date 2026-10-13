@@ -73,8 +73,19 @@ for r in reviews:
         q['fixed'] = True
         stats['fixed'] += 1
 
+# Shared intros the reviewers pointed out: {"<test id>": {"page": p, "bbox": [...], "questions": [n, ...]}}.
+import os
+intros_path = os.path.join(os.path.dirname(os.path.abspath(out_path)), 'intros.json')
+if os.path.exists(intros_path):
+    for tid, intro in json.load(open(intros_path)).items():
+        page = by_page[intro['page']]
+        for q in page['questions']:
+            if q['n'] in intro['questions'] and page.get('test') == int(tid):
+                q['prefix'] = dict(page=intro['page'], bbox=intro['bbox'])
+                stats['intros'] = stats.get('intros', 0) + 1
+
 json.dump(d, open(out_path, 'w'), ensure_ascii=False, indent=1)
-print(f"tests checked: {len(checked)}/{len(tests)}  fixed: {stats['fixed']} (second look changed {stats['overruled']})  added: {stats['added']}  marked: {stats['marked']}  gauges read: {stats['gauges']}")
+print(f"tests checked: {len(checked)}/{len(tests)}  fixed: {stats['fixed']} (second look changed {stats['overruled']})  added: {stats['added']}  marked: {stats['marked']}  gauges read: {stats['gauges']}  shared intros: {stats.get('intros', 0)}")
 for x in stats['unfixed']:
     print('UNFIXED', x['testId'], x['page'], x['n'], x['kind'], x['description'][:120])
 for x in stats['grouping']:

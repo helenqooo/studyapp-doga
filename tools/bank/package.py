@@ -224,7 +224,9 @@ function render(){
   for (const q of qs){ const k = q.testKey; if(!groups.has(k)) groups.set(k, []); groups.get(k).push(q); }
   const tests = new Map(M.tests.map(t => [t.key, t]));
   document.getElementById('list').innerHTML = [...groups].map(([k, list]) => { const t = tests.get(k); const top = topics.get(t.topicId);
-    return `<h2>${top.subtopic||top.topic} · ${t.bookSection} · ${t.series} ${t.number}${t.difficulty?' · '+t.difficulty:''}</h2><div class="grid">` +
+    const name = top.subtopic||top.topic;
+    const section = t.bookSection.replace(/\W/g,'').toLowerCase() === name.replace(/\W/g,'').toLowerCase() ? '' : ' · ' + t.bookSection;
+    return `<h2>${name}${section} · ${t.series} ${t.number}${t.difficulty?' · '+t.difficulty:''}</h2><div class="grid">` +
       list.map(q => `<figure><img loading="lazy" src="${encodeURI(q.image)}"><figcaption><span>Soru ${q.number}</span>${q.unitId&&unitName.get(q.unitId)?`<span class="tag">${unitName.get(q.unitId)}</span>`:''}${q.pastExam?`<span class="tag">Çıkmış ${q.pastExam}</span>`:''}<details><summary>Cevap</summary>${q.answer}</details></figcaption></figure>`).join('') + '</div>'; }).join('');
 }
 for (const id of ['topic','diff','past']) document.getElementById(id).addEventListener('change', render);

@@ -135,10 +135,22 @@ def crop(entry, q, src_img, dst):
     if q.get('region') and not q.get('fixed'):
         rx0, ry0, rx1, ry1 = q['region']
         region = (int(rx0 * SCALE), int(ry0 * SCALE), int(rx1 * SCALE), int(ry1 * SCALE))
+        # Keep the start box inside the region too (it may begin on the column divider).
+        box = (max(box[0], region[0]), box[1], min(box[2], region[2]), box[3])
         box = grow(src_img, box, region)
     piece = src_img.crop(box)
     if not q.get('noTrim'):
         piece = piece.crop(trim_box(piece, int(6 * SCALE)))
+    if q.get('prefix'):
+        # A shared intro ("1. ve 2. soruyu yukarıdaki bilgiye göre çözünüz") goes on top.
+        px0, py0, px1, py1 = q['prefix']['bbox']
+        intro = src_img.crop((int(px0 * SCALE), int(py0 * SCALE), int(px1 * SCALE), int(py1 * SCALE)))
+        intro = intro.crop(trim_box(intro, int(6 * SCALE)))
+        gap = int(10 * SCALE)
+        both = Image.new('RGB', (max(intro.width, piece.width), intro.height + gap + piece.height), (255, 255, 255))
+        both.paste(intro, (0, 0))
+        both.paste(piece, (0, intro.height + gap))
+        piece = both
     piece.save(dst, optimize=True)
 
 
