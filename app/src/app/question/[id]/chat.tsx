@@ -5,6 +5,7 @@ import { useAddMessages, useMessages } from '../../../api/hooks';
 import { AppText } from '../../../components/AppText';
 import { ChatView } from '../../../components/chat/ChatView';
 import { QuestionImage } from '../../../components/QuestionImage';
+import { useTheme } from '../../../theme';
 
 const SUGGESTIONS = [
   'Çözümün ilk adımını anlamadım',
@@ -13,8 +14,9 @@ const SUGGESTIONS = [
   'Bana benzer bir soru verir misin?',
 ];
 
-/** "Anlamadım": a short chat about one solved question; replies stream and type out. */
+/** "Soru sohbeti": a short chat about one solved question; replies stream and type out. */
 export default function ChatScreen() {
+  const theme = useTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
   const thread = useMessages(id);
   const add = useAddMessages(id);
@@ -29,11 +31,12 @@ export default function ChatScreen() {
 
   return (
     <ChatView
-      header={<QuestionImage questionId={id} size="compact" />}
+      header={<QuestionImage questionId={id} size="compact" cap={theme.layout.question.chatImageCap} pillPlacement="below" />}
       messages={items}
       loading={thread.isPending}
-      loadError={thread.isError ? thread.error.message : null}
-      intro={<AppText color="textMuted">Bu soruda neyi anlamadın? Kendi cümlelerinle sor ya da birini seç:</AppText>}
+      loadError={thread.isError ? thread.error : null}
+      onRetry={() => thread.refetch()}
+      intro={<AppText align="center">Bu soruda neyi anlamadın? Kendi cümlelerinle sor ya da birini seç.</AppText>}
       suggestions={SUGGESTIONS}
       send={send}
       onSent={add}

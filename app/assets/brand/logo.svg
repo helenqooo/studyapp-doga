@@ -2,6 +2,6 @@
   <!-- Lumi's mark, "Odak halkası": an open ring with its gap at the top right and a dot drifting
        toward the gap: the moment a blurry thing comes into focus. Same geometry as
        src/components/Logo.tsx and scripts/build-brand-assets.py. -->
-  <path d="M78.19 39.74 A30 30 0 1 1 60.26 21.81" fill="none" stroke="#C2603F" stroke-width="14" stroke-linecap="round"/>
-  <circle cx="55.7" cy="44.3" r="9" fill="#C2603F"/>
+  <path d="M78.19 39.74 A30 30 0 1 1 60.26 21.81" fill="none" stroke="#4B5567" stroke-width="14" stroke-linecap="round"/>
+  <circle cx="55.7" cy="44.3" r="9" fill="#FFDC6E"/>
 </svg>

@@ -1,7 +1,8 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { Easing, useAnimatedStyle, useReducedMotion, useSharedValue, withTiming } from 'react-native-reanimated';
+import { Easing, ReduceMotion, useAnimatedStyle, useReducedMotion, useSharedValue, withTiming } from 'react-native-reanimated';
 import type { Choice, ChoiceLabel } from '../../lib/choices';
 import { useTheme } from '../../theme';
+import { ease } from '../motion/presets';
 
 /** How the answer choices look: the picked one, the right one, a wrong pick. */
 export interface ChoiceState {
@@ -40,14 +41,14 @@ export interface MathViewProps {
   onVerdict?: (verdict: ChoiceVerdict) => void;
 }
 
-/** `#RRGGBB` at an opacity (other color formats are returned unchanged). */
-function withAlpha(color: string, alpha: number) {
-  return /^#[0-9a-f]{6}$/i.test(color)
-    ? `${color}${Math.round(alpha * 255)
-        .toString(16)
-        .padStart(2, '0')}`
-    : color;
-}
+// TOKEN-PENDING: opacity.rowSweep = { light: 0.6, dark: 0.22 } (the fosfor sweep under a right row; soft, and dark text stays readable)
+const ROW_SWEEP = { light: 0.6, dark: 0.22 };
+// TOKEN-PENDING: motion.duration.rmFade = 120 (the Reduce Motion cross-fade, spec 0.7 / 5.6)
+const RM_FADE_MS = 120;
+
+const px = (n: number) => `${n}px`;
+const ms = (n: number) => `${n}ms`;
+const bezier = (b: readonly [number, number, number, number]) => `cubic-bezier(${b.join(', ')})`;
 
 /**
  * The view's height follows the page: the first height is set at once (and the view fades
@@ -57,11 +58,20 @@ export function useSmoothHeight() {
   const theme = useTheme();
   const reduceMotion = useReducedMotion();
   const height = useSharedValue(0);
+  const opacity = useSharedValue(0);
   const [shown, setShown] = useState(false);
   const first = useRef(true);
   const setHeight = useCallback(
     (next: number) => {
       if (first.current || reduceMotion) {
+        if (first.current) {
+          // The page fades in once it has a height (a short fade under Reduce Motion, never a pop).
+          opacity.value = withTiming(1, {
+            duration: reduceMotion ? RM_FADE_MS : theme.motion.duration.base,
+            easing: ease('standard'),
+            reduceMotion: ReduceMotion.Never,
+          });
+        }
         first.current = false;
         height.value = next;
         setShown(true);
@@ -69,9 +79,10 @@ export function useSmoothHeight() {
         height.value = withTiming(next, { duration: theme.motion.duration.fast, easing: Easing.out(Easing.cubic) });
       }
     },
-    [height, reduceMotion, theme.motion.duration.fast],
+    [height, opacity, reduceMotion, theme.motion.duration.fast, theme.motion.duration.base],
   );
-  const heightStyle = useAnimatedStyle(() => ({ height: height.value }));
+  // Comes after MathView's static `opacity: shown ? 1 : 0`, so the fade wins.
+  const heightStyle = useAnimatedStyle(() => ({ height: height.value, opacity: opacity.value }));
   return { shown, setHeight, heightStyle };
 }
 
@@ -81,6 +92,7 @@ export function useMathPayload({ markdown, fontSize, choices, choiceState, typin
   const reduceMotion = useReducedMotion();
   const animate = typing !== 'off' && !reduceMotion;
   const c = theme.colors;
+  const m = theme.motion;
   return useMemo(
     () => ({
       markdown,
@@ -96,13 +108,35 @@ export function useMathPayload({ markdown, fontSize, choices, choiceState, typin
         border: c.border,
         'code-bg': c.surfaceAlt,
         surface: c.surface,
-        'on-accent': c.textOnAccent,
+        mark: c.mark,
+        'mark-ink': c.markInk,
+        optik: c.optik,
+        fosfor: c.accent,
+        highlight: c.highlight,
+        'sweep-alpha': String(theme.scheme === 'dark' ? ROW_SWEEP.dark : ROW_SWEEP.light),
         success: c.success,
+        'success-strong': c.successStrong,
         'success-soft': c.successSoft,
-        'success-ring': withAlpha(c.success, 0.4),
+        'on-status': c.textOnAccent,
         danger: c.danger,
         'danger-soft': c.dangerSoft,
-        'font-size': `${fontSize ?? theme.fontSize.md}px`,
+        'font-size': px(fontSize ?? theme.fontSize.md),
+        'r-choice': px(theme.radius.md),
+        'r-sm': px(theme.radius.sm),
+        'r-xs': px(theme.radius.xs),
+        'bubble-w': px(theme.layout.bubble.row.w),
+        'bubble-h': px(theme.layout.bubble.row.h),
+        'bubble-line': px(theme.layout.bubble.outline),
+        // Color changes cross-fade at the standard pace, or the short Reduce Motion fade.
+        'fade-ms': ms(reduceMotion ? RM_FADE_MS : m.duration.base),
+        'verdict-ms': ms(m.verdict.checkDraw),
+        'pen-ms': ms(m.verdict.penCircle),
+        'sweep-ms': ms(m.highlight.draw),
+        'reveal-ms': ms(m.verdict.dwell),
+        'ease-standard': bezier(m.easing.standard),
+        'ease-pencil': bezier(m.easing.pencil),
+        'ease-highlighter': bezier(m.easing.highlighter),
+        'ease-breath': bezier(m.easing.breath),
       },
     }),
     // choiceState is compared by value so a new object with the same state doesn't re-render.

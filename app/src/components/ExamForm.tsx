@@ -1,17 +1,23 @@
-import { useState } from 'react';
-import { Pressable, Switch, TextInput, View } from 'react-native';
+import { useEffect, useState, type ReactNode } from 'react';
+import { Pressable, Switch, View } from 'react-native';
+import Animated from 'react-native-reanimated';
 import type { ExamInput, ExamResult, KarneDraft } from '../api/types';
 import { getTopic, QUESTION_COUNTS, SUBJECTS_BY_EXAM, topicLabel, type Exam, type Subject } from '../data/topics';
 import { formatNet, localToday, longDate, shiftDate } from '../lib/format';
 import { haptics } from '../lib/haptics';
-import { font, useTheme } from '../theme';
+import { elevated, subjectColor, useTheme } from '../theme';
 import { AppText } from './AppText';
 import { Button } from './Button';
 import { Card } from './Card';
 import { Grid } from './Grid';
-import { Icon } from './Icon';
+import { Icon, type IconName } from './Icon';
+import { Odometer } from './motion/Odometer';
+import { enter } from './motion/presets';
+import { PressableScale } from './motion/PressableScale';
 import { NumberField } from './NumberField';
+import { Screen } from './Screen';
 import { SegmentedControl } from './SegmentedControl';
+import { TextField } from './TextField';
 
 // Inputs are kept as strings so a field can be empty while typing.
 interface TopicRow {
@@ -99,13 +105,72 @@ interface Props {
   submitting: boolean;
   error?: string | null;
   onSubmit: (input: ExamInput) => void;
+  /** The Screen's in-content title (stack screens share one title voice). */
+  title?: string;
+  /** Shown above the form, e.g. the karne-read notice. */
+  intro?: ReactNode;
 }
 
-/** The one editable form both entry paths (karne photo, manual) end up in. */
-export function ExamForm({ initial, submitLabel, submitting, error, onSubmit }: Props) {
+/** A 44 pt round stepper (bubble press feedback, `select` haptic). */
+function Stepper({ icon, label, disabled, onPress }: { icon: IconName; label: string; disabled?: boolean; onPress: () => void }) {
+  const theme = useTheme();
+  const { minTouch } = theme.layout.system;
+  return (
+    <PressableScale
+      kind="bubble"
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled: !!disabled }}
+      disabled={disabled}
+      dimmed={disabled}
+      onPress={() => {
+        haptics.select();
+        onPress();
+      }}
+      style={{
+        width: minTouch,
+        height: minTouch,
+        borderRadius: theme.radius.pill,
+        backgroundColor: theme.colors.surfaceAlt,
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      <Icon name={icon} color={theme.colors.primaryText} weight="bold" />
+    </PressableScale>
+  );
+}
+
+/** Blank or net under its caption, as a numeric figure (live while typing). */
+function Figure({ label, value, muted = false }: { label: string; value: string; muted?: boolean }) {
+  const theme = useTheme();
+  return (
+    <View style={{ alignItems: 'center', gap: theme.spacing.xxs, minWidth: theme.layout.system.minTouch }}>
+      <AppText variant="caption" color="textMuted">
+        {label}
+      </AppText>
+      <View style={{ height: theme.layout.system.minTouch, justifyContent: 'center' }}>
+        <AppText variant="numeric" color={muted ? 'textMuted' : 'text'}>
+          {value}
+        </AppText>
+      </View>
+    </View>
+  );
+}
+
+/**
+ * The one editable form both entry paths (karne photo, manual) end up in. Renders its own
+ * Screen: section sheets in two columns with live nets, and a floating total sheet holding
+ * the submit button docked over the bottom of the page.
+ */
+export function ExamForm({ initial, submitLabel, submitting, error, onSubmit, title, intro }: Props) {
   const theme = useTheme();
   const [form, setForm] = useState(initial);
   const today = localToday();
+  // Section bodies fade in when a switch or the exam type swaps them, never on mount (spec 5.3).
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const swapIn = mounted ? enter({ still: true, duration: theme.motion.duration.base }) : undefined;
 
   const updateSection = (subject: Subject, patch: Partial<SectionRow>) =>
     setForm((f) => ({ ...f, sections: f.sections.map((s) => (s.subject === subject ? { ...s, ...patch } : s)) }));
@@ -129,8 +194,38 @@ export function ExamForm({ initial, submitLabel, submitting, error, onSubmit }: 
   const totalQuestions = included.reduce((sum, s) => sum + QUESTION_COUNTS[s.subject], 0);
   const canSubmit = included.length > 0 && errors.length === 0 && !submitting;
 
+  const dock = (
+    <View style={{ ...elevated(theme, 'floating'), padding: theme.spacing.md, gap: theme.spacing.sm }}>
+      {error ? (
+        <AppText variant="label" color="danger">
+          {error}
+        </AppText>
+      ) : null}
+      <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: theme.spacing.md }}>
+        <View
+          accessible
+          accessibilityLabel={`Toplam ${formatNet(totalNet)} net, ${totalQuestions} soru`}
+          style={{ flexGrow: 1, flexDirection: 'row', alignItems: 'baseline', gap: theme.spacing.xs, paddingLeft: theme.spacing.xs }}
+        >
+          <AppText variant="label" color="textMuted">
+            Toplam
+          </AppText>
+          <Odometer value={totalNet} format={formatNet} variant="stat" />
+          <AppText variant="label" color="textMuted">
+            net
+          </AppText>
+          <AppText variant="caption" color="textMuted">
+            /{totalQuestions}
+          </AppText>
+        </View>
+        <Button label={submitLabel} icon="check" loading={submitting} disabled={!canSubmit} onPress={() => onSubmit(toInput(form))} style={{ flexGrow: 1 }} />
+      </View>
+    </View>
+  );
+
   return (
-    <View style={{ gap: theme.spacing.lg }}>
+    <Screen safeTop={false} width="readable" title={title} dock={dock}>
+      {intro}
       <SegmentedControl
         options={[
           { value: 'TYT', label: 'TYT' },
@@ -142,57 +237,26 @@ export function ExamForm({ initial, submitLabel, submitting, error, onSubmit }: 
 
       <Card>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm }}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Önceki gün"
-            onPress={() => {
-              haptics.select();
-              setForm((f) => ({ ...f, date: shiftDate(f.date, -1) }));
-            }}
-            style={{ width: theme.layout.minTouch, height: theme.layout.minTouch, alignItems: 'center', justifyContent: 'center' }}
-          >
-            <Icon name="chevron-left" color={theme.colors.primaryText} />
-          </Pressable>
+          <Stepper icon="chevron-left" label="Önceki gün" onPress={() => setForm((f) => ({ ...f, date: shiftDate(f.date, -1) }))} />
           <View style={{ flex: 1, alignItems: 'center' }}>
             <AppText weight="semibold">{longDate(form.date)}</AppText>
             <AppText variant="caption" color="textMuted">
-              {form.date === today ? 'bugün' : form.date === shiftDate(today, -1) ? 'dün' : 'deneme tarihi'}
+              {form.date === today ? 'Bugün' : form.date === shiftDate(today, -1) ? 'Dün' : 'Deneme tarihi'}
             </AppText>
           </View>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Sonraki gün"
+          <Stepper
+            icon="chevron-right"
+            label="Sonraki gün"
             disabled={form.date >= today}
-            onPress={() => {
-              haptics.select();
-              setForm((f) => ({ ...f, date: shiftDate(f.date, 1) }));
-            }}
-            style={{
-              width: theme.layout.minTouch,
-              height: theme.layout.minTouch,
-              alignItems: 'center',
-              justifyContent: 'center',
-              opacity: form.date >= today ? 0.3 : 1,
-            }}
-          >
-            <Icon name="chevron-right" color={theme.colors.primaryText} />
-          </Pressable>
+            onPress={() => setForm((f) => ({ ...f, date: shiftDate(f.date, 1) }))}
+          />
         </View>
-        <TextInput
+        <TextField
+          label="Deneme adı (isteğe bağlı)"
           value={form.name}
           onChangeText={(name) => setForm((f) => ({ ...f, name }))}
-          placeholder="Deneme adı (isteğe bağlı), ör. Yayın TYT-3"
-          placeholderTextColor={theme.colors.textMuted}
+          placeholder="ör. Yayın TYT-3"
           maxLength={120}
-          style={{
-            minHeight: theme.layout.minTouch,
-            paddingHorizontal: theme.spacing.md,
-            borderRadius: theme.radius.md,
-            backgroundColor: theme.colors.surfaceAlt,
-            color: theme.colors.text,
-            fontSize: theme.fontSize.md,
-            ...font('sans'),
-          }}
         />
       </Card>
 
@@ -201,8 +265,10 @@ export function ExamForm({ initial, submitLabel, submitting, error, onSubmit }: 
           const total = QUESTION_COUNTS[s.subject];
           const err = s.included ? sectionError(s) : null;
           const blank = total - num(s.correct) - num(s.wrong);
+          const ink = subjectColor(theme, s.subject);
           return (
-            <Card key={s.subject}>
+            // The accent stays on either way: toggling it would cut the color and shift the padding.
+            <Card key={s.subject} accent={ink} style={{ flexGrow: 1 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm }}>
                 <View style={{ flex: 1 }}>
                   <AppText variant="heading">{s.subject}</AppText>
@@ -221,31 +287,19 @@ export function ExamForm({ initial, submitLabel, submitting, error, onSubmit }: 
               </View>
 
               {s.included ? (
-                <>
+                <Animated.View key="in" entering={swapIn} style={{ gap: theme.spacing.md }}>
                   <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' }}>
                     <NumberField label="Doğru" value={s.correct} invalid={!!err} onChangeText={(t) => updateSection(s.subject, { correct: t })} />
                     <NumberField label="Yanlış" value={s.wrong} invalid={!!err} onChangeText={(t) => updateSection(s.subject, { wrong: t })} />
-                    <View style={{ alignItems: 'center', gap: theme.spacing.xxs, minWidth: theme.layout.minTouch }}>
-                      <AppText variant="caption" color="textMuted">
-                        Boş
-                      </AppText>
-                      <AppText variant="heading" color="textMuted" style={{ lineHeight: theme.layout.minTouch, fontVariant: ['tabular-nums'] }}>
-                        {err ? '—' : blank}
-                      </AppText>
-                    </View>
-                    <View style={{ alignItems: 'center', gap: theme.spacing.xxs, minWidth: theme.layout.minTouch }}>
-                      <AppText variant="caption" color="textMuted">
-                        Net
-                      </AppText>
-                      <AppText variant="heading" style={{ lineHeight: theme.layout.minTouch, fontVariant: ['tabular-nums'] }}>
-                        {formatNet(num(s.correct) - num(s.wrong) / 4)}
-                      </AppText>
-                    </View>
+                    <Figure label="Boş" value={err ? '–' : String(blank)} muted />
+                    <Figure label="Net" value={formatNet(num(s.correct) - num(s.wrong) / 4)} />
                   </View>
                   {err ? (
-                    <AppText variant="label" color="danger">
-                      {err}
-                    </AppText>
+                    <Animated.View entering={swapIn}>
+                      <AppText variant="label" color="danger">
+                        {err}
+                      </AppText>
+                    </Animated.View>
                   ) : null}
 
                   {s.topics.length ? (
@@ -280,33 +334,18 @@ export function ExamForm({ initial, submitLabel, submitting, error, onSubmit }: 
                       })}
                     </View>
                   ) : null}
-                </>
+                </Animated.View>
               ) : (
-                <AppText variant="label" color="textMuted">
-                  Bu bölüme girmedin (branş denemesi için kapat).
-                </AppText>
+                <Animated.View key="out" entering={swapIn}>
+                  <AppText variant="label" color="textMuted">
+                    Bu bölüme girmedin (branş denemesi için kapat).
+                  </AppText>
+                </Animated.View>
               )}
             </Card>
           );
         })}
       </Grid>
-
-      <Card background={theme.colors.primarySoft}>
-        <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: theme.spacing.sm }}>
-          <AppText variant="label" color="textMuted" style={{ flex: 1 }}>
-            Toplam net
-          </AppText>
-          <AppText variant="title" tint={theme.colors.primaryText}>
-            {formatNet(totalNet)}
-          </AppText>
-          <AppText variant="label" color="textMuted">
-            / {totalQuestions}
-          </AppText>
-        </View>
-      </Card>
-
-      {error ? <AppText color="danger">{error}</AppText> : null}
-      <Button label={submitLabel} icon="check" size="lg" loading={submitting} disabled={!canSubmit} onPress={() => onSubmit(toInput(form))} />
-    </View>
+    </Screen>
   );
 }

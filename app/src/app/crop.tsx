@@ -2,14 +2,16 @@ import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Image, PanResponder, View, type LayoutChangeEvent } from 'react-native';
-import Animated, { Easing, useAnimatedStyle, useReducedMotion, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
+import Animated, { cancelAnimation, ReduceMotion, useAnimatedStyle, useReducedMotion, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Svg, { Defs, LinearGradient, Rect as SvgRect, Stop } from 'react-native-svg';
 import { useSolve } from '../api/hooks';
 import { AppText } from '../components/AppText';
+import { Bubble } from '../components/Bubble';
 import { Button } from '../components/Button';
-import { Icon } from '../components/Icon';
 import { Mascot } from '../components/mascot/Mascot';
-import { ThinkingSpark } from '../components/motion/ThinkingSpark';
+import { FadeText } from '../components/motion/FadeText';
+import { ease } from '../components/motion/presets';
 import { DEMO_MODE } from '../config';
 import { haptics } from '../lib/haptics';
 import { prepareUpload, type LocalImage } from '../lib/image';
@@ -29,23 +31,87 @@ type Handle = 'tl' | 'tr' | 'bl' | 'br' | 'move';
 const WAIT_STEPS = ['Soruyu okuyorum', 'Konuyu buluyorum', 'Çözümü ve ipuçlarını yazıyorum'];
 const WAIT_STEP_MS = 5000;
 
-/** A band of light sweeping down the photo while it is read. */
+// TOKEN-PENDING: layout.scanBand = 56 (the fosfor band that sweeps the photo while it is read)
+const SCAN_BAND = 56;
+// TOKEN-PENDING: opacity.scanBand = 0.5 (the band's soft peak; it fades out to both edges)
+const SCAN_PEAK = 0.5;
+// TOKEN-PENDING: opacity.cameraCaption = 0.7 (secondary text on the dark camera screens)
+const CAPTION_OPACITY = 0.7;
+// TOKEN-PENDING: layout.cropStartInset = 0.04 (the first crop box sits this share inside the photo)
+const START_INSET = 0.04;
+// TOKEN-PENDING: motion.duration.rmFade = 120 (the Reduce Motion cross-fade, spec 0.7 / 5.6)
+const RM_FADE_MS = 120;
+// The step that is being worked on shows as a half-coded bubble; the band rests mid-photo under RM.
+const CURRENT_STEP_FILL = 0.5;
+const MID = 0.5;
+
+/**
+ * A soft fosfor highlighter band sweeping down the photo while it is read (1400 ms each way).
+ * Under Reduce Motion the band rests across the middle.
+ */
 function ScanBeam({ rect }: { rect: Rect }) {
   const theme = useTheme();
   const reduceMotion = useReducedMotion();
-  const y = useSharedValue(0);
-  const height = theme.layout.scanBeam;
+  const y = useSharedValue(MID);
+  const band = Math.min(SCAN_BAND, rect.h);
+  const travel = rect.h - band;
   useEffect(() => {
-    if (reduceMotion) return;
-    y.value = withRepeat(withTiming(1, { duration: theme.motion.duration.celebrate * 1.3, easing: Easing.inOut(Easing.sin) }), -1, true);
+    if (reduceMotion) {
+      y.value = MID;
+      return;
+    }
+    y.value = 0;
+    y.value = withRepeat(withTiming(1, { duration: theme.motion.duration.celebrate, easing: ease('breath') }), -1, true);
+    return () => cancelAnimation(y);
   }, [y, reduceMotion, theme.motion.duration.celebrate]);
-  const style = useAnimatedStyle(() => ({ transform: [{ translateY: y.value * (rect.h - height) }] }));
-  if (reduceMotion) return null;
+  const style = useAnimatedStyle(() => ({ transform: [{ translateY: y.value * travel }] }), [travel]);
+  const hl = theme.colors.highlight;
   return (
     <View pointerEvents="none" style={{ position: 'absolute', left: rect.x, top: rect.y, width: rect.w, height: rect.h, overflow: 'hidden' }}>
-      <Animated.View style={[{ height, backgroundColor: theme.colors.cropFrame, opacity: 0.22 }, style]} />
-      <Animated.View style={[{ position: 'absolute', left: 0, right: 0, height: theme.layout.frameBorder, backgroundColor: theme.colors.cropFrame, marginTop: height - theme.layout.frameBorder }, style]} />
+      <Animated.View style={[{ width: rect.w, height: band }, style]}>
+        <Svg width={rect.w} height={band}>
+          <Defs>
+            <LinearGradient id="scanband" x1="0" y1="0" x2="0" y2="1">
+              <Stop offset="0" stopColor={hl} stopOpacity={0} />
+              <Stop offset="0.5" stopColor={hl} stopOpacity={SCAN_PEAK} />
+              <Stop offset="1" stopColor={hl} stopOpacity={0} />
+            </LinearGradient>
+          </Defs>
+          <SvgRect x="0" y="0" width={rect.w} height={band} fill="url(#scanband)" />
+        </Svg>
+      </Animated.View>
     </View>
+  );
+}
+
+/** One checklist line: dimmed until its turn, and the dim lifts with a cross-fade (rule 0.7). */
+function WaitStep({ step, done, current }: { step: string; done: boolean; current: boolean }) {
+  const theme = useTheme();
+  const reduceMotion = useReducedMotion();
+  const lit = done || current ? 1 : theme.opacity.disabled;
+  const opacity = useSharedValue(lit);
+  useEffect(() => {
+    opacity.value = withTiming(lit, {
+      duration: reduceMotion ? RM_FADE_MS : theme.motion.duration.base,
+      easing: ease('standard'),
+      reduceMotion: ReduceMotion.Never,
+    });
+  }, [lit, opacity, reduceMotion, theme.motion.duration.base]);
+  const style = useAnimatedStyle(() => ({ opacity: opacity.value }));
+  return (
+    <Animated.View
+      accessible
+      accessibilityLabel={`${step}${done ? ', bitti' : current ? ', sürüyor' : ''}`}
+      style={[{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm }, style]}
+    >
+      <Bubble size="dot" tone="accent" filled={done} fill={current ? CURRENT_STEP_FILL : 0} verdict={done ? 'check' : undefined} />
+      {/* FadeText wraps its text in a View: the wrapper takes the rest of the row so the line wraps. */}
+      <View style={{ flex: 1 }}>
+        <FadeText variant="label" weight={current ? 'semibold' : 'regular'} tint={theme.colors.cameraForeground}>
+          {step}
+        </FadeText>
+      </View>
+    </Animated.View>
   );
 }
 
@@ -96,7 +162,7 @@ export default function CropScreen() {
           h: current.h * s,
         };
       }
-      const inset = Math.min(bounds.w, bounds.h) * 0.04;
+      const inset = Math.min(bounds.w, bounds.h) * START_INSET;
       return { x: bounds.x + inset, y: bounds.y + inset, w: bounds.w - inset * 2, h: bounds.h - inset * 2 };
     });
   }, [bounds]);
@@ -214,7 +280,7 @@ export default function CropScreen() {
         <AppText variant="heading" tint={c.cameraForeground} align="center">
           {busy ? 'Çözülüyor' : 'Soruyu kırp'}
         </AppText>
-        <AppText variant="label" tint={c.cameraForeground} align="center" style={{ opacity: 0.7 }}>
+        <AppText variant="label" tint={c.cameraForeground} align="center" style={{ opacity: CAPTION_OPACITY }}>
           {busy ? 'Bu biraz sürebilir.' : 'Köşeleri sürükle, sadece soru kalsın.'}
         </AppText>
       </View>
@@ -281,6 +347,7 @@ export default function CropScreen() {
                       borderBottomWidth: isTop ? 0 : cornerStroke,
                       borderLeftWidth: isLeft ? cornerStroke : 0,
                       borderRightWidth: isLeft ? 0 : cornerStroke,
+                      [`border${isTop ? 'Top' : 'Bottom'}${isLeft ? 'Left' : 'Right'}Radius`]: theme.radius.xs,
                     }}
                   />
                 </View>
@@ -324,24 +391,7 @@ export default function CropScreen() {
                     {phase === 'preparing' ? 'Görsel hazırlanıyor…' : uploadPct > 0 ? `Yükleniyor… %${uploadPct}` : 'Yükleniyor…'}
                   </AppText>
                 ) : (
-                  WAIT_STEPS.map((step, i) => {
-                    const done = i < waitIndex;
-                    const current = i === waitIndex;
-                    return (
-                      <View key={step} style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm, opacity: done || current ? 1 : 0.5 }}>
-                        {done ? (
-                          <Icon name="circle-check" size={theme.layout.iconSize.sm} color={c.cropFrame} />
-                        ) : current ? (
-                          <ThinkingSpark size={theme.layout.iconSize.sm} color={c.cropFrame} />
-                        ) : (
-                          <Icon name="circle-dashed" size={theme.layout.iconSize.sm} color={c.cameraForeground} />
-                        )}
-                        <AppText variant="label" weight={current ? 'semibold' : 'regular'} tint={c.cameraForeground}>
-                          {step}
-                        </AppText>
-                      </View>
-                    );
-                  })
+                  WAIT_STEPS.map((step, i) => <WaitStep key={step} step={step} done={i < waitIndex} current={i === waitIndex} />)
                 )}
               </View>
             </View>

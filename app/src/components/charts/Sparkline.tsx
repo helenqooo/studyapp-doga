@@ -8,7 +8,7 @@ import { polylineLength, useDrawIn } from './useDrawIn';
 const AnimatedPath = Animated.createAnimatedComponent(Path);
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
-function SparkMarks({ points }: { points: { x: number; y: number }[] }) {
+function SparkMarks({ points, color }: { points: { x: number; y: number }[]; color: string }) {
   const theme = useTheme();
   const c = theme.colors.chart;
   const dims = theme.layout.chart;
@@ -23,7 +23,7 @@ function SparkMarks({ points }: { points: { x: number; y: number }[] }) {
       {points.length > 1 ? (
         <AnimatedPath
           d={d}
-          stroke={c.line}
+          stroke={color}
           strokeWidth={dims.lineWidth}
           strokeLinejoin="round"
           strokeLinecap="round"
@@ -33,14 +33,17 @@ function SparkMarks({ points }: { points: { x: number; y: number }[] }) {
         />
       ) : null}
       {last ? (
-        <AnimatedCircle cx={last.x} cy={last.y} r={dims.markerRadius} fill={c.line} stroke={c.markerRing} strokeWidth={dims.ringWidth} animatedProps={tipProps} />
+        <AnimatedCircle cx={last.x} cy={last.y} r={dims.markerRadius} fill={color} stroke={c.markerRing} strokeWidth={dims.ringWidth} animatedProps={tipProps} />
       ) : null}
     </>
   );
 }
 
-/** Tiny trend line for a stat tile: 2px line, ringed end marker on the latest value. */
-export function Sparkline({ values, max }: { values: number[]; max: number }) {
+/**
+ * Tiny trend line for a stat tile: 2px line, ringed end marker on the latest value. `color`
+ * (a raw token, e.g. a subject ink) defaults to the chart line.
+ */
+export function Sparkline({ values, max, color }: { values: number[]; max: number; color?: string }) {
   const theme = useTheme();
   const dims = theme.layout.chart;
   const [width, setWidth] = useState(0);
@@ -59,7 +62,7 @@ export function Sparkline({ values, max }: { values: number[]; max: number }) {
     <View style={{ height }} onLayout={(e: LayoutChangeEvent) => setWidth(e.nativeEvent.layout.width)}>
       {width > 0 && values.length ? (
         <Svg width={width} height={height}>
-          <SparkMarks key={`${width}:${values.join(',')}`} points={points} />
+          <SparkMarks key={`${width}:${values.join(',')}`} points={points} color={color ?? theme.colors.chart.line} />
         </Svg>
       ) : null}
     </View>

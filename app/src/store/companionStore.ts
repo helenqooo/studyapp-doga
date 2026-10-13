@@ -91,7 +91,21 @@ export interface CompanionStore {
   reaction: MascotMood | null;
   /** No unsolicited lines or flights until this time (ms epoch). */
   snoozedUntil: number;
+  /** The companion can fly to a celebration right now (visible, motion allowed). */
+  canStage: boolean;
+  /** Dragged away this session: hidden, an ember stays at the nest. */
+  draggedAway: boolean;
+  /** Screens rendering the current line themselves (Home's hero note); the floating note steps aside. */
+  heroVoice: number;
+  /** A highlight Lumi drew stays marked under this persist key. */
+  mark(persistKey: string): void;
+  /** Bumped (dev route) after the saved memory was rewritten: the companion reads it again. */
+  memoryNonce: number;
+  /** The line Lumi is saying right now (after its flight or hop), for the hero note's re-type. */
+  speakingId: string | null;
 }
+
+const RANK: Record<CompanionLine['priority'], number> = { event: 0, time: 1, route: 2 };
 
 const sameRect = (a: Rect | null | undefined, b: Rect | null | undefined) =>
   !!a && !!b && a.x === b.x && a.y === b.y && a.w === b.w && a.h === b.h && a.scrollAt === b.scrollAt && a.anchored === b.anchored;
@@ -121,14 +135,27 @@ export const useCompanionStore = create<CompanionStore>((set, get) => ({
   lastEvent: null,
   reaction: null,
   snoozedUntil: 0,
+  canStage: false,
+  draggedAway: false,
+  heroVoice: 0,
+  memoryNonce: 0,
+  speakingId: null,
 
   say: (line) => {
     const { current, queue } = get();
-    if (current?.id === line.id || queue.some((l) => l.id === line.id)) return;
-    if (!current) set({ current: line });
-    else set({ queue: [...queue, line] });
+    if (current?.id === line.id) return;
+    const now = Date.now();
+    // Newer copies replace queued ones; the queue stays ordered event > time > route.
+    const rest = queue.filter((l) => l.id !== line.id && (!l.expiresAt || l.expiresAt > now));
+    if (!current) {
+      set({ current: line, queue: rest });
+      return;
+    }
+    const next = [...rest, line].sort((x, y) => RANK[x.priority] - RANK[y.priority]);
+    set({ queue: next });
   },
-  emit: (e) => set({ lastEvent: e }),
+  // A fresh object each time, so the same event emitted twice is heard twice.
+  emit: (e) => set({ lastEvent: { ...e } }),
   dismiss: () => {
     const now = Date.now();
     const queue = get().queue.filter((l) => !l.expiresAt || l.expiresAt > now);
@@ -172,10 +199,21 @@ export const useCompanionStore = create<CompanionStore>((set, get) => ({
     };
   },
   setCelebrating: (b) => set({ celebrating: b }),
-  // Staging comes with the companion package; until then RewardBurst draws its own Lumi.
-  stage: () => false,
+  stage: (p) => {
+    if (!p) {
+      if (get().stageTarget) set({ stageTarget: null });
+      return true;
+    }
+    if (!get().canStage) return false;
+    set({ stageTarget: p });
+    return true;
+  },
   markDone: (persistKey) => {
     const { marked } = get();
     if (marked.includes(persistKey)) set({ marked: marked.filter((k) => k !== persistKey) });
+  },
+  mark: (persistKey) => {
+    const { marked } = get();
+    if (!marked.includes(persistKey)) set({ marked: [...marked, persistKey] });
   },
 }));

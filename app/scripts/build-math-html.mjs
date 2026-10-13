@@ -1,6 +1,7 @@
 // Builds src/components/math/mathHtml.generated.ts: one self-contained HTML page with
-// KaTeX (JS, CSS, woff2 fonts as data URIs) and marked inlined, so math renders offline
-// without any CDN. Re-run after upgrading katex or marked:  npm run build:math
+// KaTeX (JS, CSS, woff2 fonts as data URIs), marked and Be Vietnam Pro inlined, so math
+// renders offline without any CDN. Re-run after upgrading katex or marked, or after editing
+// this page's CSS or scripts/math-runtime.js:  npm run build:math
 import fs from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
@@ -26,28 +27,36 @@ if (/url\(fonts\//.test(katexCss)) {
   throw new Error('Some KaTeX font URLs were not inlined; the CSS format may have changed.');
 }
 
-// Lora: the serif the app uses for Claude's own words (solutions, hints, chat replies).
-const loraDir = pkgDir('@expo-google-fonts/lora');
-const loraFace = (file, weight) =>
-  `@font-face { font-family: 'Lora'; font-style: normal; font-weight: ${weight}; font-display: block; ` +
-  `src: url(data:font/ttf;base64,${fs.readFileSync(path.join(loraDir, file)).toString('base64')}) format("truetype"); }`;
-const fontCss = [loraFace('400Regular/Lora_400Regular.ttf', '400 500'), loraFace('600SemiBold/Lora_600SemiBold.ttf', '600 800')].join('\n');
+// Be Vietnam Pro (the app's reading face) as 'LumiSans': solutions, hints, chat replies and
+// the choice letters. Read from assets/fonts, the same files the app loads (spec 2.3).
+const fontDir = path.join(appRoot, 'assets', 'fonts');
+const sansFace = (file, weight) =>
+  `@font-face { font-family: 'LumiSans'; font-style: normal; font-weight: ${weight}; font-display: block; ` +
+  `src: url(data:font/ttf;base64,${fs.readFileSync(path.join(fontDir, file)).toString('base64')}) format("truetype"); }`;
+const fontCss = [sansFace('BeVietnamPro-Regular.ttf', '400 500'), sansFace('BeVietnamPro-SemiBold.ttf', '600 800')].join('\n');
 
-// Defaults only; the app passes its theme colors in on every render.
+// Defaults only; the app passes its theme colors, radii and durations in on every render
+// (src/components/math/payload.ts). Every color change cross-fades over --fade-ms; verdict
+// strokes are drawn by math-runtime.js with the Web Animations API.
 const pageCss = `
 :root {
-  --text: #141413; --muted: #6B6962; --accent: #A84F33; --answer-bg: #F6E8E1; --border: #E4E1D8; --code-bg: #EEECE4; --font-size: 16px;
-  --surface: #FFFFFF; --on-accent: #FFFFFF; --success: #566F3D; --success-soft: #E9EEDF; --success-ring: rgba(86, 111, 61, 0.4); --danger: #A8443A; --danger-soft: #F9EAE6;
+  --text: #2A2F38; --muted: #5E6878; --accent: #3A4352; --answer-bg: #E9EDF5; --border: #E0E5EC; --code-bg: #E9EDF3; --font-size: 16px;
+  --surface: #FFFFFF; --mark: #4B5567; --mark-ink: #FFFFFF; --optik: #B9C2E4; --fosfor: #FFDC6E; --highlight: #FFEC94; --sweep-alpha: 0.6;
+  --success: #2B804C; --success-strong: #2B804C; --success-soft: #E4F4E8; --on-status: #FFFFFF; --danger: #C9473A; --danger-soft: #FCE8E4;
+  --r-choice: 12px; --r-sm: 8px; --r-xs: 4px; --bubble-w: 32px; --bubble-h: 22px; --bubble-line: 1.6px;
+  --fade-ms: 220ms; --verdict-ms: 260ms; --pen-ms: 320ms; --sweep-ms: 420ms; --reveal-ms: 380ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1); --ease-breath: cubic-bezier(0.37, 0, 0.63, 1);
 }
 html, body { margin: 0; padding: 0; background: transparent; }
 body {
   color: var(--text);
-  font-family: 'Lora', Georgia, serif;
+  font-family: 'LumiSans', system-ui, -apple-system, sans-serif;
   font-size: var(--font-size);
   line-height: 1.6;
   -webkit-text-size-adjust: 100%;
   overflow-wrap: anywhere;
   -webkit-user-select: text;
+  transition: color var(--fade-ms) var(--ease-standard);
 }
 #content { padding: 1px 0; }
 #content > :first-child { margin-top: 0; }
@@ -55,86 +64,83 @@ body {
 p { margin: 0 0 0.65em; }
 ul, ol { margin: 0 0 0.65em; padding-left: 1.3em; }
 li { margin: 0.2em 0; }
-h1, h2, h3, h4 { font-size: 1.05em; margin: 0.8em 0 0.4em; }
+h1, h2, h3, h4 { font-size: 1.05em; font-weight: 600; margin: 0.8em 0 0.4em; }
 strong { font-weight: 600; }
 hr { border: none; border-top: 1px solid var(--border); margin: 0.9em 0; }
-code { background: var(--code-bg); border-radius: 4px; padding: 0 0.25em; }
+code { background: var(--code-bg); border-radius: var(--r-xs); padding: 0 0.25em; }
 table { border-collapse: collapse; margin: 0 0 0.65em; }
 th, td { border: 1px solid var(--border); padding: 0.25em 0.5em; }
-blockquote { margin: 0.6em 0 0; padding: 0.6em 0.85em; border-left: 4px solid var(--accent); background: var(--answer-bg); border-radius: 8px; }
+blockquote { margin: 0.6em 0 0; padding: 0.6em 0.85em; border-left: 3px solid var(--fosfor); background: var(--answer-bg); border-radius: var(--r-sm); }
 blockquote p:last-child { margin-bottom: 0; }
 .katex { font-size: 1.08em; }
-/* Answer choices: whole-width buttons; the app passes the state in. */
+
+/* Answer choices: whole-width optik rows; the app passes the state in. Colors always
+   cross-fade (--fade-ms); nothing cuts. */
 .choices { display: flex; flex-direction: column; gap: 8px; margin: 0.4em 0 0; }
 .choice {
-  position: relative; overflow: hidden; isolation: isolate;
+  position: relative; isolation: isolate;
   display: flex; align-items: center; gap: 12px; width: 100%; min-height: 48px; box-sizing: border-box;
-  padding: 8px 12px 8px 8px; margin: 0; text-align: left; font: inherit; color: var(--text);
-  background: var(--surface); border: 1.5px solid var(--border); border-radius: 14px; cursor: pointer;
+  padding: 8px 12px 8px 10px; margin: 0; text-align: left; font: inherit; color: var(--text);
+  background-color: var(--surface); border: 1.5px solid var(--border); border-radius: var(--r-choice); cursor: pointer;
   -webkit-tap-highlight-color: transparent;
-  transition: transform 140ms ease, background-color 180ms ease, border-color 180ms ease, box-shadow 180ms ease, opacity 240ms ease;
+  transition-property: transform, background-color, border-color, color, opacity;
+  transition-duration: 140ms, var(--fade-ms), var(--fade-ms), var(--fade-ms), var(--fade-ms);
+  transition-timing-function: var(--ease-standard);
 }
 .choice > * { position: relative; z-index: 1; }
-/* The verdict's colour floods out of the letter disc (see .v-correct / .v-reveal). */
-.choice::before {
-  content: ''; position: absolute; inset: 0; z-index: 0; pointer-events: none;
-  background: var(--success-soft); clip-path: circle(0% at 24px 50%);
-}
-.choice:active { transform: scale(0.98); }
+.choice:active { transform: scale(0.985); }
 .choice[disabled] { cursor: default; }
 .choice[disabled]:active { transform: none; }
+/* The letter is an optik bubble: printed outline, filled with graphite when coded. */
 .choice .letter {
-  flex: none; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
-  background: var(--code-bg); color: var(--text); font-family: -apple-system, 'Poppins', system-ui, sans-serif; font-weight: 600; font-size: 0.92em;
-  transition: background-color 180ms ease, color 180ms ease, transform 180ms ease;
+  flex: none; position: relative; width: var(--bubble-w); height: var(--bubble-h); box-sizing: border-box; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  border: var(--bubble-line) solid var(--optik); background-color: transparent; color: var(--text);
+  font-family: 'LumiSans', system-ui, sans-serif; font-weight: 600; font-size: 0.82em; line-height: 1;
+  transition: background-color var(--fade-ms) var(--ease-standard), border-color var(--fade-ms) var(--ease-standard), color var(--fade-ms) var(--ease-standard), transform 180ms var(--ease-standard);
 }
 .choice .ctext { flex: 1; min-width: 0; }
-.choice .mark { flex: none; width: 22px; height: 22px; }
-.choice .mark path { fill: none; stroke: currentColor; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 17; }
-.choice.selected { border-color: var(--accent); background: var(--answer-bg); }
-.choice.selected .letter { background: var(--accent); color: var(--on-accent); }
-.choice.correct { border-color: var(--success); background: var(--success-soft); }
-.choice.correct .letter { background: var(--success); color: var(--on-accent); }
-.choice.correct .mark { color: var(--success); }
-.choice.wrong { border-color: var(--danger); background: var(--danger-soft); }
-.choice.wrong .letter { background: var(--danger); color: var(--on-accent); }
-.choice.wrong .mark { color: var(--danger); }
+/* The check at the row's end, drawn on a verdict. */
+.choice .mark { flex: none; width: 22px; height: 22px; color: var(--success); opacity: 0; transition: opacity var(--fade-ms) var(--ease-standard); }
+.choice .mark path { fill: none; stroke: currentColor; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+.choice.correct .mark { opacity: 1; }
+/* The red pen's loop around a wrong letter. */
+.choice .pen { position: absolute; left: calc(-8px - var(--bubble-line)); top: calc(-8px - var(--bubble-line)); overflow: visible; pointer-events: none; opacity: 0; transition: opacity var(--fade-ms) var(--ease-standard); }
+.choice .pen path { fill: none; stroke: var(--danger); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.choice.wrong .pen { opacity: 1; }
+/* The fosfor sweep under a right row: a slanted highlighter band, soft. */
+.choice .sweep {
+  position: absolute; z-index: 0; left: 6px; right: 6px; top: 16%; bottom: 16%; pointer-events: none;
+  background: var(--highlight); opacity: 0; border-radius: 3px 6px 4px 7px;
+  transition: opacity var(--fade-ms) var(--ease-standard);
+  transform: skewX(-8deg) rotate(-0.6deg); transform-origin: left center;
+}
+.choice.correct .sweep { opacity: var(--sweep-alpha); }
+
+.choice.selected { background-color: var(--answer-bg); border-color: var(--optik); }
+.choice.selected .letter { background-color: var(--mark); border-color: var(--mark); color: var(--mark-ink); }
+.choice.correct { border-color: var(--success); }
+.choice.correct .letter { border-color: var(--success); color: var(--success); }
+.choice.correct.mine .letter { background-color: var(--success-strong); border-color: var(--success-strong); color: var(--on-status); }
+.choice.wrong { background-color: var(--danger-soft); border-color: var(--danger); }
+.choice.wrong .letter { background-color: var(--mark); border-color: var(--mark); color: var(--mark-ink); }
 .choice.dim { opacity: 0.55; transition-delay: 0ms, 0ms, 0ms, 0ms, calc(var(--i, 0) * 30ms); }
-/* Picked: the letter pops. Sealing (being graded): the border thickens, the letter breathes. */
-.choice.v-pick .letter { animation: pick 260ms cubic-bezier(.34, 1.56, .64, 1); }
-.choice.sealing { box-shadow: inset 0 0 0 1px var(--accent); }
-.choice.sealing .letter { animation: breathe 600ms ease-in-out infinite alternate; }
-/* Right pick: green floods across the row, it pops, the check draws itself. */
-.choice.v-correct { background: var(--surface); animation: pop 300ms cubic-bezier(.34, 1.56, .64, 1); }
-.choice.v-correct::before { animation: flood 340ms cubic-bezier(.2, 0, 0, 1) forwards; }
-.choice.v-correct .mark path { animation: draw 240ms ease-out 120ms both; }
-/* Wrong pick: one headshake; then the right row fills in and its ring pulses twice. */
-.choice.v-wrong { animation: shake 320ms linear; }
-.choice.v-wrong .mark .m1 { animation: draw 160ms ease-out 140ms both; }
-.choice.v-wrong .mark .m2 { animation: draw 160ms ease-out 260ms both; }
-.choice.v-reveal { background: var(--surface); border-color: var(--border); animation: reveal-border 1ms linear 380ms forwards, ring 640ms ease-out 760ms 2; }
-.choice.v-reveal::before { animation: flood 420ms cubic-bezier(.2, 0, 0, 1) 380ms forwards; }
-.choice.v-reveal .letter { background: var(--code-bg); color: var(--text); animation: reveal-letter 1ms linear 380ms forwards; }
-.choice.v-reveal .mark path { animation: draw 260ms ease-out 640ms both; }
-@keyframes pick { 50% { transform: scale(1.14); } }
-@keyframes breathe { to { transform: scale(1.08); } }
-@keyframes flood { to { clip-path: circle(150% at 24px 50%); } }
-@keyframes pop { 40% { transform: scale(1.035); } }
-@keyframes draw { from { stroke-dashoffset: 17; } to { stroke-dashoffset: 0; } }
-@keyframes shake { 20% { transform: translateX(-6px); } 45% { transform: translateX(6px); } 70% { transform: translateX(-3px); } 100% { transform: none; } }
-@keyframes reveal-border { to { border-color: var(--success); } }
-@keyframes reveal-letter { to { background: var(--success); color: var(--on-accent); } }
-@keyframes ring { from { box-shadow: 0 0 0 0 var(--success-ring); } to { box-shadow: 0 0 0 8px transparent; } }
-/* Reduce motion: colours change, nothing moves. */
-.no-motion .choice, .no-motion .choice::before, .no-motion .choice .letter, .no-motion .choice .mark path { animation: none !important; }
-.no-motion .choice.v-correct::before, .no-motion .choice.v-reveal::before { clip-path: circle(150% at 24px 50%); }
-.no-motion .choice.v-reveal { border-color: var(--success); }
-.no-motion .choice.v-reveal .letter { background: var(--success); color: var(--on-accent); }
+/* After a wrong pick the right row waits a beat, so the eye travels from her answer to it. */
+.choice.v-reveal, .choice.v-reveal .letter, .choice.v-reveal .mark { transition-delay: var(--reveal-ms); }
+/* Picked: the letter nudges. Sealing (being graded): the letter breathes. */
+.choice.v-pick .letter { animation: pick 260ms var(--ease-standard); }
+.choice.sealing .letter { animation: breathe 720ms var(--ease-breath) infinite alternate; }
+@keyframes pick { 50% { transform: scale(1.1); } }
+@keyframes breathe { to { transform: scale(1.06); } }
+/* Reduce motion: colors still cross-fade (shorter); nothing moves. */
+.no-motion .choice, .no-motion .choice .letter { animation: none !important; }
+.no-motion .choice:active { transform: none; }
 /* Typing: words not yet "typed" take no space; the caret blinks at the end. */
 .tw-hidden { display: none !important; }
 .caret { display: inline-block; width: 0.5em; height: 1.05em; margin-left: 1px; vertical-align: -0.15em; border-radius: 2px; background: var(--accent); animation: blink 1s steps(2, start) infinite; }
 @keyframes blink { to { visibility: hidden; } }
-@media (prefers-reduced-motion: reduce) { .choice { transition: none; } .caret { animation: none; } }
+.no-motion .caret { animation: none; }
+@media (prefers-reduced-motion: reduce) { .caret { animation: none; } }
 .katex-display { margin: 0.5em 0; overflow-x: auto; overflow-y: hidden; padding: 2px 0; }
 `;
 

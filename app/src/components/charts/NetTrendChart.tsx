@@ -4,6 +4,7 @@ import Animated, { useAnimatedProps } from 'react-native-reanimated';
 import Svg, { Circle, Line, Path, Text as SvgText } from 'react-native-svg';
 import { formatNet, shortDate } from '../../lib/format';
 import { haptics } from '../../lib/haptics';
+import { useWindowLayout } from '../../lib/layout';
 import { useTheme } from '../../theme';
 import { AppText } from '../AppText';
 import { niceDomain } from './scale';
@@ -25,6 +26,8 @@ interface Props {
   /** Highest possible value (e.g. 120 for TYT total). */
   max: number;
   unit?: string;
+  /** Plot height; defaults to `chart.trendHeight` for the window (180 phone, 240 iPad). */
+  height?: number;
 }
 
 interface MarksProps {
@@ -105,18 +108,20 @@ function TrendMarks({ points, baseline, shown, endLabel }: MarksProps) {
  * Single-series net trend: 2px line with a light area wash, hairline grid, value at the
  * end. Touch and drag to scrub; the readout above shows the selected exam (value first).
  */
-export function NetTrendChart({ data, max, unit = 'net' }: Props) {
+export function NetTrendChart({ data, max, unit = 'net', height: heightProp }: Props) {
   const theme = useTheme();
   const c = theme.colors.chart;
   const dims = theme.layout.chart;
   const [width, setWidth] = useState(0);
   const [active, setActive] = useState<number | null>(null);
 
-  const height = dims.trendHeight.compact;
+  const { tablet } = useWindowLayout();
+  const height = heightProp ?? (tablet ? dims.trendHeight.tablet : dims.trendHeight.compact);
   const top = theme.spacing.md;
   const bottom = theme.spacing.xl;
   const left = dims.axisWidth;
-  const right = dims.endLabelWidth;
+  // The end label starts `spacing.sm` after the last point, so its room starts there too.
+  const right = dims.endLabelWidth + theme.spacing.sm;
   const plotW = Math.max(0, width - left - right);
   const plotH = height - top - bottom;
 
@@ -161,13 +166,18 @@ export function NetTrendChart({ data, max, unit = 'net' }: Props) {
     <View style={{ gap: theme.spacing.sm }}>
       {current ? (
         <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: theme.spacing.sm }}>
-          <AppText variant="title">{formatNet(current.value)}</AppText>
+          <AppText variant="stat">{formatNet(current.value)}</AppText>
           <AppText variant="label" color="textMuted">
             {unit}
           </AppText>
-          <AppText variant="label" color="textMuted" numberOfLines={1} style={{ flex: 1, textAlign: 'right' }}>
-            {current.label} · {shortDate(current.date)}
-          </AppText>
+          <View style={{ flex: 1, alignItems: 'flex-end' }}>
+            <AppText variant="label" numberOfLines={1}>
+              {current.label}
+            </AppText>
+            <AppText variant="caption" color="textMuted" numberOfLines={1}>
+              {shortDate(current.date)}
+            </AppText>
+          </View>
         </View>
       ) : null}
 

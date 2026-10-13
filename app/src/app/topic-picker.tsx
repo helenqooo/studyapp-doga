@@ -1,91 +1,138 @@
 import { router } from 'expo-router';
-import { Pressable, View } from 'react-native';
+import { useState, type ReactNode } from 'react';
+import { View } from 'react-native';
 import { useFacets } from '../api/hooks';
 import { AppText } from '../components/AppText';
-import { Icon } from '../components/Icon';
+import { Bubble } from '../components/Bubble';
+import { PressableScale } from '../components/motion/PressableScale';
 import { Screen } from '../components/Screen';
-import { TOPICS, type Topic } from '../data/topics';
+import { SectionHeader } from '../components/SectionHeader';
+import { SegmentedControl } from '../components/SegmentedControl';
+import { Skeleton, SkeletonRows } from '../components/states/Skeleton';
+import { ErrorState } from '../components/states/ErrorState';
+import { getTopic, SUBJECTS_BY_EXAM, TOPICS, topicLabel, type Exam, type Topic } from '../data/topics';
 import { haptics } from '../lib/haptics';
 import { useHistoryFilter } from '../store/historyFilter';
-import { useTheme } from '../theme';
+import { elevated, subjectSoftColor, useTheme } from '../theme';
+
+// TOKEN-PENDING: layout.list.rowHeight = 52 (a picker or settings row)
+const ROW_HEIGHT = 52;
 
 function Row({ label, count, selected, onPress }: { label: string; count?: number; selected: boolean; onPress: () => void }) {
   const theme = useTheme();
   return (
-    <Pressable
+    <PressableScale
+      kind="row"
       accessibilityRole="button"
       accessibilityState={{ selected }}
+      accessibilityLabel={count !== undefined ? `${label}, ${count} soru` : label}
       onPress={onPress}
-      style={({ pressed }) => ({
+      style={{
         flexDirection: 'row',
         alignItems: 'center',
         gap: theme.spacing.md,
-        minHeight: theme.layout.minTouch,
-        paddingHorizontal: theme.spacing.md,
-        borderRadius: theme.radius.md,
-        backgroundColor: selected ? theme.colors.primarySoft : pressed ? theme.colors.surfaceAlt : theme.colors.surface,
-      })}
+        minHeight: ROW_HEIGHT,
+        paddingHorizontal: theme.spacing.lg,
+        paddingVertical: theme.spacing.sm,
+      }}
     >
-      <AppText style={{ flex: 1 }} weight={selected ? 'semibold' : undefined}>
-        {label}
-      </AppText>
+      <AppText style={{ flex: 1 }}>{label}</AppText>
       {count !== undefined ? (
-        <AppText variant="label" color="textMuted">
+        <AppText variant="numeric" color="textMuted">
           {count}
         </AppText>
       ) : null}
-      {selected ? <Icon name="check" size={theme.layout.iconSize.sm} color={theme.colors.primaryText} /> : null}
-    </Pressable>
+      <Bubble size="row" filled={selected} verdict={selected ? 'check' : undefined} />
+    </PressableScale>
   );
 }
 
-/** Modal list of topics (within the selected subject) that have questions. */
+/**
+ * One inset sheet of rows with optikSoft hairlines between them. The rows' press fill is
+ * clipped by an inner layer, so the sheet itself keeps its shadow (as Card does).
+ */
+function Sheet({ children }: { children: ReactNode[] }) {
+  const theme = useTheme();
+  const sheet = elevated(theme);
+  const inner = Math.max(0, sheet.borderRadius - sheet.borderWidth);
+  return (
+    <View style={sheet}>
+      <View style={{ borderRadius: inner, borderCurve: 'continuous', overflow: 'hidden' }}>
+        {children.map((child, i) => (
+          <View key={i}>
+            {i > 0 ? (
+              <View style={{ height: theme.layout.borderWidth, marginLeft: theme.spacing.lg, backgroundColor: theme.colors.optikSoft }} />
+            ) : null}
+            {child}
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+/** Modal list of topics that have questions, by exam and subject (spec 7.11). */
 export default function TopicPickerScreen() {
   const theme = useTheme();
-  const { subject, topicId, setTopicId } = useHistoryFilter();
+  const { subject, topicId, setTopic, setTopicId } = useHistoryFilter();
   const facets = useFacets();
+  const current = getTopic(topicId);
+  const [exam, setExam] = useState<Exam>(current?.exam ?? (subject && SUBJECTS_BY_EXAM.AYT.includes(subject as never) ? 'AYT' : 'TYT'));
 
   const counts = new Map((facets.data?.topics ?? []).map((t) => [t.topicId, t.count]));
-  const topics = TOPICS.filter((t) => (!subject || t.subject === subject) && counts.has(t.id));
+  const groups = SUBJECTS_BY_EXAM[exam]
+    .map((s) => ({ subject: s, items: TOPICS.filter((t) => t.subject === s && counts.has(t.id)) }))
+    .filter((g) => g.items.length > 0);
 
-  // Group by `topic` (e.g. "Problemler", "Tarih") keeping taxonomy order.
-  const groups: { name: string; items: Topic[] }[] = [];
-  for (const t of topics) {
-    const group = groups.find((g) => g.name === t.topic);
-    if (group) group.items.push(t);
-    else groups.push({ name: t.topic, items: [t] });
-  }
-
-  const choose = (id: string | null) => {
+  const close = () => router.back();
+  const chooseAll = () => {
     haptics.select();
-    setTopicId(id);
-    router.back();
+    setTopicId(null);
+    close();
+  };
+  const choose = (t: Topic) => {
+    haptics.select();
+    setTopic(t.subject, t.id);
+    close();
   };
 
   return (
     <Screen safeTop={false} width="readable">
-      <Row label="Tüm konular" selected={!topicId} onPress={() => choose(null)} />
-      {groups.length === 0 && facets.isSuccess ? (
+      <SegmentedControl
+        options={[
+          { value: 'TYT', label: 'TYT' },
+          { value: 'AYT', label: 'AYT' },
+        ]}
+        value={exam}
+        onChange={setExam}
+      />
+
+      <Sheet>{[<Row key="all" label={subject ? `Tüm ${subject} konuları` : 'Tüm konular'} selected={!topicId} onPress={chooseAll} />]}</Sheet>
+
+      {facets.isPending ? (
+        <Skeleton>
+          <SkeletonRows count={5} />
+        </Skeleton>
+      ) : null}
+      {facets.isError ? <ErrorState error={facets.error} onRetry={() => facets.refetch()} compact /> : null}
+      {facets.isSuccess && groups.length === 0 ? (
         <AppText color="textMuted" align="center">
-          Bu derste henüz kayıtlı soru yok.
+          {exam} derslerinde henüz kayıtlı soru yok.
         </AppText>
       ) : null}
+
       {groups.map((g) => (
-        <View key={g.name} style={{ gap: theme.spacing.xs }}>
-          {g.items.length > 1 || g.items[0]?.subtopic ? (
-            <AppText variant="label" color="textMuted" style={{ paddingHorizontal: theme.spacing.md }}>
-              {g.name}
-            </AppText>
-          ) : null}
-          {g.items.map((t) => (
-            <Row
-              key={t.id}
-              label={t.subtopic ?? t.topic}
-              count={counts.get(t.id)}
-              selected={topicId === t.id}
-              onPress={() => choose(t.id)}
-            />
-          ))}
+        <View key={g.subject} style={{ gap: theme.spacing.xs }}>
+          <SectionHeader
+            title={g.subject}
+            swipe={subjectSoftColor(theme, g.subject)}
+            count={g.items.reduce((n, t) => n + (counts.get(t.id) ?? 0), 0)}
+          />
+          <Sheet>
+            {g.items.map((t) => (
+              <Row key={t.id} label={topicLabel(t)} count={counts.get(t.id)} selected={topicId === t.id} onPress={() => choose(t)} />
+            ))}
+          </Sheet>
         </View>
       ))}
     </Screen>

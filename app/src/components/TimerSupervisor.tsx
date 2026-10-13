@@ -1,18 +1,22 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { AppState } from 'react-native';
 import { ApiError } from '../api/errors';
-import { useProfile, useSaveSession } from '../api/hooks';
+import { useProfile, useSaveSession, useStudyDay } from '../api/hooks';
+import type { Rewards } from '../api/types';
 import { useRewardCelebration } from '../lib/celebrate';
 import { haptics } from '../lib/haptics';
 import { useAuthStore } from '../store/authStore';
+import { useCompanionStore } from '../store/companionStore';
 import { addToOutbox, readOutbox, writeOutbox } from '../store/sessionOutbox';
 import { remainingMs, useTimerStore, type FinishedPhase } from '../store/timerStore';
 
 const DEFAULT_SETTINGS = { focusMinutes: 25, breakMinutes: 5 };
+const MINUTE_MS = 60_000;
 
 /**
  * Lives at the root while signed in: ends a phase when its time is up (also right after the
- * app returns from the background), saves it, celebrates and starts the break.
+ * app returns from the background), saves it, celebrates and starts the break. Lumi hears
+ * about it through the companion's `pomodoro.*` events.
  */
 export function TimerSupervisor() {
   const hydrate = useTimerStore((s) => s.hydrate);
@@ -23,18 +27,26 @@ export function TimerSupervisor() {
   const celebrate = useRewardCelebration();
   const busy = useRef(false);
   const settings = profile.data?.settings ?? DEFAULT_SETTINGS;
+  // Today's finished pomodoros before this one (the saved day refetches a moment later).
+  const pomodoros = useStudyDay().data?.pomodoros ?? 0;
+  const pomodorosRef = useRef(pomodoros);
+  pomodorosRef.current = pomodoros;
 
-  /** Saves finished phases, keeping the ones that couldn't reach the server. */
+  /** Saves finished phases, keeping the ones that couldn't reach the server; returns `extra`'s rewards. */
   const flush = useCallback(
-    async (extra?: FinishedPhase) => {
+    async (extra?: FinishedPhase): Promise<Rewards | null> => {
       const userId = useAuthStore.getState().user?.id;
-      if (!userId) return;
+      if (!userId) return null;
       const items = [...(await readOutbox(userId)), ...(extra ? [extra] : [])];
       const left: FinishedPhase[] = [];
+      let rewards: Rewards | null = null;
       for (const item of items) {
         try {
           const res = await save.mutateAsync(item);
-          if (item === extra) celebrate(res.rewards);
+          if (item === extra) {
+            rewards = res.rewards;
+            celebrate(res.rewards);
+          }
         } catch (e) {
           // A rejected session (400) won't succeed later; anything else is retried, including
           // a 401: the sign-in ran out, and the session waits for this account's next sign-in.
@@ -43,6 +55,7 @@ export function TimerSupervisor() {
         }
       }
       await writeOutbox(userId, left);
+      return rewards;
     },
     [save, celebrate],
   );
@@ -55,8 +68,19 @@ export function TimerSupervisor() {
       const done = await s.finish(true);
       if (!done) return;
       haptics.success();
+      const before = pomodorosRef.current;
       if (done.kind === 'focus') await useTimerStore.getState().start('break', settings.breakMinutes, done.subject);
-      await flush(done);
+      const rewards = await flush(done);
+      const companion = useCompanionStore.getState();
+      if (done.kind === 'focus') {
+        companion.emit({
+          type: 'pomodoro.focusDone',
+          minutes: Math.max(1, Math.round((done.endedAt - done.startedAt) / MINUTE_MS)),
+          breakMinutes: settings.breakMinutes,
+          xp: rewards?.xpGained ?? 0,
+          pomodorosToday: before + 1,
+        });
+      } else companion.emit({ type: 'pomodoro.breakDone' });
     } finally {
       busy.current = false;
     }

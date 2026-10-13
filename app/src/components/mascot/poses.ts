@@ -21,12 +21,17 @@ export type MascotMood =
   | 'reading'
   | 'study'
   | 'wink'
-  | 'graduate';
+  | 'graduate'
+  /** Airborne: the companion's flight pose (wings out, flapping). */
+  | 'fly';
 
 /** How the whole body moves in a loop. */
 export type BodyMotion = 'breathe' | 'hop' | 'jump' | 'droop' | 'sway' | 'nod' | 'wobble' | 'bob';
 /** How an arm moves in a loop around its pose angle. */
-export type ArmMotion = 'none' | 'wave' | 'wiggle' | 'shake' | 'gesture' | 'tap' | 'scribble' | 'sip' | 'pop';
+export type ArmMotion = 'none' | 'wave' | 'wiggle' | 'shake' | 'gesture' | 'tap' | 'scribble' | 'sip' | 'pop' | 'flap';
+
+/** What Lumi can hold. */
+export type Held = 'pompoms' | 'pencil' | 'cup' | 'marker';
 
 export interface Pose {
   eyes: EyeKind;
@@ -43,8 +48,8 @@ export interface Pose {
   /** Raised (negative) or sunk (positive) at rest, in grid units. */
   lift?: number;
   worn?: Accessory[];
-  /** Held in the hands (pom-poms in both, a pencil in the right, a cup in the right). */
-  held?: 'pompoms' | 'pencil' | 'cup';
+  /** Held in the hands (pom-poms in both; a pencil, a cup or the fosfor marker in the right). */
+  held?: Held;
   effects?: Effect[];
   /** Antenna light: 1 = normal, 0.4 = dim (sleepy); `pulse` throbs while thinking. */
   glow?: number;
@@ -109,7 +114,12 @@ export const POSES: Record<MascotMood, Pose> = {
   study: { eyes: 'open', brows: 'focus', mouth: 'small', armL: REST_L, armR: -120, armMotionR: 'scribble', body: 'breathe', held: 'pencil' },
   wink: { eyes: 'wink', mouth: 'grin', armL: REST_L, armR: -60, body: 'bob' },
   graduate: { eyes: 'happy', mouth: 'grin', armL: REST_L, armR: -150, armMotionR: 'wave', body: 'hop', worn: ['cap'], effects: ['sparkles'] },
+  fly: { eyes: 'happy', mouth: 'grin', armL: 100, armR: -100, armMotionL: 'flap', armMotionR: 'flap', body: 'bob', lift: -8, glow: 1, pulse: true },
 };
+
+/** Worn items by slot: the wardrobe fills a slot only when the pose leaves it empty. */
+export const HEAD_ITEMS: Accessory[] = ['party', 'crown', 'headphones', 'cap'];
+export const FACE_ITEMS: Accessory[] = ['glasses'];
 
 /** Moods that hide the antenna light under a hat or a headband. */
 export const HIDES_ANTENNA: Accessory[] = ['cap'];

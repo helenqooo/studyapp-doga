@@ -11,10 +11,12 @@ import Animated, {
 import Svg, { Circle, Path } from 'react-native-svg';
 import { useTheme } from '../../theme';
 import { LOGO_DOT, LOGO_RING } from '../Logo';
+import { ease } from './presets';
 
 /**
  * The Lumi mark, slowly turning and breathing, shown while the AI reads or writes
  * (solving a question, reading a karne, answering in chat): the ring "focusing".
+ * Both loops are off under Reduce Motion (a still mark at full strength).
  */
 export function ThinkingSpark({ size, color }: { size?: number; color?: string }) {
   const theme = useTheme();
@@ -28,17 +30,18 @@ export function ThinkingSpark({ size, color }: { size?: number; color?: string }
     spin.value = withRepeat(withTiming(1, { duration: theme.motion.duration.celebrate * 4, easing: Easing.linear }), -1);
     breath.value = withRepeat(
       withSequence(
-        withTiming(1, { duration: theme.motion.duration.celebrate / 2, easing: Easing.inOut(Easing.sin) }),
-        withTiming(0, { duration: theme.motion.duration.celebrate / 2, easing: Easing.inOut(Easing.sin) }),
+        withTiming(1, { duration: theme.motion.duration.celebrate / 2, easing: ease('breath') }),
+        withTiming(0, { duration: theme.motion.duration.celebrate / 2, easing: ease('breath') }),
       ),
       -1,
     );
   }, [breath, spin, reduceMotion, theme.motion.duration.celebrate]);
 
-  const style = useAnimatedStyle(() => ({
-    transform: [{ rotate: `${spin.value * 360}deg` }, { scale: 0.86 + 0.14 * breath.value }],
-    opacity: 0.75 + 0.25 * breath.value,
-  }));
+  const style = useAnimatedStyle(() =>
+    reduceMotion
+      ? { transform: [], opacity: 1 }
+      : { transform: [{ rotate: `${spin.value * 360}deg` }, { scale: 0.86 + 0.14 * breath.value }], opacity: 0.75 + 0.25 * breath.value },
+  );
 
   const fill = color ?? theme.colors.accent;
   return (

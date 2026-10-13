@@ -1,65 +1,34 @@
-import { useEffect } from 'react';
-import { ScrollView, View } from 'react-native';
-import Animated, { Easing, useAnimatedProps, useReducedMotion, useSharedValue, withTiming } from 'react-native-reanimated';
-import Svg, { Circle, G, Rect, Text as SvgText } from 'react-native-svg';
+import type { ReactNode } from 'react';
+import { View } from 'react-native';
+import Animated from 'react-native-reanimated';
 import { useProfile, useStudyDay, useStudyDays, useUpdateSettings } from '../api/hooks';
 import { AppText } from '../components/AppText';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
-import { Mascot } from '../components/mascot/Mascot';
 import { Chip } from '../components/Chip';
-import { Columns } from '../components/Grid';
+import { Col, Row } from '../components/Grid';
 import { Icon, type IconName } from '../components/Icon';
-import { Appear } from '../components/motion/Appear';
+import type { MascotMood } from '../components/mascot/Mascot';
+import { enter } from '../components/motion/presets';
 import { PressableScale } from '../components/motion/PressableScale';
+import { ProgressBar } from '../components/ProgressBar';
 import { Screen } from '../components/Screen';
+import { FocusDim, FocusVignette, type FocusLevel } from '../components/timer/FocusDim';
+import { TimerRing } from '../components/timer/TimerRing';
+import { WeekBars } from '../components/timer/WeekBars';
 import { useStopTimer } from '../components/TimerSupervisor';
 import { SUBJECTS_BY_EXAM } from '../data/topics';
 import { haptics } from '../lib/haptics';
+import { useWindowLayout } from '../lib/layout';
 import { formatClock, formatMinutes, useNow } from '../lib/useNow';
 import { remainingMs, useTimerStore } from '../store/timerStore';
 import { subjectColor, useTheme } from '../theme';
 
-const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+// TOKEN-PENDING: layout.timer.numeralShare = 0.32 (the clock never grows past this share of the ring)
+const NUMERAL_SHARE = 0.32;
+
 const SUBJECTS = [...SUBJECTS_BY_EXAM.TYT, ...SUBJECTS_BY_EXAM.AYT];
 const DEFAULT_SETTINGS = { focusMinutes: 25, breakMinutes: 5 };
-const DAY_NAMES = ['Paz', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt'];
-
-/** The countdown ring: the arc shrinks as the phase runs out. */
-function Ring({ fraction, color }: { fraction: number; color: string }) {
-  const theme = useTheme();
-  const reduceMotion = useReducedMotion();
-  const size = theme.layout.timerRing;
-  const stroke = theme.layout.timerStroke;
-  const r = (size - stroke) / 2;
-  const circumference = 2 * Math.PI * r;
-  const progress = useSharedValue(fraction);
-
-  useEffect(() => {
-    // Glide over the one-second tick so the arc moves continuously.
-    progress.value = reduceMotion ? fraction : withTiming(fraction, { duration: 1000, easing: Easing.linear });
-  }, [fraction, progress, reduceMotion]);
-
-  const props = useAnimatedProps(() => ({ strokeDashoffset: circumference * (1 - progress.value) }));
-  return (
-    <Svg width={size} height={size}>
-      <Circle cx={size / 2} cy={size / 2} r={r} stroke={theme.colors.surfaceAlt} strokeWidth={stroke} fill="none" />
-      <G rotation={-90} origin={`${size / 2}, ${size / 2}`}>
-        <AnimatedCircle
-          cx={size / 2}
-          cy={size / 2}
-          r={r}
-          stroke={color}
-          strokeWidth={stroke}
-          strokeLinecap="round"
-          fill="none"
-          strokeDasharray={`${circumference} ${circumference}`}
-          animatedProps={props}
-        />
-      </G>
-    </Svg>
-  );
-}
 
 /** − 25 dk + : minutes for focus or break, saved to the profile. */
 function Stepper({ label, value, min, max, step, onChange }: {
@@ -73,6 +42,7 @@ function Stepper({ label, value, min, max, step, onChange }: {
   const theme = useTheme();
   const button = (icon: 'minus' | 'plus', next: number, disabled: boolean) => (
     <PressableScale
+      kind="bubble"
       accessibilityRole="button"
       accessibilityLabel={`${label} ${icon === 'plus' ? 'artır' : 'azalt'}`}
       disabled={disabled}
@@ -94,117 +64,32 @@ function Stepper({ label, value, min, max, step, onChange }: {
     </PressableScale>
   );
   return (
-    <View style={{ flex: 1, alignItems: 'center', gap: theme.spacing.xs }}>
+    <View style={{ flex: 1, minWidth: theme.layout.minTouch * 3, alignItems: 'center', gap: theme.spacing.xs }}>
       <AppText variant="caption" color="textMuted">
         {label}
       </AppText>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm }}>
         {button('minus', Math.max(min, value - step), value <= min)}
-        <AppText variant="heading" style={{ minWidth: theme.layout.minTouch + theme.spacing.md, textAlign: 'center', fontVariant: ['tabular-nums'] }}>
-          {value} dk
-        </AppText>
+        <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'center', gap: theme.spacing.xxs, minWidth: theme.layout.minTouch + theme.spacing.md }}>
+          <AppText variant="numeric">{value}</AppText>
+          <AppText variant="caption" color="textMuted">
+            dk
+          </AppText>
+        </View>
         {button('plus', Math.min(max, value + step), value >= max)}
       </View>
     </View>
   );
 }
 
-/** Focus minutes for the last 7 days, today's bar in the accent. */
-function WeekBars() {
-  const theme = useTheme();
-  const days = useStudyDays(7);
-  const items = days.data?.days ?? [];
-  const height = theme.layout.chart.trendHeight.compact * 0.7;
-  const top = theme.spacing.lg;
-  const bottom = theme.spacing.xl;
-  const width = 7 * 44;
-  const max = Math.max(60 * 60, ...items.map((d) => d.focusSec));
-  const barW = 22;
-  const total = items.reduce((sum, d) => sum + d.focusSec, 0);
-  return (
-    <Card title="Son 7 gün">
-      <AppText color="textMuted">Toplam {formatMinutes(total)} odak.</AppText>
-      <Svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`} accessibilityLabel="Son 7 günün odak süreleri">
-        {items.map((d, i) => {
-          const h = ((height - top - bottom) * d.focusSec) / max;
-          const x = i * 44 + (44 - barW) / 2;
-          const isToday = i === items.length - 1;
-          const minutes = Math.round(d.focusSec / 60);
-          return (
-            <G key={d.date}>
-              <Rect
-                x={x}
-                y={height - bottom - Math.max(h, 2)}
-                width={barW}
-                height={Math.max(h, 2)}
-                rx={theme.layout.chart.barEndRadius}
-                fill={isToday ? theme.colors.chart.line : theme.colors.chart.grid}
-              />
-              {minutes > 0 ? (
-                <SvgText x={x + barW / 2} y={height - bottom - h - 6} fontSize={theme.fontSize.xs} fontFamily={theme.fonts.sans.semibold} fill={theme.colors.text} textAnchor="middle">
-                  {minutes}
-                </SvgText>
-              ) : null}
-              <SvgText x={x + barW / 2} y={height - theme.spacing.xs} fontSize={theme.fontSize.xs} fontFamily={theme.fonts.sans.regular} fill={theme.colors.chart.axisText} textAnchor="middle">
-                {isToday ? 'Bugün' : DAY_NAMES[new Date(`${d.date}T12:00:00Z`).getUTCDay()]}
-              </SvgText>
-            </G>
-          );
-        })}
-      </Svg>
-    </Card>
-  );
-}
-
-/** Today's focus total and the split by subject. */
-function TodayCard() {
-  const theme = useTheme();
-  const day = useStudyDay();
-  const d = day.data;
-  const max = Math.max(1, ...(d?.bySubject.map((s) => s.seconds) ?? [1]));
-  return (
-    <Card title="Bugün">
-      <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: theme.spacing.sm }}>
-        <AppText variant="display">{d ? formatMinutes(d.focusSec) : '—'}</AppText>
-        <AppText color="textMuted">{d ? `${d.pomodoros} pomodoro` : ''}</AppText>
-      </View>
-      {d && d.bySubject.length ? (
-        <View style={{ gap: theme.spacing.sm }}>
-          {d.bySubject.map((s) => (
-            <View key={s.subject ?? 'genel'} style={{ gap: theme.spacing.xxs }}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                <AppText variant="label">{s.subject ?? 'Genel'}</AppText>
-                <AppText variant="label" color="textMuted" style={{ fontVariant: ['tabular-nums'] }}>
-                  {formatMinutes(s.seconds)}
-                </AppText>
-              </View>
-              <View style={{ height: theme.spacing.sm, borderRadius: theme.radius.pill, backgroundColor: theme.colors.surfaceAlt }}>
-                <View
-                  style={{
-                    width: `${(s.seconds / max) * 100}%`,
-                    height: '100%',
-                    borderRadius: theme.radius.pill,
-                    backgroundColor: s.subject ? subjectColor(theme, s.subject) : theme.colors.neutral,
-                  }}
-                />
-              </View>
-            </View>
-          ))}
-        </View>
-      ) : (
-        <AppText color="textMuted">Bugün henüz odak yok. İlk pomodoroyu başlat.</AppText>
-      )}
-    </Card>
-  );
-}
-
-/** A round icon button with a caption under it (timer controls). */
+/** A 68 pt round control with its caption under it (pause, resume, stop, skip). */
 function RoundControl({ icon, label, onPress, primary = false }: { icon: IconName; label: string; onPress: () => void; primary?: boolean }) {
   const theme = useTheme();
-  const size = theme.layout.roundControl;
+  const size = theme.layout.timer.roundControl;
   return (
     <View style={{ alignItems: 'center', gap: theme.spacing.xs }}>
       <PressableScale
+        kind="bubble"
         accessibilityRole="button"
         accessibilityLabel={label}
         onPress={onPress}
@@ -215,9 +100,10 @@ function RoundControl({ icon, label, onPress, primary = false }: { icon: IconNam
           alignItems: 'center',
           justifyContent: 'center',
           backgroundColor: primary ? theme.colors.primary : theme.colors.surfaceAlt,
+          boxShadow: primary ? theme.colors.shadow.accent : theme.colors.shadow.none,
         }}
       >
-        <Icon name={icon} size={theme.layout.iconSize.lg} color={primary ? theme.colors.textOnAccent : theme.colors.text} filled={icon === 'square' || icon === 'play' || icon === 'pause'} />
+        <Icon name={icon} size={theme.layout.iconSize.lg} color={primary ? theme.colors.onPrimary : theme.colors.text} filled={icon === 'square' || icon === 'play' || icon === 'pause'} />
       </PressableScale>
       <AppText variant="label" color="textMuted">
         {label}
@@ -226,8 +112,102 @@ function RoundControl({ icon, label, onPress, primary = false }: { icon: IconNam
   );
 }
 
+/** "Ders": subject chips that wrap, and the focus and break steppers while idle. */
+function Setup({ idle, settings, onSettings }: { idle: boolean; settings: typeof DEFAULT_SETTINGS; onSettings: (next: Partial<typeof DEFAULT_SETTINGS>) => void }) {
+  const theme = useTheme();
+  const subject = useTimerStore((s) => s.subject);
+  const setSubject = useTimerStore((s) => s.setSubject);
+  return (
+    <Card title="Ders">
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.sm }}>
+        <Chip label="Genel" selected={!subject} onPress={() => setSubject(null)} />
+        {SUBJECTS.map((s) => (
+          <Chip key={s} label={s} color={subjectColor(theme, s)} selected={subject === s} onPress={() => setSubject(s)} />
+        ))}
+      </View>
+      {idle ? (
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.md, paddingTop: theme.spacing.xs }}>
+          <Stepper label="Odak" value={settings.focusMinutes} min={5} max={90} step={5} onChange={(v) => onSettings({ focusMinutes: v })} />
+          <Stepper label="Mola" value={settings.breakMinutes} min={1} max={30} step={1} onChange={(v) => onSettings({ breakMinutes: v })} />
+        </View>
+      ) : null}
+      <AppText variant="caption" color="textMuted">
+        5 dakikadan uzun tamamlanan her odak +20 XP kazandırır ve günü seriye sayar. Süre bitince bildirim gelir.
+      </AppText>
+    </Card>
+  );
+}
+
+/** "Bugün": today's focus minutes, the pomodoro line, and the split by subject. */
+function Today({ focusMinutes }: { focusMinutes: number }) {
+  const theme = useTheme();
+  const d = useStudyDay().data;
+  const minutes = d ? Math.round(d.focusSec / 60) : null;
+  const max = Math.max(1, ...(d?.bySubject.map((s) => s.seconds) ?? [1]));
+  const line = !d
+    ? ''
+    : d.pomodoros > 0
+      ? `Bugün ${d.pomodoros} pomodoro`
+      : (minutes ?? 0) < focusMinutes
+        ? `İlk pomodoroya ${focusMinutes - (minutes ?? 0)} dk kaldı.`
+        : 'Bugün henüz tamamlanan pomodoro yok.';
+  return (
+    <Card title="Bugün">
+      <View style={{ gap: theme.spacing.xxs }}>
+        <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: theme.spacing.xs }}>
+          <AppText variant="stat" color={minutes === null ? 'textMuted' : 'text'}>
+            {minutes === null ? '—' : minutes}
+          </AppText>
+          <AppText variant="label" color="textMuted">
+            dk
+          </AppText>
+        </View>
+        <AppText variant="caption" color="textMuted">
+          {line}
+        </AppText>
+      </View>
+      {d && d.bySubject.length ? (
+        <View style={{ gap: theme.spacing.sm }}>
+          {d.bySubject.map((s) => (
+            <View key={s.subject ?? 'genel'} style={{ gap: theme.spacing.xxs }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                <AppText variant="label">{s.subject ?? 'Genel'}</AppText>
+                <AppText variant="caption" color="textMuted">
+                  {formatMinutes(s.seconds)}
+                </AppText>
+              </View>
+              <ProgressBar
+                variant="plain"
+                progress={s.seconds / max}
+                height={theme.spacing.sm}
+                color={s.subject ? subjectColor(theme, s.subject) : theme.colors.neutral}
+                trackColor={theme.colors.surfaceAlt}
+              />
+            </View>
+          ))}
+        </View>
+      ) : null}
+    </Card>
+  );
+}
+
+/** "Son 7 gün": the week's focus as bars that fill the sheet. */
+function Week() {
+  const days = useStudyDays(7).data?.days ?? [];
+  const total = days.reduce((sum, d) => sum + d.focusSec, 0);
+  return (
+    <Card title="Son 7 gün">
+      <AppText variant="caption" color="textMuted">
+        Toplam {formatMinutes(total)} odak.
+      </AppText>
+      <WeekBars days={days} />
+    </Card>
+  );
+}
+
 export default function TimerScreen() {
   const theme = useTheme();
+  const { sizeClass, tablet } = useWindowLayout();
   const timer = useTimerStore();
   const profile = useProfile();
   const updateSettings = useUpdateSettings();
@@ -237,128 +217,124 @@ export default function TimerScreen() {
   const now = useNow(running);
   const left = remainingMs(timer, now);
   const paused = timer.phase !== 'idle' && timer.pausedRemainingMs !== null;
+  const idle = timer.phase === 'idle';
   const focus = timer.phase === 'focus';
 
-  const fraction = timer.phase === 'idle' ? 1 : timer.plannedMs ? left / timer.plannedMs : 0;
-  const ringColor = timer.phase === 'break' ? theme.colors.success : theme.colors.chart.line;
-  const clock = timer.phase === 'idle' ? formatClock(settings.focusMinutes * 60_000) : formatClock(left);
-  const eyebrow =
-    timer.phase === 'idle'
-      ? 'HAZIR'
-      : focus
-        ? `ODAK${timer.subject ? ` · ${timer.subject.toLocaleUpperCase('tr-TR')}` : ''}`
-        : 'MOLA';
+  const fraction = idle ? 1 : timer.plannedMs ? left / timer.plannedMs : 0;
+  const clock = idle ? formatClock(settings.focusMinutes * 60_000) : formatClock(left);
+  const minutes = idle ? settings.focusMinutes : Math.round(timer.plannedMs / 60_000);
+  const mood: MascotMood = focus ? (paused ? 'sleepy' : 'focus') : timer.phase === 'break' ? 'break' : 'study';
+  const level: FocusLevel = focus ? (paused ? 0.5 : 1) : 0;
+  const ringSize = theme.layout.timer.ring[sizeClass];
+  const numeral = theme.typography.numeral;
+  const clockSize = Math.min(tablet ? numeral.sizeTablet : numeral.size, Math.round(ringSize * NUMERAL_SHARE));
 
   const saveSettings = (next: Partial<typeof settings>) => updateSettings.mutate({ ...settings, ...next });
 
-  const controls =
-    timer.phase === 'idle' ? (
-      <View style={{ gap: theme.spacing.sm }}>
-        <Button
-          label="Odağı başlat"
-          icon="play"
-          size="lg"
-          onPress={() => timer.start('focus', settings.focusMinutes, timer.subject)}
-        />
-        <Button label={`${settings.breakMinutes} dk mola ver`} icon="coffee" variant="ghost" onPress={() => timer.start('break', settings.breakMinutes, null)} />
-      </View>
-    ) : (
-      // Round buttons with captions: nothing to truncate on a narrow phone.
-      <View style={{ flexDirection: 'row', justifyContent: 'center', gap: theme.spacing.xl }}>
-        {focus ? (
-          <RoundControl
-            icon={paused ? 'play' : 'pause'}
-            label={paused ? 'Devam' : 'Duraklat'}
-            primary
-            onPress={() => {
-              haptics.tap();
-              if (paused) timer.resume();
-              else timer.pause();
-            }}
-          />
-        ) : null}
+  const controls = idle ? (
+    <Animated.View key="idle" entering={enter({ still: true, duration: theme.motion.duration.base })} style={{ gap: theme.spacing.sm, alignSelf: 'stretch' }}>
+      <Button label="Odağı başlat" icon="play" size="lg" onPress={() => timer.start('focus', settings.focusMinutes, timer.subject)} />
+      <Button label={`${settings.breakMinutes} dk mola ver`} icon="coffee" variant="ghost" onPress={() => timer.start('break', settings.breakMinutes, null)} />
+    </Animated.View>
+  ) : (
+    // Round buttons with captions: nothing to truncate on a narrow phone.
+    <Animated.View
+      key="running"
+      entering={enter({ still: true, duration: theme.motion.duration.base })}
+      style={{ flexDirection: 'row', justifyContent: 'center', gap: theme.spacing.xl }}
+    >
+      {focus ? (
         <RoundControl
-          icon={focus ? 'square' : 'skip-forward'}
-          label={focus ? 'Bitir' : 'Molayı atla'}
+          icon={paused ? 'play' : 'pause'}
+          label={paused ? 'Devam' : 'Duraklat'}
+          primary
           onPress={() => {
-            haptics.press();
-            stop();
+            haptics.tap();
+            if (paused) timer.resume();
+            else timer.pause();
           }}
         />
-      </View>
-    );
+      ) : null}
+      <RoundControl
+        icon={focus ? 'square' : 'skip-forward'}
+        label={focus ? 'Bitir' : 'Molayı atla'}
+        onPress={() => {
+          haptics.press();
+          stop();
+        }}
+      />
+    </Animated.View>
+  );
 
-  const timerCard = (
+  const ringCard = (
     <Card>
-      <View style={{ alignItems: 'center', gap: theme.spacing.lg, paddingVertical: theme.spacing.md }}>
-        <View style={{ width: theme.layout.timerRing, height: theme.layout.timerRing, alignItems: 'center', justifyContent: 'center' }}>
-          <View style={{ position: 'absolute' }}>
-            <Ring fraction={fraction} color={ringColor} />
-          </View>
-          <Mascot mood={timer.phase === 'focus' ? (paused ? 'sleepy' : 'focus') : timer.phase === 'break' ? 'break' : 'study'} size={theme.layout.mascot.note} />
-          <AppText variant="caption" weight="semibold" color={focus ? 'primaryText' : timer.phase === 'break' ? 'success' : 'textMuted'} style={{ letterSpacing: 1.2 }}>
-            {eyebrow}
+      <View style={{ alignItems: 'center', gap: theme.spacing.xl, paddingVertical: theme.spacing.sm }}>
+        <TimerRing size={ringSize} phase={timer.phase} fraction={fraction} paused={paused} minutes={minutes} mood={mood}>
+          <AppText variant="label" color="textMuted">
+            {idle ? 'Hazır' : focus ? 'Odak' : 'Mola'}
           </AppText>
-          <AppText
-            family="serif"
-            weight="semibold"
-            accessibilityLabel={`${clock} kaldı`}
-            style={{ fontSize: theme.fontSize.numeral, lineHeight: theme.fontSize.numeral * 1.15, fontVariant: ['tabular-nums'] }}
-          >
+          <AppText variant="numeral" accessibilityLabel={`${clock} kaldı`} style={{ fontSize: clockSize, lineHeight: clockSize }}>
             {clock}
           </AppText>
-          {paused ? (
-            <AppText variant="label" color="textMuted">
-              Duraklatıldı
-            </AppText>
-          ) : null}
-        </View>
-        <View style={{ width: '100%' }}>{controls}</View>
+          <AppText variant="caption" color="textMuted" numberOfLines={1}>
+            {paused ? 'Duraklatıldı' : focus && timer.subject ? timer.subject : ' '}
+          </AppText>
+        </TimerRing>
+        <View style={{ width: '100%', maxWidth: theme.layout.readableWidth / 2, alignItems: 'center' }}>{controls}</View>
       </View>
     </Card>
   );
 
-  const setup = (
-    <Card title="Ders">
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: theme.spacing.sm }}>
-        <Chip label="Genel" selected={!timer.subject} onPress={() => timer.setSubject(null)} />
-        {SUBJECTS.map((s) => (
-          <Chip key={s} label={s} color={subjectColor(theme, s)} selected={timer.subject === s} onPress={() => timer.setSubject(s)} />
-        ))}
-      </ScrollView>
-      {timer.phase === 'idle' ? (
-        <View style={{ flexDirection: 'row', gap: theme.spacing.md }}>
-          <Stepper label="Odak" value={settings.focusMinutes} min={5} max={90} step={5} onChange={(v) => saveSettings({ focusMinutes: v })} />
-          <Stepper label="Mola" value={settings.breakMinutes} min={1} max={30} step={1} onChange={(v) => saveSettings({ breakMinutes: v })} />
-        </View>
-      ) : null}
-      <AppText variant="caption" color="textMuted">
-        5 dakikadan uzun tamamlanan her odak +20 XP kazandırır ve günü seriye sayar. Süre bitince bildirim gelir.
-      </AppText>
-    </Card>
-  );
+  const setup = <Setup idle={idle} settings={settings} onSettings={saveSettings} />;
+  const today = <Today focusMinutes={settings.focusMinutes} />;
+  const week = <Week />;
+
+  let body: ReactNode;
+  if (sizeClass === 'wide') {
+    body = (
+      <Row>
+        <Col span={{ compact: 4, wide: 7 }}>{ringCard}</Col>
+        <Col span={{ compact: 4, wide: 5 }}>
+          <FocusDim level={level} style={{ gap: theme.spacing.lg }}>
+            {setup}
+            {today}
+            {week}
+          </FocusDim>
+        </Col>
+      </Row>
+    );
+  } else if (sizeClass === 'regular') {
+    body = (
+      <>
+        {ringCard}
+        <FocusDim level={level}>
+          <Row>
+            <Col span={{ compact: 4, regular: 4 }}>{setup}</Col>
+            <Col span={{ compact: 4, regular: 4 }}>
+              {today}
+              {week}
+            </Col>
+          </Row>
+        </FocusDim>
+      </>
+    );
+  } else {
+    body = (
+      <>
+        {ringCard}
+        <FocusDim level={level} style={{ gap: theme.spacing.lg }}>
+          {setup}
+          {today}
+          {week}
+        </FocusDim>
+      </>
+    );
+  }
 
   return (
-    <Screen safeTop={false}>
-      <Columns
-        ratio={1.05}
-        left={
-          <>
-            <Appear>{timerCard}</Appear>
-            <Appear index={1}>{setup}</Appear>
-          </>
-        }
-        right={
-          <>
-            <Appear index={2}>
-              <TodayCard />
-            </Appear>
-            <Appear index={3}>
-              <WeekBars />
-            </Appear>
-          </>
-        }
-      />
-    </Screen>
+    <View style={{ flex: 1 }}>
+      <Screen safeTop={false}>{body}</Screen>
+      <FocusVignette level={level} />
+    </View>
   );
 }

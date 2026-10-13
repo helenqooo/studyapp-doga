@@ -2,16 +2,28 @@ import { View } from 'react-native';
 import { haptics } from '../lib/haptics';
 import { useTheme } from '../theme';
 import { AppText } from './AppText';
-import { Icon } from './Icon';
+import { Icon, type IconName } from './Icon';
 import { PressableScale } from './motion/PressableScale';
 
-/** "Soru metnini göster": a quiet pill that opens the typed-out copy of a photographed question. */
-export function TextToggle({ open, onToggle }: { open: boolean; onToggle: () => void }) {
+interface Props {
+  open: boolean;
+  onToggle: () => void;
+  /** The closed label; default "Soru metni" (e.g. "Şıkları yazıyla gör"). */
+  label?: string;
+  /** The open label; default "Metni gizle". */
+  openLabel?: string;
+  /** The closed icon; default `text-align-start`. */
+  icon?: IconName;
+}
+
+/** "Soru metni": a quiet pill that opens a typed-out copy (the question, its choices). */
+export function TextToggle({ open, onToggle, label = 'Soru metni', openLabel = 'Metni gizle', icon = 'text-align-start' }: Props) {
   const theme = useTheme();
   return (
     <PressableScale
       accessibilityRole="button"
       accessibilityState={{ expanded: open }}
+      accessibilityLabel={open ? openLabel : label}
       onPress={() => {
         haptics.select();
         onToggle();
@@ -30,9 +42,9 @@ export function TextToggle({ open, onToggle }: { open: boolean; onToggle: () => 
           backgroundColor: theme.colors.surfaceAlt,
         }}
       >
-        <Icon name={open ? 'chevron-up' : 'text-align-start'} size={theme.layout.iconSize.sm} color={theme.colors.textMuted} />
+        <Icon name={open ? 'chevron-up' : icon} size={theme.layout.iconSize.sm} color={theme.colors.textMuted} />
         <AppText variant="label" color="textMuted">
-          {open ? 'Metni gizle' : 'Soru metni'}
+          {open ? openLabel : label}
         </AppText>
       </View>
     </PressableScale>

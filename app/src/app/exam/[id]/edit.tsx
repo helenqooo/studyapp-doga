@@ -30,22 +30,21 @@ export default function EditExamScreen() {
   }
 
   return (
-    <Screen safeTop={false} width="readable">
-      <ExamForm
-        initial={formFrom(query.data)}
-        submitLabel="Değişiklikleri kaydet"
-        submitting={update.isPending}
-        error={update.error?.message}
-        onSubmit={(input) =>
-          update.mutate(input, {
-            onSuccess: () => {
-              haptics.success();
-              router.back();
-            },
-            onError: () => haptics.error(),
-          })
-        }
-      />
-    </Screen>
+    <ExamForm
+      title="Denemeyi düzenle"
+      initial={formFrom(query.data)}
+      submitLabel="Değişiklikleri kaydet"
+      submitting={update.isPending}
+      error={update.error?.message}
+      onSubmit={(input) =>
+        update.mutate(input, {
+          onSuccess: () => {
+            haptics.success();
+            router.back();
+          },
+          onError: () => haptics.error(),
+        })
+      }
+    />
   );
 }

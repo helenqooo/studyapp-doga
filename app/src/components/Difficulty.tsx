@@ -2,7 +2,7 @@ import { View } from 'react-native';
 import { useTheme } from '../theme';
 import { Icon } from './Icon';
 
-/** 1–5 stars. */
+/** 1–5 stars: lit in the XP fosfor, the rest a printed optik outline. */
 export function Difficulty({ value }: { value: number }) {
   const theme = useTheme();
   return (
@@ -16,7 +16,7 @@ export function Difficulty({ value }: { value: number }) {
           name="star"
           filled={n <= value}
           size={theme.fontSize.sm}
-          color={n <= value ? theme.colors.xp : theme.colors.textMuted}
+          color={n <= value ? theme.colors.xp : theme.colors.optik}
         />
       ))}
     </View>

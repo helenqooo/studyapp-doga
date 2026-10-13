@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated, {
   Easing,
@@ -8,19 +8,40 @@ import Animated, {
   useReducedMotion,
   useSharedValue,
   withDelay,
-  withRepeat,
   withSpring,
   withTiming,
   type SharedValue,
 } from 'react-native-reanimated';
+import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import { badgeInfo } from '../../data/badges';
+import { haptics } from '../../lib/haptics';
+import { useCompanionStore } from '../../store/companionStore';
 import { useTheme } from '../../theme';
 import { AppText } from '../AppText';
-import { Mascot } from '../mascot/Mascot';
 import { BadgeSeal } from '../BadgeSeal';
 import { Icon } from '../Icon';
+import { Mascot } from '../mascot/Mascot';
+import { ease, spring } from './presets';
 
 export type RewardKind = { kind: 'badge'; badgeId: string } | { kind: 'streak'; days: number } | { kind: 'level'; level: number };
+
+// TOKEN-PENDING: motion.reward.stamp = { fromScale: 1.3, fromDeg: -8 } (the badge stamp coming down)
+const STAMP = { fromScale: 1.3, fromDeg: -8 };
+// TOKEN-PENDING: motion.reward.successAfter = 120 (ms between the stamp's rigid tap and the success haptic)
+const SUCCESS_AFTER = 120;
+// TOKEN-PENDING: opacity.foil = 0.6 (peak of the foil sheen's soft band; never a flash)
+const FOIL_OPACITY = 0.6;
+// TOKEN-PENDING: layout.reward.foilBand = 0.42, foilDeg = 20 (sheen band width as a share of the hero, and its slant)
+const FOIL_BAND = 0.42;
+const FOIL_DEG = 20;
+// TOKEN-PENDING: opacity.rewardRay = 0.28 (soft tier-colored rays behind the hero)
+const RAY_OPACITY = 0.28;
+// TOKEN-PENDING: motion.reward.raySpinDeg = 24 (how far the rays turn over the whole moment)
+const RAY_SPIN_DEG = 24;
+// TOKEN-PENDING: layout.reward.heroScale = 1.4 (hero size as a multiple of layout.resultBadge)
+const HERO_SCALE = 1.4;
+// The seal's inner circle on its 100-unit grid (BadgeSeal); the sheen stays inside it.
+const SEAL_INNER = 0.445;
 
 const RAYS = 12;
 const EMBERS = 10;
@@ -28,12 +49,12 @@ const EMBERS = 10;
 function Ray({ index, spin, length, color }: { index: number; spin: SharedValue<number>; length: number; color: string }) {
   const theme = useTheme();
   const style = useAnimatedStyle(() => ({
-    transform: [{ rotate: `${(index / RAYS) * 360 + spin.value * 30}deg` }, { translateY: -length * 0.9 }],
+    transform: [{ rotate: `${(index / RAYS) * 360 + spin.value * RAY_SPIN_DEG}deg` }, { translateY: -length * 0.9 }],
   }));
   return (
     <Animated.View
       style={[
-        { position: 'absolute', width: theme.spacing.xs, height: length * 0.5, borderRadius: theme.radius.pill, backgroundColor: color, opacity: 0.35 },
+        { position: 'absolute', width: theme.spacing.xs, height: length * 0.5, borderRadius: theme.radius.pill, backgroundColor: color, opacity: RAY_OPACITY },
         style,
       ]}
     />
@@ -59,67 +80,173 @@ function Ember({ index, progress, color, height }: { index: number; progress: Sh
   );
 }
 
+/** One soft band of foil light crossing the hero once, clipped to its disc. */
+function FoilSheen({ size, inset, progress, color }: { size: number; inset: number; progress: SharedValue<number>; color: string }) {
+  const band = size * FOIL_BAND;
+  const style = useAnimatedStyle(() => ({
+    transform: [{ translateX: -size + progress.value * size * 2 }, { rotate: `${FOIL_DEG}deg` }],
+  }));
+  const d = size - inset * 2;
+  return (
+    <View
+      pointerEvents="none"
+      style={{ position: 'absolute', left: inset, top: inset, width: d, height: d, borderRadius: d / 2, overflow: 'hidden' }}
+    >
+      <Animated.View style={[{ position: 'absolute', left: (d - band) / 2, top: -size / 2, width: band, height: d + size }, style]}>
+        <Svg width={band} height={d + size}>
+          <Defs>
+            <LinearGradient id="foil" x1="0" y1="0" x2="1" y2="0">
+              <Stop offset="0" stopColor={color} stopOpacity={0} />
+              <Stop offset="0.5" stopColor={color} stopOpacity={FOIL_OPACITY} />
+              <Stop offset="1" stopColor={color} stopOpacity={0} />
+            </LinearGradient>
+          </Defs>
+          <Rect x={0} y={0} width={band} height={d + size} fill="url(#foil)" />
+        </Svg>
+      </Animated.View>
+    </View>
+  );
+}
+
 interface Props {
   reward: RewardKind;
   onDone: () => void;
+  /**
+   * Called once it is settled whether the companion flies in for this moment (always false
+   * for a badge or a streak), so the host can mark the companion as celebrating only after
+   * staging was asked (a celebrating, unstaged companion hides and can no longer be staged).
+   */
+  onStage?: (staged: boolean) => void;
 }
 
-/** Full-screen, non-interactive moment for a new level, a new badge or a longer streak. */
-export function RewardBurst({ reward, onDone }: Props) {
+/**
+ * Full-screen, non-interactive moment for a new level, a new badge or a longer streak, in
+ * the reward's own color: soft tier-colored rays, the hero stamped down (scale 1.3 → 1,
+ * −8° → 0°, a rigid tap, then success) and a single soft foil sheen across it. For a level,
+ * the companion is staged to fly in (`stage()`); when it can't come, Lumi is drawn here.
+ * Reduce Motion: everything fades, nothing moves.
+ */
+export function RewardBurst({ reward, onDone, onStage }: Props) {
   const theme = useTheme();
   const reduceMotion = useReducedMotion();
-  const { duration, springBouncy } = theme.motion;
-  const size = theme.layout.resultBadge * 1.4;
+  const { duration } = theme.motion;
+  const size = theme.layout.resultBadge * HERO_SCALE;
+  const mascotSize = theme.layout.mascot.note;
 
   const pop = useSharedValue(0);
+  const stamp = useSharedValue(0);
+  const sheen = useSharedValue(0);
   const spin = useSharedValue(0);
   const rise = useSharedValue(0);
   const fade = useSharedValue(1);
   const total = duration.celebrate * 1.6;
+  const stamps = reward.kind !== 'streak';
+
+  // Level-ups ask the companion to fly in; null until the slot is measured and asked.
+  const [staged, setStaged] = useState<boolean | null>(reward.kind === 'level' ? null : false);
+  const slot = useRef<View>(null);
+  const askedStage = useRef(false);
+  // Settled once: a late measurement after the fallback must not swap our Lumi out.
+  const settled = useRef(reward.kind !== 'level');
+  const settle = (next: boolean) => {
+    if (settled.current) return;
+    settled.current = true;
+    setStaged(next);
+  };
+  const askStage = () => {
+    if (askedStage.current || settled.current) return;
+    askedStage.current = true;
+    const node = slot.current;
+    if (!node) {
+      settle(false);
+      return;
+    }
+    node.measureInWindow((x, y, w, h) => {
+      if (settled.current) return;
+      settle(w > 0 ? useCompanionStore.getState().stage({ x: x + w / 2, y: y + h / 2 }) : false);
+    });
+  };
+  useLayoutEffect(() => {
+    // Measurement can fail silently (web, unmounted parents): fall back to our own Lumi.
+    const t = setTimeout(() => settle(false), duration.base);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [duration.base]);
+  useEffect(() => {
+    if (staged !== null) onStage?.(staged);
+    // Reported once per settled value; the host's callback may change identity.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [staged]);
+  useEffect(
+    () => () => {
+      if (askedStage.current) useCompanionStore.getState().stage(null);
+    },
+    [],
+  );
 
   useEffect(() => {
     const finish = () => onDone();
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    const feel = () => {
+      if (stamps) {
+        haptics.rigid();
+        timers.push(setTimeout(haptics.success, SUCCESS_AFTER));
+      } else {
+        haptics.success();
+      }
+    };
     if (reduceMotion) {
       const fadeOnly = { duration: duration.base, reduceMotion: ReduceMotion.Never };
       pop.value = withTiming(1, fadeOnly);
+      stamp.value = withTiming(1, fadeOnly);
+      timers.push(setTimeout(feel, duration.base));
       fade.value = withDelay(total - duration.base, withTiming(0, fadeOnly, (ok) => ok && runOnJS(finish)()), ReduceMotion.Never);
-      return;
+      return () => timers.forEach(clearTimeout);
     }
-    pop.value = withSpring(1, springBouncy);
-    spin.value = withRepeat(withTiming(1, { duration: total, easing: Easing.linear }), 1);
-    rise.value = withTiming(1, { duration: total * 0.8, easing: Easing.out(Easing.quad) });
-    fade.value = withDelay(total - duration.slow, withTiming(0, { duration: duration.slow }, (ok) => ok && runOnJS(finish)()));
+    pop.value = withTiming(1, { duration: duration.slow, easing: ease('enter') });
+    // The stamp comes down and settles; the tap lands as it touches the paper.
+    stamp.value = withSpring(1, spring('settle'));
+    timers.push(setTimeout(feel, duration.fast));
+    sheen.value = withDelay(duration.slow, withTiming(1, { duration: theme.motion.progress.shine, easing: ease('standard') }));
+    spin.value = withTiming(1, { duration: total, easing: Easing.linear });
+    rise.value = withTiming(1, { duration: total * 0.8, easing: ease('enter') });
+    fade.value = withDelay(total - duration.slow, withTiming(0, { duration: duration.slow, easing: ease('exit') }, (ok) => ok && runOnJS(finish)()));
+    return () => timers.forEach(clearTimeout);
     // Once per mount; the provider remounts the burst for every reward.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const containerStyle = useAnimatedStyle(() => ({ opacity: fade.value }));
-  const scrimStyle = useAnimatedStyle(() => ({ opacity: Math.min(1, pop.value * 1.5) }));
-  const minScale = reduceMotion ? 1 : 0.3;
-  const heroStyle = useAnimatedStyle(() => ({
-    opacity: Math.min(1, pop.value * 1.5),
-    transform: [{ scale: minScale + (1 - minScale) * pop.value }, { rotate: `${(1 - pop.value) * -12}deg` }],
-  }));
+  const scrimStyle = useAnimatedStyle(() => ({ opacity: pop.value }));
+  const heroStyle = useAnimatedStyle(() => {
+    const s = stamp.value;
+    return {
+      opacity: Math.min(1, s * 2.5),
+      transform: reduceMotion ? [] : [{ scale: STAMP.fromScale + (1 - STAMP.fromScale) * s }, { rotate: `${STAMP.fromDeg * (1 - s)}deg` }],
+    };
+  });
   const textStyle = useAnimatedStyle(() => ({
     opacity: pop.value,
-    transform: [{ translateY: (1 - pop.value) * theme.spacing.lg }],
+    transform: reduceMotion ? [] : [{ translateY: (1 - pop.value) * theme.spacing.lg }],
   }));
 
   const rays = useMemo(() => Array.from({ length: RAYS }, (_, i) => i), []);
   const embers = useMemo(() => Array.from({ length: EMBERS }, (_, i) => i), []);
 
-  let hero: React.ReactNode;
+  let hero: ReactNode;
   let eyebrow: string;
   let title: string;
   let detail: string;
-  let rayColor: string;
+  let tierColor: string;
+  let sheenInset = 0;
   if (reward.kind === 'badge') {
     const info = badgeInfo(reward.badgeId);
     hero = <BadgeSeal icon={info.icon} tier={info.tier} size={size} />;
-    eyebrow = 'YENİ ROZET';
+    eyebrow = 'Yeni rozet';
     title = info.title;
     detail = info.description;
-    rayColor = theme.colors.badge[info.tier];
+    tierColor = theme.colors.badge[info.tier];
+    sheenInset = size * (0.5 - SEAL_INNER);
   } else if (reward.kind === 'level') {
     hero = (
       <View
@@ -127,22 +254,22 @@ export function RewardBurst({ reward, onDone }: Props) {
           width: size,
           height: size,
           borderRadius: size / 2,
-          backgroundColor: theme.colors.xpTrack,
+          backgroundColor: theme.colors.accent,
           borderWidth: theme.layout.shutterBorder,
-          borderColor: theme.colors.xp,
+          borderColor: theme.colors.highlight,
           alignItems: 'center',
           justifyContent: 'center',
         }}
       >
-        <AppText variant="display" tint={theme.colors.xpText} style={{ fontVariant: ['tabular-nums'] }}>
+        <AppText variant="hero" tint={theme.colors.highlightInk} tabular>
           {reward.level}
         </AppText>
       </View>
     );
-    eyebrow = 'SEVİYE ATLADIN';
+    eyebrow = 'Seviye atladın';
     title = `Seviye ${reward.level}`;
     detail = 'Her gün biraz daha net. Böyle devam.';
-    rayColor = theme.colors.xp;
+    tierColor = theme.colors.accent;
   } else {
     hero = (
       <View
@@ -161,22 +288,39 @@ export function RewardBurst({ reward, onDone }: Props) {
         <Icon name="flame" size={size * 0.55} color={theme.colors.streak} filled />
       </View>
     );
-    eyebrow = 'SERİ';
+    eyebrow = 'Seri';
     title = `${reward.days} gün`;
     detail = reward.days === 1 ? 'Yeni bir seri başladı. Yarın da gel.' : 'Üst üste çalıştın. Serini bozma.';
-    rayColor = theme.colors.streak;
+    tierColor = theme.colors.streak;
   }
 
+  const mood = reward.kind === 'badge' ? 'love' : reward.kind === 'level' ? 'proud' : 'cheer';
+
   return (
-    <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }, containerStyle]}>
+    <Animated.View
+      pointerEvents="none"
+      accessibilityRole="alert"
+      accessibilityLabel={`${eyebrow}. ${title}. ${detail}`}
+      style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }, containerStyle]}
+    >
       <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: theme.colors.celebrationScrim }, scrimStyle]} />
       <View style={{ alignItems: 'center', justifyContent: 'center', width: size, height: size }}>
-        {!reduceMotion ? rays.map((i) => <Ray key={i} index={i} spin={spin} length={size} color={rayColor} />) : null}
-        <Animated.View style={heroStyle}>{hero}</Animated.View>
+        {!reduceMotion ? rays.map((i) => <Ray key={i} index={i} spin={spin} length={size} color={tierColor} />) : null}
+        <Animated.View style={heroStyle}>
+          {hero}
+          {stamps && !reduceMotion ? <FoilSheen size={size} inset={sheenInset} progress={sheen} color={theme.colors.badge.foil} /> : null}
+        </Animated.View>
       </View>
-      <Animated.View style={[{ alignItems: 'center', gap: theme.spacing.xs, marginTop: theme.spacing.xl, maxWidth: theme.layout.readableWidth / 2 }, textStyle]}>
-        <Mascot mood={reward.kind === 'badge' ? 'love' : reward.kind === 'level' ? 'proud' : 'cheer'} size={theme.layout.mascot.note} />
-        <AppText variant="caption" weight="semibold" color="primaryText" style={{ letterSpacing: 1.2 }}>
+      <Animated.View
+        style={[
+          { alignItems: 'center', gap: theme.spacing.xs, marginTop: theme.spacing.xl, maxWidth: theme.layout.readableWidth / 2, paddingHorizontal: theme.spacing.xl },
+          textStyle,
+        ]}
+      >
+        <View ref={slot} collapsable={false} onLayout={askStage} style={{ width: mascotSize, height: mascotSize }}>
+          {staged === false ? <Mascot mood={mood} size={mascotSize} /> : null}
+        </View>
+        <AppText variant="label" weight="semibold" color="primaryText">
           {eyebrow}
         </AppText>
         <AppText variant="title" align="center">

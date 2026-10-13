@@ -172,7 +172,7 @@ export function Mouth({ c, kind }: { c: MascotColors; kind: MouthKind }) {
 }
 
 /** An arm hanging straight down from its shoulder; the layer (or `angle`) turns it. */
-export function Arm({ c, side, angle = 0, held }: { c: MascotColors; side: 'l' | 'r'; angle?: number; held?: 'pompom' | 'pencil' }) {
+export function Arm({ c, side, angle = 0, held }: { c: MascotColors; side: 'l' | 'r'; angle?: number; held?: 'pompom' | 'pencil' | 'marker' }) {
   const p = PIVOT[side];
   const y = p.y + ARM_LEN;
   return (
@@ -197,6 +197,14 @@ export function Arm({ c, side, angle = 0, held }: { c: MascotColors; side: 'l' |
           <Path d={`M${p.x - 5} ${y + 32} L${p.x} ${y + 42} L${p.x + 5} ${y + 32} Z`} fill={c.paperShade} />
           <Path d={`M${p.x - 1.6} ${y + 38.5} L${p.x} ${y + 42} L${p.x + 1.6} ${y + 38.5} Z`} fill={c.ink} />
           <Rect x={p.x - 5} y={y - 12} width={10} height={6} rx={2.5} fill={c.heart} />
+        </G>
+      ) : null}
+      {held === 'marker' ? (
+        // The fosfor highlighter: a stubby rounded body with a dark chisel cap, tip outward.
+        <G transform={`rotate(150 ${p.x} ${y})`}>
+          <Rect x={p.x - 6} y={y - 10} width={12} height={36} rx={5} fill={c.marker} />
+          <Path d={`M${p.x - 5} ${y + 24} L${p.x + 5} ${y + 24} L${p.x + 4} ${y + 34} L${p.x - 4} ${y + 31} Z`} fill={c.markerCap} />
+          <Rect x={p.x - 3.5} y={y - 6} width={3} height={24} rx={1.5} fill={c.glowShine} opacity={0.7} />
         </G>
       ) : null}
     </G>

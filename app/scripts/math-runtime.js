@@ -103,24 +103,89 @@
   }
 
   // ---- Answer choices -------------------------------------------------------------
-  // Buttons under the stem. The app owns the state (picked, sealing, right, wrong) and
+  // Optik rows under the stem. The app owns the state (picked, sealing, right, wrong) and
   // passes it in; a tap only reports the letter back. A state change on the same choices
-  // updates the buttons in place, so the verdict can animate on the row itself.
+  // updates the rows in place, so the verdict plays on the row itself: a right pick gets a
+  // soft fosfor sweep and a drawn check, a wrong pick gets the red pen's loop around its
+  // letter, then the right row sweeps in after a beat. Every color change cross-fades (CSS).
 
-  var MARKS = {
-    check: '<svg class="mark" viewBox="0 0 24 24" aria-hidden="true"><path class="m1" d="M6.5 12.5 L10.5 16.5 L17.5 8.5"/></svg>',
-    cross: '<svg class="mark" viewBox="0 0 24 24" aria-hidden="true"><path class="m1" d="M7.5 7.5 L16.5 16.5"/><path class="m2" d="M16.5 7.5 L7.5 16.5"/></svg>',
-  };
+  var CHECK = 'M6.5 12.5 L10.5 16.5 L17.5 8.5';
+  var CHECK_LEN = 17;
+
+  // The red pen: a hand-drawn loop, 380° clockwise from -30°, widening a little so the ends
+  // don't meet, around the letter bubble (in px, in the letter's box padded by PEN_PAD).
+  var PEN_PAD = 8;
+  function penPath() {
+    var w = cssMs('--bubble-w', 32);
+    var h = cssMs('--bubble-h', 22);
+    var W = w + PEN_PAD * 2;
+    var H = h + PEN_PAD * 2;
+    var rx = w / 2 + PEN_PAD / 2;
+    var ry = h / 2 + PEN_PAD / 2;
+    var d = '';
+    var len = 0;
+    var steps = 40;
+    var px = 0;
+    var py = 0;
+    for (var i = 0; i <= steps; i++) {
+      var t = i / steps;
+      var a = ((-30 + 380 * t) * Math.PI) / 180;
+      var grow = 1 + 0.08 * t;
+      var x = W / 2 + rx * grow * Math.cos(a);
+      var y = H / 2 + ry * grow * Math.sin(a);
+      d += (i ? ' L' : 'M') + x.toFixed(2) + ' ' + y.toFixed(2);
+      if (i) len += Math.hypot(x - px, y - py);
+      px = x;
+      py = y;
+    }
+    return { d: d, len: Math.ceil(len), w: W, h: H };
+  }
+
+  var motion = true;
+  function cssMs(name, fallback) {
+    var v = parseFloat(getComputedStyle(document.documentElement).getPropertyValue(name));
+    return isNaN(v) ? fallback : v;
+  }
+  function cssVar(name, fallback) {
+    var v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    return v || fallback;
+  }
+
+  // Plays a stroke or sweep once. Reduce motion: a short fade up to `opts.to` (default 1)
+  // instead of the draw. (Not the computed opacity: a CSS transition may just be starting.)
+  function play(el, frames, opts) {
+    if (!el || !el.animate) return;
+    if (!motion) {
+      el.animate([{ opacity: 0 }, { opacity: opts.to == null ? 1 : opts.to }], {
+        duration: cssMs('--fade-ms', 120),
+        delay: opts.delay || 0,
+        fill: 'backwards',
+      });
+      return;
+    }
+    el.animate(frames, { duration: opts.duration, delay: opts.delay || 0, easing: opts.easing, fill: 'backwards' });
+  }
+  function drawStroke(path, len, duration, delay) {
+    play(path, [{ strokeDashoffset: len }, { strokeDashoffset: 0 }], { duration: duration, delay: delay, easing: cssVar('--ease-pencil', 'ease-out') });
+  }
+  function sweep(el, delay) {
+    play(
+      el,
+      [
+        { transform: 'skewX(-8deg) rotate(-0.6deg) scaleX(0)' },
+        { transform: 'skewX(-8deg) rotate(-0.6deg) scaleX(1)' },
+      ],
+      { duration: cssMs('--sweep-ms', 420), delay: delay, easing: cssVar('--ease-highlighter', 'ease-in-out'), to: cssMs('--sweep-alpha', 0.6) },
+    );
+  }
 
   function choiceLook(label, state) {
     var cls = ['choice'];
-    var mark = null;
     if (state.correct === label) {
       cls.push('correct');
-      mark = 'check';
+      if (state.selected === label && !state.wrong) cls.push('mine');
     } else if (state.wrong === label) {
       cls.push('wrong');
-      mark = 'cross';
     } else if (state.selected === label) {
       cls.push('selected');
       if (state.sealing) cls.push('sealing');
@@ -128,11 +193,12 @@
       cls.push('dim');
     }
     var aria = label + ' şıkkı' + (state.correct === label ? ', doğru cevap' : state.wrong === label ? ', senin cevabın, yanlış' : '');
-    return { cls: cls, mark: mark, aria: aria, checked: state.selected === label || state.wrong === label };
+    return { cls: cls, aria: aria, checked: state.selected === label || state.wrong === label };
   }
 
   function choicesHtml(choices, state) {
     state = state || {};
+    var pen = penPath();
     var html = '<div class="choices" role="radiogroup" aria-label="Şıklar">';
     for (var i = 0; i < choices.length; i++) {
       var c = choices[i];
@@ -140,8 +206,13 @@
       html +=
         '<button type="button" class="' + look.cls.join(' ') + '" style="--i:' + i + '" data-label="' + escapeHtml(c.label) +
         '" role="radio" aria-checked="' + (look.checked ? 'true' : 'false') + '" aria-label="' + escapeHtml(look.aria) + '"' +
-        (state.disabled ? ' disabled' : '') + '><span class="letter">' + escapeHtml(c.label) + '</span><span class="ctext">' +
-        renderMarkdown(c.text, true) + '</span>' + (look.mark ? MARKS[look.mark] : '') + '</button>';
+        (state.disabled ? ' disabled' : '') + '><span class="sweep" aria-hidden="true"></span>' +
+        '<span class="letter">' + escapeHtml(c.label) +
+        '<svg class="pen" width="' + pen.w + '" height="' + pen.h + '" viewBox="0 0 ' + pen.w + ' ' + pen.h + '" aria-hidden="true"><path d="' + pen.d +
+        '" data-len="' + pen.len + '" stroke-dasharray="' + pen.len + ' ' + pen.len + '"/></svg></span>' +
+        '<span class="ctext">' + renderMarkdown(c.text, true) + '</span>' +
+        '<svg class="mark" viewBox="0 0 24 24" aria-hidden="true"><path d="' + CHECK + '" stroke-dasharray="' + CHECK_LEN + ' ' + CHECK_LEN +
+        '"/></svg></button>';
     }
     return html + '</div>';
   }
@@ -151,37 +222,52 @@
     return { x: r.left, y: r.top, width: r.width, height: r.height };
   }
 
-  // Updates the existing buttons to a new state. Going from "not graded" to "graded" plays
-  // the verdict once: a right pick floods green and pops, a wrong pick shakes and the right
-  // row fills in after a beat (so the eye travels from your answer to the right one).
+  // Updates the existing rows to a new state. Going from "not graded" to "graded" plays the
+  // verdict once (see above); later renders of the same graded state keep the verdict's
+  // classes, so a re-render never restarts or cuts anything.
   function applyChoiceState(prev, state) {
     prev = prev || {};
     state = state || {};
     var buttons = content.querySelectorAll('.choice');
-    var verdict = !(prev.correct || prev.wrong) && !!(state.correct || state.wrong);
+    var graded = !!(state.correct || state.wrong);
+    var verdict = !(prev.correct || prev.wrong) && graded;
+    var penMs = cssMs('--pen-ms', 320);
+    var checkMs = cssMs('--verdict-ms', 260);
+    var revealMs = cssMs('--reveal-ms', 380);
     var focus = null;
     var kind = null;
     for (var i = 0; i < buttons.length; i++) {
       var el = buttons[i];
       var label = el.getAttribute('data-label');
       var look = choiceLook(label, state);
+      // Later renders of the same graded state keep the verdict's classes; "mine" (her right
+      // pick, filled green) also holds when the app stops passing `selected` once graded.
+      var kept = graded && !verdict ? (el.className.match(/\b(v-reveal|v-correct|v-wrong|mine)\b/g) || []) : [];
+      if (verdict && state.correct === label && !state.wrong && prev.selected === label && look.cls.indexOf('mine') < 0) look.cls.push('mine');
+      var reveal = false;
       if (verdict) {
         if (state.correct === label) {
-          if (state.wrong) look.cls.push('v-reveal');
-          else if (prev.selected === label) look.cls.push('v-correct');
-          else look.cls.push('v-reveal');
+          reveal = !!state.wrong || prev.selected !== label;
+          look.cls.push(reveal && state.wrong ? 'v-reveal' : 'v-correct');
         }
         if (state.wrong === label) look.cls.push('v-wrong');
-      } else if (state.selected === label && prev.selected !== label && !state.correct) {
+      } else if (state.selected === label && prev.selected !== label && !graded) {
         look.cls.push('v-pick');
       }
-      el.className = look.cls.join(' ');
+      el.className = look.cls.concat(kept.filter(function (k) { return look.cls.indexOf(k) < 0; })).join(' ');
       el.setAttribute('aria-checked', look.checked ? 'true' : 'false');
       el.setAttribute('aria-label', look.aria);
       el.disabled = !!state.disabled;
-      var old = el.querySelector('.mark');
-      if (old) old.remove();
-      if (look.mark) el.insertAdjacentHTML('beforeend', MARKS[look.mark]);
+      if (verdict && state.correct === label) {
+        var wait = state.wrong ? revealMs : 0;
+        sweep(el.querySelector('.sweep'), wait);
+        var check = el.querySelector('.mark path');
+        drawStroke(check, CHECK_LEN, checkMs, wait + cssMs('--sweep-ms', 420) / 2);
+      }
+      if (verdict && state.wrong === label) {
+        var loop = el.querySelector('.pen path');
+        if (loop) drawStroke(loop, Number(loop.getAttribute('data-len')), penMs, 0);
+      }
       if (verdict && state.wrong === label) {
         focus = el;
         kind = 'wrong';
@@ -322,7 +408,8 @@
     for (var key in vars) {
       document.documentElement.style.setProperty('--' + key, vars[key]);
     }
-    document.body.classList.toggle('no-motion', payload.motion === false);
+    motion = payload.motion !== false;
+    document.body.classList.toggle('no-motion', !motion);
     var typing = payload.typing || null;
     var hasChoices = !!(payload.choices && payload.choices.length);
     // Same text and choices, only the choice state changed: update in place.

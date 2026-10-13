@@ -1,82 +1,134 @@
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { View } from 'react-native';
 import { api, ApiError } from '../../api/client';
-import { useLogout, useProfile } from '../../api/hooks';
+import { useFacets, useLogout, useProfile } from '../../api/hooks';
 import { AppText } from '../../components/AppText';
 import { Avatar } from '../../components/Avatar';
-import { BadgeSeal } from '../../components/BadgeSeal';
 import { Button } from '../../components/Button';
 import { Card } from '../../components/Card';
 import { DemoBanner } from '../../components/DemoBanner';
-import { Columns, Grid } from '../../components/Grid';
-import { Icon } from '../../components/Icon';
-import { Appear } from '../../components/motion/Appear';
+import { Col, Row } from '../../components/Grid';
+import { Icon, type IconName } from '../../components/Icon';
+import { PressableScale } from '../../components/motion/PressableScale';
+import { BadgeProgress } from '../../components/profile/BadgeProgress';
+import { LumiSettings } from '../../components/profile/LumiSettings';
 import { ProgressBar } from '../../components/ProgressBar';
 import { Screen } from '../../components/Screen';
+import { KarneRow } from '../../components/StatTile';
 import { ASSISTANT_NAME } from '../../brand';
 import { API_URL, DEMO_MODE } from '../../config';
-import { BADGES, badgeInfo } from '../../data/badges';
-import { shortDate } from '../../lib/format';
 import { haptics } from '../../lib/haptics';
+import { useWindowLayout } from '../../lib/layout';
 import { useAuthStore } from '../../store/authStore';
 import { useTheme } from '../../theme';
 
+// TOKEN-PENDING: layout.avatarProfile = 72 (the identity sheet's avatar, spec 7.5)
+const AVATAR_SIZE = 72;
+// TOKEN-PENDING: layout.listRow = 56 (a settings or navigation row, spec 7.5)
+const LIST_ROW = 56;
+
 type CheckState = { status: 'idle' } | { status: 'running' } | { status: 'ok' } | { status: 'error'; message: string };
 
-function Stat({ label, value }: { label: string; value: string }) {
+/** Avatar, name, username, and the level with its groove. */
+function Identity() {
   const theme = useTheme();
+  const user = useAuthStore((s) => s.user);
+  const p = useProfile().data;
   return (
-    <View style={{ flex: 1, gap: theme.spacing.xxs }}>
-      <AppText variant="title">{value}</AppText>
-      <AppText variant="caption" color="textMuted">
-        {label}
-      </AppText>
-    </View>
-  );
-}
-
-/** Every badge: earned ones in color with their date, the rest locked with the goal. */
-function Badges() {
-  const theme = useTheme();
-  const profile = useProfile();
-  const earned = profile.data?.badges ?? [];
-  const earnedIds = new Set(earned.map((b) => (b.id.startsWith('topic-master:') ? 'topic-master' : b.id)));
-  const masters = earned.filter((b) => b.id.startsWith('topic-master:'));
-  const cells = [
-    ...BADGES.map((b) => {
-      const own = earned.find((e) => e.id === b.id || (b.id === 'topic-master' && e.id.startsWith('topic-master:')));
-      return { key: b.id, info: own ? badgeInfo(own.id) : b, earnedAt: own?.earnedAt ?? null };
-    }),
-    // A second, third… topic master shows as its own medal.
-    ...masters.slice(1).map((m) => ({ key: m.id, info: badgeInfo(m.id), earnedAt: m.earnedAt })),
-  ];
-  return (
-    <Card title={`Rozetler · ${earnedIds.size}/${BADGES.length}`}>
-      <Grid columns={{ compact: 3, regular: 3, wide: 3 }}>
-        {cells.map((c, i) => (
-          <Appear key={c.key} index={i} style={{ alignItems: 'center', gap: theme.spacing.xs, paddingVertical: theme.spacing.sm }}>
-            <BadgeSeal icon={c.info.icon} tier={c.info.tier} locked={!c.earnedAt} />
-            <AppText variant="label" weight="semibold" align="center" color={c.earnedAt ? 'text' : 'textMuted'}>
-              {c.info.title}
+    <Card>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.lg }}>
+        {user ? <Avatar name={user.displayName} color={user.avatar} size={AVATAR_SIZE} /> : null}
+        <View style={{ flex: 1, gap: theme.spacing.xxs }}>
+          <AppText variant="title" numberOfLines={1}>
+            {user?.displayName ?? '—'}
+          </AppText>
+          <AppText color="textMuted" numberOfLines={1}>
+            @{user?.username ?? ''}
+          </AppText>
+        </View>
+      </View>
+      <View style={{ gap: theme.spacing.sm }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' }}>
+          <AppText variant="heading">Seviye {p?.level ?? 1}</AppText>
+          <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: theme.spacing.xs }}>
+            <AppText variant="numeric" color="textMuted">
+              {p ? `${p.levelXp}/${p.levelXpRequired}` : '—'}
             </AppText>
-            <AppText variant="caption" color="textMuted" align="center" numberOfLines={3}>
-              {c.earnedAt ? shortDate(new Date(c.earnedAt).toISOString()) : c.info.description}
+            <AppText variant="caption" color="textMuted">
+              XP
             </AppText>
-          </Appear>
-        ))}
-      </Grid>
+          </View>
+        </View>
+        <ProgressBar progress={p ? p.levelXp / p.levelXpRequired : 0} />
+      </View>
     </Card>
   );
 }
 
-export default function ProfileScreen() {
+/** Toplam XP | Seri | En uzun | Çözülen soru. */
+function Karne() {
+  const p = useProfile().data;
+  const facets = useFacets().data;
+  return (
+    <KarneRow
+      cells={[
+        { label: 'Toplam XP', value: p ? p.xp : null, cacheKey: 'profile.xp' },
+        { label: 'Seri', value: p ? p.streak : null, unit: 'gün', cacheKey: 'profile.streak' },
+        { label: 'En uzun', value: p ? p.longestStreak : null, unit: 'gün', cacheKey: 'profile.longest' },
+        { label: 'Çözülen soru', value: facets ? facets.total : null, cacheKey: 'profile.solved' },
+      ]}
+    />
+  );
+}
+
+/** A 56 pt navigation row: icon, label, chevron. */
+function ListRow({ icon, label, onPress, last = false }: { icon: IconName; label: string; onPress: () => void; last?: boolean }) {
   const theme = useTheme();
-  const profile = useProfile();
-  const user = useAuthStore((s) => s.user);
+  return (
+    <PressableScale
+      kind="row"
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      onPress={onPress}
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: theme.spacing.md,
+        minHeight: LIST_ROW,
+        paddingHorizontal: theme.spacing.lg,
+        borderBottomWidth: last ? 0 : theme.layout.borderWidth,
+        borderBottomColor: theme.colors.optikSoft,
+      }}
+    >
+      <Icon name={icon} size={theme.layout.iconSize.md} color={theme.colors.primaryText} duotone />
+      <AppText weight="medium" style={{ flex: 1 }}>
+        {label}
+      </AppText>
+      <Icon name="chevron-right" size={theme.layout.iconSize.sm} color={theme.colors.textMuted} />
+    </PressableScale>
+  );
+}
+
+function Links() {
+  const theme = useTheme();
+  return (
+    <Card style={{ padding: 0, paddingVertical: theme.spacing.xs, gap: 0, overflow: 'hidden' }}>
+      <ListRow icon="trophy" label="Sıralama" onPress={() => router.push('/leaderboard')} />
+      <ListRow icon="timer" label="Sayaç" onPress={() => router.push('/timer')} />
+      <ListRow icon="message-circle" label={`${ASSISTANT_NAME}'ye sor`} onPress={() => router.push('/assistant')} last />
+    </Card>
+  );
+}
+
+/** Demo: the compact demo pill. Server: the address, a connection check and sign-out. */
+function Connection() {
+  const theme = useTheme();
   const logout = useLogout();
   const [check, setCheck] = useState<CheckState>({ status: 'idle' });
-
+  if (DEMO_MODE) {
+    return <DemoBanner compact detail="Örnek verilerle çalışıyor; yaptıkların uygulama kapanınca sıfırlanır. Kendi sunucunu bağlamak için README'deki kurulum adımlarına bak." />;
+  }
   const runCheck = async () => {
     setCheck({ status: 'running' });
     try {
@@ -89,45 +141,7 @@ export default function ProfileScreen() {
       setCheck({ status: 'error', message: e instanceof ApiError ? e.message : 'Bilinmeyen hata.' });
     }
   };
-
-  const p = profile.data;
-
-  const account = (
-    <Card>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md }}>
-        {user ? <Avatar name={user.displayName} color={user.avatar} size={theme.layout.avatar * 1.5} /> : null}
-        <View style={{ flex: 1, gap: theme.spacing.xxs }}>
-          <AppText variant="title" numberOfLines={1}>
-            {user?.displayName ?? '—'}
-          </AppText>
-          <AppText color="textMuted">@{user?.username ?? ''}</AppText>
-        </View>
-      </View>
-      <View style={{ gap: theme.spacing.sm }}>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' }}>
-          <AppText variant="heading">Seviye {p?.level ?? 1}</AppText>
-          <AppText variant="label" color="textMuted">
-            {p ? `${p.levelXp} / ${p.levelXpRequired} XP` : '—'}
-          </AppText>
-        </View>
-        <ProgressBar progress={p ? p.levelXp / p.levelXpRequired : 0} />
-      </View>
-      <View style={{ flexDirection: 'row', gap: theme.spacing.md }}>
-        <Stat label="Toplam XP" value={p ? String(p.xp) : '—'} />
-        <Stat label="Seri" value={p ? `${p.streak} gün` : '—'} />
-        <Stat label="En uzun seri" value={p ? `${p.longestStreak} gün` : '—'} />
-      </View>
-      <View style={{ flexDirection: 'row', gap: theme.spacing.sm }}>
-        <Button label="Sıralama" icon="trophy" variant="secondary" onPress={() => router.push('/leaderboard')} style={{ flex: 1 }} />
-        <Button label="Sayaç" icon="timer" variant="secondary" onPress={() => router.push('/timer')} style={{ flex: 1 }} />
-      </View>
-      <Button label={`${ASSISTANT_NAME}'ye sor`} icon="message-circle" variant="ghost" onPress={() => router.push('/assistant')} />
-    </Card>
-  );
-
-  const connection = DEMO_MODE ? (
-    <DemoBanner detail="Örnek verilerle çalışıyor; yaptıkların uygulama kapanınca sıfırlanır. Kendi sunucunu bağlamak için README'deki kurulum adımlarına bak." />
-  ) : (
+  return (
     <Card title="Hesap ve sunucu">
       <View style={{ gap: theme.spacing.xs }}>
         <AppText variant="caption" color="textMuted">
@@ -155,18 +169,62 @@ export default function ProfileScreen() {
       <Button label="Çıkış yap" icon="log-out" variant="ghost" loading={logout.isPending} onPress={() => logout.mutate()} />
     </Card>
   );
+}
 
-  return (
-    <Screen title="Profil">
-      <Columns
-        left={
-          <>
-            <Appear>{account}</Appear>
-            <Appear index={1}>{connection}</Appear>
-          </>
-        }
-        right={<Badges />}
-      />
-    </Screen>
-  );
+export default function ProfileScreen() {
+  const { sizeClass } = useWindowLayout();
+  const p = useProfile().data;
+  const level = p?.level ?? 1;
+  const streak30 = !!p?.badges.some((b) => b.id === 'streak-30');
+  const lumi = <LumiSettings level={level} streak30={streak30} />;
+
+  let body: ReactNode;
+  if (sizeClass === 'wide') {
+    // Landscape: the student on the left (5 of 12), the badges on the right. The Lumi sheet
+    // sits under the badges so the two columns end near each other (with it on the left,
+    // the right column ended halfway down and left a tall empty gap).
+    body = (
+      <Row>
+        <Col span={{ compact: 4, wide: 5 }}>
+          <Identity />
+          <Karne />
+          <Links />
+          <Connection />
+        </Col>
+        <Col span={{ compact: 4, wide: 7 }}>
+          <BadgeProgress />
+          {lumi}
+        </Col>
+      </Row>
+    );
+  } else if (sizeClass === 'regular') {
+    // Portrait: identity and karne across, badges, then the list and Lumi side by side.
+    body = (
+      <Row>
+        <Col span={{ compact: 4, regular: 8 }}>
+          <Identity />
+          <Karne />
+          <BadgeProgress />
+        </Col>
+        <Col span={{ compact: 4, regular: 4 }}>
+          <Links />
+          <Connection />
+        </Col>
+        <Col span={{ compact: 4, regular: 4 }}>{lumi}</Col>
+      </Row>
+    );
+  } else {
+    body = (
+      <>
+        <Identity />
+        <Karne />
+        <BadgeProgress />
+        <Links />
+        {lumi}
+        <Connection />
+      </>
+    );
+  }
+
+  return <Screen title="Profil">{body}</Screen>;
 }

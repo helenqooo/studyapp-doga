@@ -5,27 +5,34 @@ import type { Question } from '../api/types';
 import { haptics } from '../lib/haptics';
 import { useTheme } from '../theme';
 import { AppText } from './AppText';
+import { Bubble } from './Bubble';
 import { Button } from './Button';
 import { PressableScale } from './motion/PressableScale';
 
 /**
- * "Cevap anahtarı farklı mı?": the student sets the letter from their answer key when the
- * solution got it wrong. The first answer is graded again on the server.
+ * "Cevap anahtarı farklı mı?": the student codes the letter from their answer key when the
+ * solution got it wrong (an optik row: the chosen letter is scribbled in). The first answer
+ * is graded again on the server.
  */
 export function AnswerKeyEditor({ q, initiallyOpen = false }: { q: Question; initiallyOpen?: boolean }) {
   const theme = useTheme();
   const setKey = useSetAnswerKey(q.id);
   const [open, setOpen] = useState(initiallyOpen);
   if (!q.choices?.length) return null;
-  const current = q.answerKey ?? q.correctChoice;
+  // The pressed letter is coded at once (the bubble scribbles in) while the server re-grades;
+  // on an error it falls back to the saved key.
+  const pending = setKey.isPending && setKey.variables !== undefined ? (setKey.variables ?? q.correctChoice) : undefined;
+  const current = pending ?? q.answerKey ?? q.correctChoice;
+  const { bubble, system } = theme.layout;
 
   if (!open) {
     return (
       <Button
-        label={q.answerKey ? `Cevap anahtarı: ${q.answerKey} · değiştir` : 'Cevap anahtarı farklı mı?'}
+        label={q.answerKey ? `Cevap anahtarı ${q.answerKey}, değiştir` : 'Cevap anahtarı farklı mı?'}
         icon="key-round"
         variant="ghost"
         onPress={() => setOpen(true)}
+        style={{ alignSelf: 'flex-start' }}
       />
     );
   }
@@ -35,33 +42,30 @@ export function AnswerKeyEditor({ q, initiallyOpen = false }: { q: Question; ini
       <AppText variant="label" color="textMuted">
         Cevap anahtarındaki şık{q.correctChoice ? ` (çözüm ${q.correctChoice} dedi)` : ''}
       </AppText>
-      <View style={{ flexDirection: 'row', gap: theme.spacing.sm }}>
+      <View accessibilityRole="radiogroup" accessibilityLabel="Cevap anahtarı" style={{ flexDirection: 'row', flexWrap: 'wrap', columnGap: theme.spacing.xxs }}>
         {q.choices.map(({ label }) => {
           const active = current === label;
           return (
             <PressableScale
               key={label}
+              kind="bubble"
               accessibilityRole="radio"
               accessibilityLabel={`Cevap anahtarı ${label}`}
-              accessibilityState={{ selected: active, disabled: setKey.isPending }}
+              accessibilityState={{ checked: active, disabled: setKey.isPending }}
               disabled={setKey.isPending}
               onPress={() => {
-                haptics.select();
+                if (active) return;
+                haptics.grain();
                 // Picking the model's own letter clears the override.
                 setKey.mutate(label === q.correctChoice ? null : label, { onError: () => haptics.error() });
               }}
-              style={{
-                flex: 1,
-                height: theme.layout.minTouch,
-                borderRadius: theme.radius.md,
-                alignItems: 'center',
-                justifyContent: 'center',
-                backgroundColor: active ? theme.colors.primary : theme.colors.surfaceAlt,
-              }}
+              style={{ minWidth: system.minTouch, minHeight: system.minTouch, alignItems: 'center', justifyContent: 'center' }}
             >
-              <AppText weight="semibold" tint={active ? theme.colors.textOnAccent : theme.colors.text}>
-                {label}
-              </AppText>
+              <View style={{ width: bubble.letter.w, height: bubble.letter.h }}>
+                <Bubble size="letter" filled={active}>
+                  {label}
+                </Bubble>
+              </View>
             </PressableScale>
           );
         })}

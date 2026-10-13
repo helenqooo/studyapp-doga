@@ -1,26 +1,45 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Image, Pressable, View, type ImageLoadEventData, type NativeSyntheticEvent, type StyleProp, type ViewStyle } from 'react-native';
+import Animated, { ReduceMotion, useAnimatedStyle, useReducedMotion, useSharedValue, withTiming } from 'react-native-reanimated';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import { questionImageSource } from '../api/client';
 import { useSolveStore } from '../store/solveStore';
 import { useTheme } from '../theme';
 import { AppText } from './AppText';
 import { Icon } from './Icon';
+import { PressableScale } from './motion/PressableScale';
+import { ease } from './motion/presets';
+
+// TOKEN-PENDING: motion.duration.rmFade = 120 (the Reduce Motion cross-fade, spec 0.7 / 5.6)
+const RM_FADE_MS = 120;
+// TOKEN-PENDING: opacity.imageFade = 0.96 (the paper fade over a clipped photo's bottom edge)
+const FADE_OPACITY = 0.96;
 
 interface Props {
   questionId: string;
   /** `thumb` is a small square; the others cap the height, and a taller photo expands on tap. */
   size?: 'thumb' | 'compact' | 'regular' | 'large';
+  /** A height cap (pt) that overrides the size's cap (e.g. `layout.question.imageCap`). */
+  cap?: number;
+  /**
+   * Where "Tamamını gör" sits on a clipped photo: `below` (default) is a row under the
+   * photo, so it never covers the question; `overlay` floats it over the fade.
+   */
+  pillPlacement?: 'below' | 'overlay';
+  /** The photo could not be loaded. */
+  onError?: () => void;
   style?: StyleProp<ViewStyle>;
 }
 
 /**
  * The question photo at its own shape (no grey bands): full width, as tall as the page is.
- * A photo taller than the size's cap shows its top with a fade and opens fully on tap.
- * The local cropped copy is used when we have it, otherwise it is fetched with auth.
+ * A photo taller than the cap shows its top with a paper fade and opens fully on tap (the
+ * height glides open). The local cropped copy is used when we have it, otherwise it is
+ * fetched with auth.
  */
-export function QuestionImage({ questionId, size = 'regular', style }: Props) {
+export function QuestionImage({ questionId, size = 'regular', cap: capProp, pillPlacement = 'below', onError, style }: Props) {
   const theme = useTheme();
+  const reduceMotion = useReducedMotion();
   const local = useSolveStore((s) => s.localImages[questionId]);
   const [expanded, setExpanded] = useState(false);
   const [ratio, setRatio] = useState<number | null>(local ? local.width / local.height : null);
@@ -55,6 +74,37 @@ export function QuestionImage({ questionId, size = 'regular', style }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ratio, uri, typeof source === 'number' ? source : null]);
 
+  const natural = width ? width / (ratio ?? 4 / 3) : 0;
+  const cap = capProp ?? (size === 'thumb' ? 0 : theme.layout.questionImageCap[size]);
+  const clipped = size !== 'thumb' && natural > cap + 1;
+  const target = expanded || !clipped ? natural : cap;
+  const fade = theme.layout.questionImageFade;
+
+  // The frame's height glides between the cap and the whole photo when she taps; sizing on
+  // load (width, then the photo's real shape) is set at once, so nothing moves on open.
+  const height = useSharedValue(0);
+  const veil = useSharedValue(1);
+  const glide = useRef(false);
+  useEffect(() => {
+    if (!target) return;
+    const animate = glide.current && !reduceMotion;
+    glide.current = false;
+    if (!animate) {
+      height.value = target;
+      return;
+    }
+    height.value = withTiming(target, { duration: theme.motion.duration.base, easing: ease('standard') });
+  }, [target, reduceMotion, height, theme.motion.duration.base]);
+  useEffect(() => {
+    veil.value = withTiming(clipped && !expanded ? 1 : 0, {
+      duration: reduceMotion ? RM_FADE_MS : theme.motion.duration.base,
+      easing: ease('standard'),
+      reduceMotion: ReduceMotion.Never,
+    });
+  }, [clipped, expanded, reduceMotion, veil, theme.motion.duration.base]);
+  const frameStyle = useAnimatedStyle(() => ({ height: height.value || cap }), [cap]);
+  const veilStyle = useAnimatedStyle(() => ({ opacity: veil.value }));
+
   if (size === 'thumb') {
     const side = theme.layout.minTouch + theme.spacing.md;
     return (
@@ -64,7 +114,7 @@ export function QuestionImage({ questionId, size = 'regular', style }: Props) {
           style,
         ]}
       >
-        <Image source={source} resizeMode="cover" style={{ width: '100%', height: '100%' }} />
+        <Image source={source} resizeMode="cover" onError={onError} style={{ width: '100%', height: '100%' }} />
       </View>
     );
   }
@@ -73,65 +123,85 @@ export function QuestionImage({ questionId, size = 'regular', style }: Props) {
     const s = e.nativeEvent?.source;
     if (s?.width && s?.height) setRatio(s.width / s.height);
   };
-  const natural = width ? width / (ratio ?? 4 / 3) : 0;
-  const cap = theme.layout.questionImageCap[size];
-  const clipped = natural > cap + 1;
-  const height = expanded || !clipped ? natural : cap;
-  const fade = theme.layout.questionImageFade;
+  const toggle = () => {
+    glide.current = true;
+    setExpanded((v) => !v);
+  };
+  const below = pillPlacement === 'below';
+  const pillLabel = expanded ? 'Küçült' : 'Tamamını gör';
+
+  const pillFace = (
+    <View
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: theme.spacing.xs,
+        paddingHorizontal: theme.spacing.md,
+        paddingVertical: theme.spacing.xs,
+        borderRadius: theme.radius.pill,
+        backgroundColor: below ? theme.colors.surfaceAlt : theme.colors.surface,
+        boxShadow: below ? theme.colors.shadow.none : theme.colors.shadow.card,
+      }}
+    >
+      <Icon name={expanded ? 'chevron-up' : 'chevron-down'} size={theme.layout.iconSize.sm} color={theme.colors.primaryText} />
+      <AppText variant="label" weight="semibold" color="primaryText">
+        {pillLabel}
+      </AppText>
+    </View>
+  );
 
   return (
-    <Pressable
-      accessibilityRole="imagebutton"
-      accessibilityLabel={clipped ? (expanded ? 'Görseli küçült' : 'Görselin tamamını gör') : 'Soru görseli'}
-      disabled={!clipped}
-      onPress={() => setExpanded((v) => !v)}
-      onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
-      style={[{ width: '100%' }, style]}
-    >
-      <View
-        style={{
-          height: height || cap,
-          borderRadius: theme.radius.md,
-          borderCurve: 'continuous',
-          overflow: 'hidden',
-          backgroundColor: theme.colors.surfaceAlt,
-        }}
+    <View style={[{ width: '100%', gap: theme.spacing.xs }, style]}>
+      <Pressable
+        // With the pill below, the pill is the control; the photo itself stays a plain image.
+        accessible={!(below && clipped)}
+        accessibilityRole={clipped ? 'imagebutton' : 'image'}
+        accessibilityLabel={clipped ? (expanded ? 'Görseli küçült' : 'Görselin tamamını gör') : 'Soru görseli'}
+        disabled={!clipped}
+        onPress={toggle}
+        onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
+        style={{ width: '100%' }}
       >
-        <Image source={source} resizeMode="contain" onLoad={onLoad} style={{ width: '100%', height: natural || cap }} />
-        {clipped && !expanded ? (
-          <View pointerEvents="none" style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: fade }}>
-            <Svg width="100%" height={fade}>
-              <Defs>
-                <LinearGradient id="qfade" x1="0" y1="0" x2="0" y2="1">
-                  <Stop offset="0" stopColor={theme.colors.surface} stopOpacity={0} />
-                  <Stop offset="1" stopColor={theme.colors.surface} stopOpacity={0.96} />
-                </LinearGradient>
-              </Defs>
-              <Rect x="0" y="0" width="100%" height={fade} fill="url(#qfade)" />
-            </Svg>
-            <View
-              style={{
-                position: 'absolute',
-                bottom: theme.spacing.sm,
-                alignSelf: 'center',
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: theme.spacing.xs,
-                paddingHorizontal: theme.spacing.md,
-                paddingVertical: theme.spacing.xs,
-                borderRadius: theme.radius.pill,
-                backgroundColor: theme.colors.surface,
-                boxShadow: theme.colors.shadow.card,
-              }}
-            >
-              <Icon name="chevron-down" size={theme.layout.iconSize.sm} color={theme.colors.primaryText} />
-              <AppText variant="label" weight="semibold" color="primaryText">
-                Tamamını gör
-              </AppText>
-            </View>
-          </View>
-        ) : null}
-      </View>
-    </Pressable>
+        <Animated.View
+          style={[
+            {
+              borderRadius: theme.radius.md,
+              borderCurve: 'continuous',
+              overflow: 'hidden',
+              backgroundColor: theme.colors.surfaceAlt,
+            },
+            frameStyle,
+          ]}
+        >
+          <Image source={source} resizeMode="contain" onLoad={onLoad} onError={onError} style={{ width: '100%', height: natural || cap }} />
+          {clipped ? (
+            <Animated.View pointerEvents="none" style={[{ position: 'absolute', left: 0, right: 0, bottom: 0, height: fade }, veilStyle]}>
+              <Svg width="100%" height={fade}>
+                <Defs>
+                  <LinearGradient id="qfade" x1="0" y1="0" x2="0" y2="1">
+                    <Stop offset="0" stopColor={theme.colors.surface} stopOpacity={0} />
+                    <Stop offset="1" stopColor={theme.colors.surface} stopOpacity={FADE_OPACITY} />
+                  </LinearGradient>
+                </Defs>
+                <Rect x="0" y="0" width="100%" height={fade} fill="url(#qfade)" />
+              </Svg>
+              {!below && !expanded ? <View style={{ position: 'absolute', bottom: theme.spacing.sm, alignSelf: 'center' }}>{pillFace}</View> : null}
+            </Animated.View>
+          ) : null}
+        </Animated.View>
+      </Pressable>
+      {clipped && below ? (
+        <PressableScale
+          kind="bubble"
+          accessibilityRole="button"
+          accessibilityLabel={expanded ? 'Görseli küçült' : 'Görselin tamamını gör'}
+          accessibilityState={{ expanded }}
+          onPress={toggle}
+          style={{ alignSelf: 'center', minHeight: theme.layout.minTouch, justifyContent: 'center' }}
+        >
+          {pillFace}
+        </PressableScale>
+      ) : null}
+    </View>
   );
 }

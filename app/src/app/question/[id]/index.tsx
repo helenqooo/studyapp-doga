@@ -2,8 +2,8 @@ import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useState, type ReactNode } from 'react';
 import { View } from 'react-native';
 import { useQuestion, useRecordAttempt } from '../../../api/hooks';
-import type { AttemptInput, AttemptResult, ChoiceLabel, Question } from '../../../api/types';
-import { AnswerDock, DockLetters, DockStatus, Pips } from '../../../components/AnswerDock';
+import type { AttemptInput, ChoiceLabel, Question } from '../../../api/types';
+import { AnswerDock, DockLetters, DockStatus, DockSubmit } from '../../../components/AnswerDock';
 import { AnswerKeyEditor } from '../../../components/AnswerKeyEditor';
 import { AppText } from '../../../components/AppText';
 import { Badge } from '../../../components/Badge';
@@ -11,11 +11,14 @@ import { Button } from '../../../components/Button';
 import { Card } from '../../../components/Card';
 import { Difficulty } from '../../../components/Difficulty';
 import { Icon } from '../../../components/Icon';
-import { Mascot } from '../../../components/mascot/Mascot';
 import { MathView } from '../../../components/math/MathView';
 import { Appear } from '../../../components/motion/Appear';
+import { AnswerStrip } from '../../../components/question/AnswerStrip';
+import { HintStack, SolutionSheet } from '../../../components/question/HintStack';
+import { WorkDesk } from '../../../components/question/WorkDesk';
 import { QuestionImage } from '../../../components/QuestionImage';
 import { RevealOnMount, Screen, SplitScreen } from '../../../components/Screen';
+import { SectionHeader } from '../../../components/SectionHeader';
 import { ErrorState } from '../../../components/states/ErrorState';
 import { Skeleton, SkeletonQuestion } from '../../../components/states/Skeleton';
 import { TextToggle } from '../../../components/TextToggle';
@@ -25,8 +28,8 @@ import { useVerdict } from '../../../lib/celebrate';
 import { reviewDueLabel, shortDate } from '../../../lib/format';
 import { haptics } from '../../../lib/haptics';
 import { useWindowLayout } from '../../../lib/layout';
-import { gradingKey, isGradedChoice, RESULT_LABELS, RESULT_SHORT, solutionMarkdown } from '../../../lib/question';
-import { subjectColor, useTheme } from '../../../theme';
+import { gradingKey, isGradedChoice, RESULT_SHORT, solutionMarkdown } from '../../../lib/question';
+import { subjectColor, subjectSoftColor, useTheme } from '../../../theme';
 
 function ReviewStatus({ q }: { q: Question }) {
   const theme = useTheme();
@@ -36,10 +39,7 @@ function ReviewStatus({ q }: { q: Question }) {
   return (
     <Card background={graduated ? theme.colors.successSoft : theme.colors.primarySoft}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md }}>
-        <Icon
-          name={graduated ? 'badge-check' : 'repeat'}
-          color={graduated ? theme.colors.success : theme.colors.primaryText}
-        />
+        <Icon name={graduated ? 'badge-check' : 'repeat'} color={graduated ? theme.colors.success : theme.colors.primaryText} />
         <View style={{ flex: 1, gap: theme.spacing.xxs }}>
           <AppText weight="semibold" tint={graduated ? theme.colors.success : theme.colors.primaryText}>
             {graduated ? 'Öğrenildi' : `Tekrar: ${reviewDueLabel(review.dueDate)} (${shortDate(review.dueDate)})`}
@@ -47,7 +47,7 @@ function ReviewStatus({ q }: { q: Question }) {
           <AppText variant="label" color="textMuted">
             {graduated
               ? `${review.correctCount} doğru tekrarla listeden çıktı.`
-              : `${review.intervalDays} günlük aralıkta · ${review.correctCount} doğru tekrar`}
+              : `${review.intervalDays} günlük aralıkta, ${review.correctCount} doğru tekrar`}
           </AppText>
         </View>
       </View>
@@ -62,11 +62,14 @@ function AttemptHistory({ q }: { q: Question }) {
   return (
     <Card title="Geçmiş">
       {[...q.attempts].reverse().map((a) => (
-        <View key={a.id} style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-          <AppText variant="label" color="textMuted">
-            {shortDate(a.createdAt)} · {a.source === 'solve' ? 'İlk çözüm' : 'Tekrar'}
+        <View key={a.id} style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md }}>
+          <AppText variant="label" color="textMuted" tabular>
+            {shortDate(a.createdAt)}
           </AppText>
-          <AppText variant="label" tint={color[a.result]}>
+          <AppText variant="label" style={{ flex: 1 }}>
+            {a.source === 'solve' ? 'İlk çözüm' : 'Tekrar'}
+          </AppText>
+          <AppText variant="label" weight="semibold" tint={color[a.result]}>
             {RESULT_SHORT[a.result]}
           </AppText>
         </View>
@@ -75,53 +78,19 @@ function AttemptHistory({ q }: { q: Question }) {
   );
 }
 
-/** What was saved: graded choice ("B dedin, doğrusu C") or the self-reported result. */
-function SavedResult({ q, result, pick }: { q: Question; result: AttemptResult; pick: ChoiceLabel | null }) {
-  const theme = useTheme();
-  const key = gradingKey(q);
-  const tone = { correct: theme.colors.success, wrong: theme.colors.danger, blank: theme.colors.neutral }[result];
-  const icon = ({ correct: 'circle-check', wrong: 'circle-x', blank: 'circle-minus' } as const)[result];
-  let title: string;
-  let detail: string | null = null;
-  if (isGradedChoice(q)) {
-    title = result === 'correct' ? `Doğru! Cevap ${key}.` : result === 'wrong' ? `${pick} dedin, doğrusu ${key}.` : `Boş bıraktın. Doğrusu ${key}.`;
-    if (result === 'wrong') detail = 'Üzülme, birlikte toparlarız: bu soru tekrar listende, yarın yeniden deneyeceğiz.';
-  } else {
-    title = `Kaydedildi: ${RESULT_LABELS[result]}${pick ? ` (cevabın: ${pick})` : ''}`;
-  }
-  // Lumi cheers a right answer, is sad with you about a wrong one, ponders a blank.
-  const mood = result === 'correct' ? 'celebrate' : result === 'wrong' ? 'sad' : 'thinking';
-  return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md }}>
-      <Mascot mood={mood} size={theme.layout.mascot.note} />
-      <View style={{ flex: 1, gap: theme.spacing.xxs }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm }}>
-          <Icon name={icon} color={tone} />
-          <AppText weight="semibold" tint={tone} style={{ flex: 1 }}>
-            {title}
-          </AppText>
-        </View>
-        {detail ? (
-          <AppText variant="label" color="textMuted">
-            {detail}
-          </AppText>
-        ) : null}
-      </View>
-    </View>
-  );
-}
-
 export default function QuestionScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const theme = useTheme();
   const query = useQuestion(id);
   const record = useRecordAttempt(id);
-  const { split } = useWindowLayout();
+  const { split, tablet } = useWindowLayout();
   const verdict = useVerdict();
 
   const [hintsShown, setHintsShown] = useState(0);
   const [solutionShown, setSolutionShown] = useState(false);
   const [showText, setShowText] = useState(false);
+  const [showChoices, setShowChoices] = useState(false);
+  const [imageMissing, setImageMissing] = useState(false);
   const [picked, setPicked] = useState<ChoiceLabel | null>(null);
   // The answer is being graded: the pick "seals" for a beat before the verdict shows.
   const [sealing, setSealing] = useState(false);
@@ -147,31 +116,32 @@ export default function QuestionScreen() {
 
   const q = query.data;
   const topic = getTopic(q.topicId);
-  const color = subjectColor(theme, q.subject);
   const lowConfidence = q.confidence < LOW_CONFIDENCE_THRESHOLD;
   // While the beat plays, the cache already holds the answer; show it once the beat ends.
   const saved = sealing ? undefined : q.attempts.find((a) => a.source === 'solve');
   const askedCount = Math.floor(q.messageCount / 2);
   const busy = record.isPending || sealing;
-
-  const showHint = () => {
-    haptics.select();
-    setHintsShown((n) => Math.min(q.hints.length, n + 1));
-  };
-
-  const showSolution = () => {
-    haptics.press();
-    setSolutionShown(true);
-  };
-
   const graded = isGradedChoice(q);
   const key = gradingKey(q);
   const labels = q.choices?.map((c) => c.label) ?? [];
+  // The dock is the optik form: the typed choices stay behind a toggle unless the key is
+  // doubtful, there is no photo to read them from, or the verdict is in (review-session rule).
+  // In one column the verdict sheet's A–E strip already shows the marks, and opening the
+  // choices above it would push the verdict down as it lands, so there they stay folded.
+  const choicesCollapsed = graded && !lowConfidence && !imageMissing && !(saved && split);
+  const choicesVisible = !!q.choices?.length && (!choicesCollapsed || showChoices);
+
+  // Secondary and ghost actions carry no haptic (spec 5.5).
+  const showHint = () => setHintsShown((n) => Math.min(q.hints.length, n + 1));
+  const showSolution = () => setSolutionShown(true);
 
   const save = (input: Pick<AttemptInput, 'choice' | 'result'>) => {
     if (busy) return;
     setSealing(true);
     verdict.begin();
+    // With the typed choices on screen the burst launches from the graded row; otherwise
+    // from the coded letter in the dock.
+    const fromRow = graded && !!input.choice && choicesVisible;
     record.mutate(
       { ...input, hintsUsed: hintsShown, viewedSolution: solutionShown },
       {
@@ -184,7 +154,8 @@ export default function QuestionScreen() {
               setSealing(false);
               setSavedXp(res.xpGained);
             },
-            { fromRow: graded && !!input.choice },
+            // The companion hears how many hints she used (the "İpucuyla buldun" line).
+            { fromRow, hintsUsed: hintsShown, source: 'solve' },
           ),
         onError: () => {
           verdict.cancel();
@@ -205,22 +176,24 @@ export default function QuestionScreen() {
     : { selected: picked, disabled: busy, sealing };
   const pick = (label: ChoiceLabel) => {
     if (saved || busy) return;
-    haptics.select();
     setPicked((p) => (p === label ? null : label));
   };
+  const pickFromRow = (label: ChoiceLabel) => {
+    if (saved || busy) return;
+    haptics.grain();
+    pick(label);
+  };
 
-  const title = <Stack.Screen options={{ title: topic ? topic.topic : 'Çözüm' }} />;
+  const imageCap = split ? theme.layout.question.imageCap.split : tablet ? theme.layout.question.imageCap.tablet : theme.layout.question.imageCap.compact;
+  const exam = theme.colors.exam[q.exam];
+
+  // The native title is the subject; the topic is the sheet's heading.
+  const title = <Stack.Screen options={{ title: q.subject }} />;
+
+  // ---- Soru kâğıdı -----------------------------------------------------------------------
   const questionPane = (
     <>
-      <View style={{ gap: theme.spacing.sm }}>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.sm }}>
-          <Badge label={q.exam} color={theme.colors.exam[q.exam].fg} background={theme.colors.exam[q.exam].bg} />
-          <Badge label={q.subject} dot={color} />
-          <Difficulty value={q.difficulty} />
-        </View>
-        {topic ? <AppText variant="heading">{topicLabel(topic)}</AppText> : null}
-      </View>
-
+      {split ? <SectionHeader title="Soru kâğıdı" /> : null}
       {lowConfidence ? (
         <Card background={theme.colors.warningSoft}>
           <View style={{ flexDirection: 'row', gap: theme.spacing.md, alignItems: 'center' }}>
@@ -238,55 +211,82 @@ export default function QuestionScreen() {
         </Card>
       ) : null}
 
-      <Card title="Soru">
-        <QuestionImage questionId={q.id} size={split ? 'large' : 'regular'} />
-        {/* The photo is the question; its typed-out copy is one tap away. */}
-        <TextToggle open={showText} onToggle={() => setShowText((v) => !v)} />
-        {showText ? <MathView markdown={q.questionText} /> : null}
-        {q.choices?.length ? (
-          <MathView markdown="" choices={q.choices} choiceState={choiceState} onChoice={pick} onVerdict={(v) => verdict.onVerdict(v.rect)} />
+      <Card>
+        <View style={{ gap: theme.spacing.sm }}>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: theme.spacing.sm }}>
+            <Badge label={q.exam} color={exam.fg} background={exam.bg} />
+            <Badge label={q.subject} dot={subjectColor(theme, q.subject)} background={subjectSoftColor(theme, q.subject)} />
+            <Difficulty value={q.difficulty} />
+          </View>
+          {topic ? (
+            <AppText variant="heading" accessibilityRole="header">
+              {topicLabel(topic)}
+            </AppText>
+          ) : null}
+        </View>
+        {/* The photo is the question; its typed-out copy is one tap away. Without a photo
+            (it failed to load) the typed copy takes its place. */}
+        {imageMissing ? null : (
+          <>
+            <QuestionImage questionId={q.id} cap={imageCap} pillPlacement="below" onError={() => setImageMissing(true)} />
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.sm }}>
+              <TextToggle open={showText} onToggle={() => setShowText((v) => !v)} />
+              {choicesCollapsed && q.choices?.length ? (
+                <TextToggle
+                  open={showChoices}
+                  onToggle={() => setShowChoices((v) => !v)}
+                  label="Şıkları yazıyla gör"
+                  openLabel="Şıkları gizle"
+                  icon="list-checks"
+                />
+              ) : null}
+            </View>
+          </>
+        )}
+        {showText || imageMissing ? <MathView markdown={q.questionText} /> : null}
+        {choicesVisible ? (
+          <MathView markdown="" choices={q.choices} choiceState={choiceState} onChoice={pickFromRow} onVerdict={(v) => verdict.onVerdict(v.rect)} />
         ) : null}
       </Card>
     </>
   );
 
-  const hintsLeft = q.hints.length - hintsShown;
+  // ---- Çalışma masası --------------------------------------------------------------------
+  const line = graded
+    ? `Kâğıtta çöz, şıkkını aşağıdan kodla.${q.hints.length ? ' Takılırsan ipucu var.' : ''}`
+    : `Kâğıtta çöz, sonucunu aşağıdan işaretle.${q.hints.length ? ' Takılırsan ipucu var.' : ''}`;
+  const fresh = savedXp !== null;
   const workPane = (
     <>
-      <ReviewStatus q={q} />
-      {!solutionShown ? (
-        <View style={{ flexDirection: 'row', gap: theme.spacing.sm }}>
-          <Button
-            label={hintsLeft > 0 ? 'İpucu' : 'İpuçları bitti'}
-            icon="lightbulb"
-            variant="secondary"
-            disabled={hintsLeft <= 0}
-            onPress={showHint}
-            trailing={q.hints.length ? <Pips count={q.hints.length} filled={hintsShown} color={hintsLeft > 0 ? theme.colors.primaryText : theme.colors.disabledFg} /> : null}
-            style={{ flex: 1 }}
-          />
-          <Button label="Tam çözüm" icon="book-open" variant="secondary" onPress={showSolution} style={{ flex: 1 }} />
-        </View>
-      ) : null}
+      <SectionHeader title="Çalışma masası" />
+      {saved ? (
+        fresh ? (
+          // The verdict just arrived: it eases in and the page brings it into view (spec 5.3).
+          <RevealOnMount>
+            <Appear>
+              <AnswerStrip q={q} result={saved.result} pick={savedPick} fresh keyEditor={!lowConfidence} />
+            </Appear>
+          </RevealOnMount>
+        ) : (
+          <AnswerStrip q={q} result={saved.result} pick={savedPick} fresh={false} keyEditor={!lowConfidence} />
+        )
+      ) : (
+        <WorkDesk
+          intro
+          line={line}
+          actions={!solutionShown}
+          hintsTotal={q.hints.length}
+          hintsUsed={hintsShown}
+          onHint={showHint}
+          onSolution={showSolution}
+        />
+      )}
 
-      {q.hints.slice(0, hintsShown).map((hint, i) => (
-        <RevealOnMount key={i}>
-          <Appear>
-            <Card title={`İpucu ${i + 1}`} background={theme.colors.hintBackground}>
-              <MathView markdown={hint} typing="type" fontSize={theme.fontSize.lg} />
-            </Card>
-          </Appear>
-        </RevealOnMount>
-      ))}
-
-      {solutionShown ? (
-        <RevealOnMount>
-          <Appear>
-            <Card title="Tam çözüm">
-              <MathView markdown={solutionMarkdown(q)} typing="type" fontSize={theme.fontSize.lg} />
-            </Card>
-          </Appear>
-        </RevealOnMount>
+      {!saved ? <HintStack hints={q.hints} shown={hintsShown} /> : null}
+      {/* Asked for: it types in and scrolls into view. Opened with a fresh verdict: it eases in
+          under the verdict, which keeps the scroll. A past answer: it is simply there. */}
+      {solutionShown || saved ? (
+        <SolutionSheet markdown={solutionMarkdown(q)} typing={solutionShown || fresh} reveal={solutionShown} appear={solutionShown || fresh} />
       ) : null}
 
       <Button
@@ -294,32 +294,17 @@ export default function QuestionScreen() {
         icon="message-circle-question-mark"
         variant="ghost"
         onPress={() => router.push(`/question/${q.id}/chat`)}
+        style={{ alignSelf: 'flex-start' }}
       />
 
-      {saved ? (
-        // After the row shows the verdict, the page glides to Lumi's reaction.
-        <RevealOnMount delay={savedXp !== null ? theme.motion.duration.celebrate / 2 : 0}>
-          <Appear>
-            <Card title="Senin cevabın">
-              <SavedResult q={q} result={saved.result} pick={savedPick} />
-              {saved.result !== 'correct' && savedXp !== null ? (
-                <AppText variant="label" color="textMuted">
-                  Bu soru tekrar listene eklendi. Yarın karşına çıkacak.
-                </AppText>
-              ) : null}
-              {!lowConfidence ? <AnswerKeyEditor q={q} /> : null}
-            </Card>
-          </Appear>
-        </RevealOnMount>
-      ) : null}
-
+      <ReviewStatus q={q} />
       <AttemptHistory q={q} />
 
-      {saved && savedXp !== null ? <Button label="Ana sayfaya dön" variant="ghost" onPress={() => router.dismissTo('/')} /> : null}
+      {saved && fresh ? <Button label="Ana sayfaya dön" variant="ghost" onPress={() => router.dismissTo('/')} style={{ alignSelf: 'flex-start' }} /> : null}
     </>
   );
 
-  // The dock: answer from anywhere on the page; afterwards, the next step.
+  // ---- The dock: answer from anywhere on the page; afterwards, the next step. ------------
   const errorNote = record.isError ? (
     <AppText variant="label" color="danger">
       {record.error.message}
@@ -330,11 +315,12 @@ export default function QuestionScreen() {
     dock = (
       <AnswerDock note={errorNote}>
         <DockLetters labels={labels} selected={picked} sealing={sealing} disabled={busy} onPick={pick} />
-        {picked ? (
-          <Button label="Cevapla" loading={busy} onPress={() => save({ choice: picked })} style={{ flex: 1, paddingHorizontal: theme.spacing.sm }} />
-        ) : (
-          <Button label="Boş" variant="neutral" disabled={busy} onPress={() => save({ result: 'blank' })} style={{ flex: 1, paddingHorizontal: theme.spacing.sm }} />
-        )}
+        <DockSubmit
+          ready={!!picked}
+          loading={busy}
+          onSubmit={() => picked && save({ choice: picked })}
+          secondary={{ label: 'Boş bırak', icon: 'circle-minus', onPress: () => save({ result: 'blank' }) }}
+        />
       </AnswerDock>
     );
   } else if (!saved) {
@@ -352,7 +338,7 @@ export default function QuestionScreen() {
         <Button label="Boş" icon="minus" variant="neutral" disabled={busy} onPress={() => save({ result: 'blank' })} style={{ flex: 1, paddingHorizontal: theme.spacing.sm }} />
       </AnswerDock>
     );
-  } else if (savedXp !== null) {
+  } else if (fresh) {
     dock = (
       <AnswerDock>
         <DockStatus
@@ -365,7 +351,7 @@ export default function QuestionScreen() {
     );
   }
 
-  // Large iPad windows: the question stays in view on the left while the solution scrolls.
+  // Large windows: the question sheet stays in view on the left while the desk scrolls.
   if (split) {
     return (
       <>
