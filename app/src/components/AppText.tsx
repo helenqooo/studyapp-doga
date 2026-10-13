@@ -1,4 +1,4 @@
-import { Text, type TextProps, type TextStyle } from 'react-native';
+import { StyleSheet, Text, type TextProps, type TextStyle } from 'react-native';
 import { font, useTheme, type ColorTokens, type FontKind, type FontWeightName, type Theme } from '../theme';
 
 type Variant = 'display' | 'title' | 'heading' | 'body' | 'label' | 'caption' | 'eyebrow';
@@ -51,11 +51,17 @@ function sizeStyle(theme: Theme, variant: Variant): TextStyle {
 export function AppText({ variant = 'body', color = 'text', tint, weight, family, align, style, ...rest }: Props) {
   const theme = useTheme();
   const base = VARIANTS[variant];
+  const size = sizeStyle(theme, variant);
+  // Every style has a line height; a size override keeps the style's proportion.
+  const flat = StyleSheet.flatten(style) as TextStyle | undefined;
+  const lineHeight = flat?.lineHeight ?? Math.round((flat?.fontSize ?? size.fontSize!) * theme.lineRatio[variant]);
   return (
     <Text
       {...rest}
+      maxFontSizeMultiplier={variant === 'display' || variant === 'title' ? 1.3 : 1.6}
       style={[
-        sizeStyle(theme, variant),
+        size,
+        { lineHeight },
         font(family ?? base.kind, weight ?? base.weight),
         { color: tint ?? theme.colors[color] },
         align ? { textAlign: align } : null,

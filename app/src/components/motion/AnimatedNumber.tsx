@@ -40,5 +40,10 @@ export function AnimatedNumber({ value, format = (n) => String(Math.round(n)), .
     return () => cancelAnimationFrame(raf);
   }, [value, reduceMotion, theme.motion.duration.slow]);
 
-  return <AppText {...text}>{format(shown)}</AppText>;
+  // Tabular digits, so the number doesn't jitter sideways while it counts.
+  return (
+    <AppText {...text} style={[{ fontVariant: ['tabular-nums'] }, text.style]}>
+      {format(shown)}
+    </AppText>
+  );
 }

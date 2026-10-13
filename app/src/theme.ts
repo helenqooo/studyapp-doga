@@ -400,6 +400,17 @@ export const fontSize = {
   numeral: 64,
 } as const;
 
+/** Line height as a multiple of the font size, per text style (tighter for big serif titles). */
+export const lineRatio = {
+  display: 1.18,
+  title: 1.2,
+  heading: 1.4,
+  body: 1.47,
+  label: 1.38,
+  caption: 1.34,
+  eyebrow: 1.34,
+} as const;
+
 /** Letter spacing for the serif display sizes (slightly tight, like editorial titles). */
 export const letterSpacing = {
   display: -0.8,
@@ -507,13 +518,14 @@ export interface Theme {
   radius: typeof radius;
   fontSize: typeof fontSize;
   letterSpacing: typeof letterSpacing;
+  lineRatio: typeof lineRatio;
   fonts: typeof fonts;
   motion: typeof motion;
   opacity: typeof opacity;
   layout: typeof layout;
 }
 
-const shared = { breakpoints, spacing, radius, fontSize, letterSpacing, fonts, motion, opacity, layout };
+const shared = { breakpoints, spacing, radius, fontSize, lineRatio, letterSpacing, fonts, motion, opacity, layout };
 
 const themes: Record<ColorScheme, Theme> = {
   light: { scheme: 'light', colors: light, ...shared },
