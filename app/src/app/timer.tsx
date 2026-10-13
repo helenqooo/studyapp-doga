@@ -258,10 +258,7 @@ export default function TimerScreen() {
           label="Odağı başlat"
           icon="play"
           size="lg"
-          onPress={() => {
-            haptics.press();
-            timer.start('focus', settings.focusMinutes, timer.subject);
-          }}
+          onPress={() => timer.start('focus', settings.focusMinutes, timer.subject)}
         />
         <Button label={`${settings.breakMinutes} dk mola ver`} icon="coffee" variant="ghost" onPress={() => timer.start('break', settings.breakMinutes, null)} />
       </View>

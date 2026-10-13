@@ -6,7 +6,6 @@ import type { Overview } from '../../api/types';
 import { AppText } from '../../components/AppText';
 import { Button } from '../../components/Button';
 import { Card } from '../../components/Card';
-import { MascotNote } from '../../components/mascot/MascotNote';
 import { NetTrendChart } from '../../components/charts/NetTrendChart';
 import { TopicLossBars } from '../../components/charts/TopicLossBars';
 import { Chip } from '../../components/Chip';
@@ -19,7 +18,9 @@ import { WeeklySummaryCard } from '../../components/WeeklySummaryCard';
 import type { Exam } from '../../data/topics';
 import { useTheme } from '../../theme';
 import { Appear } from '../../components/motion/Appear';
-import { Loader } from '../../components/motion/Loader';
+import { EmptyState } from '../../components/states/EmptyState';
+import { ErrorState } from '../../components/states/ErrorState';
+import { Skeleton, SkeletonCard, SkeletonRows } from '../../components/states/Skeleton';
 
 type Tab = 'list' | 'analysis';
 
@@ -39,16 +40,16 @@ function ExamList() {
         <Button label="Elle gir" icon="square-pen" variant="secondary" onPress={() => router.push('/exam/new')} style={{ flex: 1 }} />
       </View>
 
-      {exams.isPending ? <Loader /> : null}
-      {exams.isError ? (
-        <Card background={theme.colors.dangerSoft}>
-          <AppText color="danger">{exams.error.message}</AppText>
-        </Card>
+      {exams.isPending ? (
+        <Skeleton>
+          <SkeletonRows count={3} />
+        </Skeleton>
       ) : null}
+      {exams.isError ? <ErrorState error={exams.error} onRetry={() => exams.refetch()} /> : null}
       {exams.isSuccess && exams.data.items.length === 0 ? (
-        <Card>
-          <MascotNote mood="reading" title="Henüz deneme yok.">İlk denemeni gir; netlerini, trendini ve en çok net kaybettiğin konuları burada birlikte izleriz.</MascotNote>
-        </Card>
+        <EmptyState mood="reading" title="Henüz deneme yok.">
+          İlk denemeni gir; netlerini, trendini ve en çok net kaybettiğin konuları burada birlikte izleriz.
+        </EmptyState>
       ) : null}
       <Grid columns={{ compact: 1, regular: 2, wide: 3 }}>
         {exams.data?.items.map((e, i) => (
@@ -120,14 +121,15 @@ function Analysis() {
     }, [refetch]),
   );
 
-  if (overview.isPending) return <Loader />;
-  if (overview.isError) {
+  if (overview.isPending) {
     return (
-      <Card background={theme.colors.dangerSoft}>
-        <AppText color="danger">{overview.error.message}</AppText>
-      </Card>
+      <Skeleton>
+        <SkeletonCard lines={2} block={theme.layout.chart.trendHeight} />
+        <SkeletonCard lines={4} />
+      </Skeleton>
     );
   }
+  if (overview.isError) return <ErrorState error={overview.error} onRetry={() => overview.refetch()} />;
 
   const o = overview.data;
   // Default to whichever exam has more data.

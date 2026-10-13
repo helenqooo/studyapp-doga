@@ -7,7 +7,8 @@ import { Avatar } from '../components/Avatar';
 import { Card } from '../components/Card';
 import { Icon } from '../components/Icon';
 import { Appear } from '../components/motion/Appear';
-import { Loader } from '../components/motion/Loader';
+import { ErrorState } from '../components/states/ErrorState';
+import { Skeleton, SkeletonRows } from '../components/states/Skeleton';
 import { Screen } from '../components/Screen';
 import { SegmentedControl } from '../components/SegmentedControl';
 import { DEMO_MODE } from '../config';
@@ -139,12 +140,12 @@ export default function LeaderboardScreen() {
         {me ? ` Sen ${me.rank}. sıradasın.` : ''}
       </AppText>
 
-      {board.isPending ? <Loader /> : null}
-      {board.isError ? (
-        <Card background={theme.colors.dangerSoft}>
-          <AppText color="danger">{board.error.message}</AppText>
-        </Card>
+      {board.isPending ? (
+        <Skeleton>
+          <SkeletonRows count={5} />
+        </Skeleton>
       ) : null}
+      {board.isError ? <ErrorState error={board.error} onRetry={() => board.refetch()} /> : null}
 
       {items.length ? (
         <>

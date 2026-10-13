@@ -12,11 +12,12 @@ import { Mascot } from '../components/mascot/Mascot';
 import { Icon } from '../components/Icon';
 import { MathView } from '../components/math/MathView';
 import { Appear } from '../components/motion/Appear';
-import { Loader } from '../components/motion/Loader';
 import { ProgressBar } from '../components/ProgressBar';
 import { QuestionImage } from '../components/QuestionImage';
 import { RevealOnMount, Screen, SplitScreen } from '../components/Screen';
 import { TextToggle } from '../components/TextToggle';
+import { ErrorState } from '../components/states/ErrorState';
+import { Skeleton, SkeletonQuestion } from '../components/states/Skeleton';
 import { getTopic, topicLabel } from '../data/topics';
 import { useVerdict } from '../lib/celebrate';
 import { reviewDueLabel } from '../lib/format';
@@ -90,11 +91,11 @@ export default function ReviewSessionScreen() {
     return (
       <Screen safeTop={false} width="readable">
         {today.isError ? (
-          <Card background={theme.colors.dangerSoft}>
-            <AppText color="danger">{today.error.message}</AppText>
-          </Card>
+          <ErrorState error={today.error} onRetry={() => today.refetch()} />
         ) : (
-          <Loader />
+          <Skeleton>
+            <SkeletonQuestion />
+          </Skeleton>
         )}
       </Screen>
     );

@@ -5,7 +5,6 @@ import { useFacets, useQuestionList, useReviewsToday } from '../../api/hooks';
 import { AppText } from '../../components/AppText';
 import { Button } from '../../components/Button';
 import { Card } from '../../components/Card';
-import { MascotNote } from '../../components/mascot/MascotNote';
 import { Grid } from '../../components/Grid';
 import { Chip } from '../../components/Chip';
 import { Icon } from '../../components/Icon';
@@ -16,7 +15,9 @@ import { getTopic, SUBJECTS_BY_EXAM, topicLabel } from '../../data/topics';
 import { useHistoryFilter } from '../../store/historyFilter';
 import { subjectColor, useTheme } from '../../theme';
 import { Appear } from '../../components/motion/Appear';
-import { Loader } from '../../components/motion/Loader';
+import { EmptyState } from '../../components/states/EmptyState';
+import { ErrorState } from '../../components/states/ErrorState';
+import { Skeleton, SkeletonCard, SkeletonRows } from '../../components/states/Skeleton';
 
 type Tab = 'today' | 'history';
 
@@ -31,14 +32,14 @@ function TodayPanel() {
     }, [refetch]),
   );
 
-  if (today.isPending) return <Loader />;
-  if (today.isError) {
+  if (today.isPending) {
     return (
-      <Card background={theme.colors.dangerSoft}>
-        <AppText color="danger">{today.error.message}</AppText>
-      </Card>
+      <Skeleton>
+        <SkeletonCard lines={2} />
+      </Skeleton>
     );
   }
+  if (today.isError) return <ErrorState error={today.error} onRetry={() => today.refetch()} />;
 
   const { items, completedToday } = today.data;
   const count = items.length;
@@ -141,12 +142,12 @@ function HistoryPanel() {
         />
       ) : null}
 
-      {list.isPending ? <Loader /> : null}
-      {list.isError ? (
-        <Card background={theme.colors.dangerSoft}>
-          <AppText color="danger">{list.error.message}</AppText>
-        </Card>
+      {list.isPending ? (
+        <Skeleton>
+          <SkeletonRows count={4} />
+        </Skeleton>
       ) : null}
+      {list.isError ? <ErrorState error={list.error} onRetry={() => list.refetch()} /> : null}
 
       {list.isSuccess && items.length === 0 ? (
         subject ? (
@@ -154,9 +155,9 @@ function HistoryPanel() {
             Bu filtrede soru yok.
           </AppText>
         ) : (
-          <Card>
-            <MascotNote mood="study" title="Henüz soru yok.">Takıldığın ilk soruyu Çöz sekmesinden çek; yanlışların burada tekrar sırasına girer.</MascotNote>
-          </Card>
+          <EmptyState mood="study" title="Henüz soru yok.">
+            Takıldığın ilk soruyu Çöz sekmesinden çek; yanlışların burada tekrar sırasına girer.
+          </EmptyState>
         )
       ) : null}
 

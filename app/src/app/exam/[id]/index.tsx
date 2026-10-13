@@ -13,7 +13,8 @@ import { getTopic, topicLabel } from '../../../data/topics';
 import { formatNet, longDate } from '../../../lib/format';
 import { haptics } from '../../../lib/haptics';
 import { subjectColor, useTheme } from '../../../theme';
-import { Loader } from '../../../components/motion/Loader';
+import { ErrorState } from '../../../components/states/ErrorState';
+import { Skeleton, SkeletonCard } from '../../../components/states/Skeleton';
 
 const lost = (t: { wrong: number; blank: number }) => t.wrong * 1.25 + t.blank;
 
@@ -73,17 +74,18 @@ export default function ExamDetailScreen() {
 
   if (query.isPending) {
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.background }}>
-        <Loader />
-      </View>
+      <Screen safeTop={false}>
+        <Skeleton>
+          <SkeletonCard lines={3} />
+          <SkeletonCard lines={5} />
+        </Skeleton>
+      </Screen>
     );
   }
   if (query.isError) {
     return (
       <Screen safeTop={false}>
-        <Card background={theme.colors.dangerSoft}>
-          <AppText color="danger">{query.error.message}</AppText>
-        </Card>
+        <ErrorState error={query.error} onRetry={() => query.refetch()} />
       </Screen>
     );
   }

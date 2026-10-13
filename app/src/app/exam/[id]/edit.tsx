@@ -1,33 +1,30 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { View } from 'react-native';
 import { useExam, useUpdateExam } from '../../../api/hooks';
-import { AppText } from '../../../components/AppText';
-import { Card } from '../../../components/Card';
 import { ExamForm, formFrom } from '../../../components/ExamForm';
 import { Screen } from '../../../components/Screen';
+import { ErrorState } from '../../../components/states/ErrorState';
+import { Skeleton, SkeletonCard } from '../../../components/states/Skeleton';
 import { haptics } from '../../../lib/haptics';
-import { useTheme } from '../../../theme';
-import { Loader } from '../../../components/motion/Loader';
 
 export default function EditExamScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const theme = useTheme();
   const query = useExam(id);
   const update = useUpdateExam(id);
 
   if (query.isPending) {
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.background }}>
-        <Loader />
-      </View>
+      <Screen safeTop={false} width="readable">
+        <Skeleton>
+          <SkeletonCard lines={3} />
+          <SkeletonCard lines={5} />
+        </Skeleton>
+      </Screen>
     );
   }
   if (query.isError) {
     return (
       <Screen safeTop={false} width="readable">
-        <Card background={theme.colors.dangerSoft}>
-          <AppText color="danger">{query.error.message}</AppText>
-        </Card>
+        <ErrorState error={query.error} onRetry={() => query.refetch()} />
       </Screen>
     );
   }

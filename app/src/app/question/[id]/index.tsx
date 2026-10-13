@@ -14,9 +14,10 @@ import { Icon } from '../../../components/Icon';
 import { Mascot } from '../../../components/mascot/Mascot';
 import { MathView } from '../../../components/math/MathView';
 import { Appear } from '../../../components/motion/Appear';
-import { Loader } from '../../../components/motion/Loader';
 import { QuestionImage } from '../../../components/QuestionImage';
 import { RevealOnMount, Screen, SplitScreen } from '../../../components/Screen';
+import { ErrorState } from '../../../components/states/ErrorState';
+import { Skeleton, SkeletonQuestion } from '../../../components/states/Skeleton';
 import { TextToggle } from '../../../components/TextToggle';
 import { LOW_CONFIDENCE_THRESHOLD } from '../../../config';
 import { getTopic, topicLabel } from '../../../data/topics';
@@ -129,18 +130,17 @@ export default function QuestionScreen() {
 
   if (query.isPending) {
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.background }}>
-        <Loader />
-      </View>
+      <Screen safeTop={false} width="readable">
+        <Skeleton>
+          <SkeletonQuestion />
+        </Skeleton>
+      </Screen>
     );
   }
   if (query.isError) {
     return (
-      <Screen safeTop={false}>
-        <Card background={theme.colors.dangerSoft}>
-          <AppText color="danger">{query.error.message}</AppText>
-        </Card>
-        <Button label="Tekrar dene" onPress={() => query.refetch()} />
+      <Screen safeTop={false} width="readable">
+        <ErrorState error={query.error} onRetry={() => query.refetch()} />
       </Screen>
     );
   }

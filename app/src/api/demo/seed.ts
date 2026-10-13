@@ -37,6 +37,8 @@ export const SEED_QUESTIONS: SeedQuestion[] = [
     review: { stage: 0, dueInDays: -2, correctCount: 0 }, chat: true },
   { key: 'ayt-turev-1', daysAgo: 2, result: 'wrong', userAnswer: 'C', hintsUsed: 2, review: { stage: 0, dueInDays: -1, correctCount: 0 } },
   { key: 'tyt-geo-cember-daire-1', daysAgo: 1, result: 'blank', viewedSolution: true, review: { stage: 0, dueInDays: 0, correctCount: 0 } },
+  // Today: one question solved, so Home's rings show the day under way.
+  { key: 'tyt-fen-hucre-1', daysAgo: 0, result: 'correct', userAnswer: 'D' },
 ];
 
 export interface SeedExam {
@@ -127,8 +129,12 @@ export const SEED_XP = 1275;
 export const SEED_STREAK = { current: 6, longest: 12, lastDaysAgo: 1 };
 export const SEED_BADGES = [{ id: 'first-exam', daysAgo: 84 }];
 
-/** Pomodoros of the past six days: [days ago, subject, minutes]. */
+/**
+ * Pomodoros of the past six days: [days ago, subject, minutes]. Today's is a short one,
+ * stopped early (under 25 minutes), so it adds focus minutes without counting for the streak.
+ */
 export const SEED_SESSIONS: [number, string, number][] = [
+  [0, 'Temel Matematik', 12],
   [6, 'Temel Matematik', 25], [6, 'Temel Matematik', 25],
   [5, 'Fizik', 25], [5, 'Türkçe', 25], [5, 'Temel Matematik', 25],
   [4, 'Kimya', 25],

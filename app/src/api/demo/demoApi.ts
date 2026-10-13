@@ -123,7 +123,8 @@ const daysAgo = (days: number, hour = 19) => {
   const d = new Date();
   d.setDate(d.getDate() - days);
   d.setHours(hour, 10 + ((days * 7) % 40), 0, 0);
-  return d.getTime();
+  // "Today" stays in the past whatever the hour is now.
+  return days === 0 ? Math.min(d.getTime(), Date.now() - 40 * 60_000) : d.getTime();
 };
 
 const byKey = new Map(DEMO_QUESTIONS.map((q) => [q.key, q]));
@@ -216,8 +217,9 @@ function seed() {
     db.xpEvents.push({ amount: XP.examEntry, date: localDate(createdAt) });
   }
   SEED_SESSIONS.forEach(([ago, subject, minutes], i) => {
-    const startedAt = daysAgo(ago, 15) + (i % 4) * 35 * 60_000;
+    const startedAt = ago === 0 ? daysAgo(0, 15) - minutes * 60_000 : daysAgo(ago, 15) + (i % 4) * 35 * 60_000;
     const endedAt = startedAt + minutes * 60_000;
+    const completed = minutes * 60 >= MIN_COUNTED_FOCUS_SEC * 5;
     db.sessions.push({
       id: `demo-s${i}`,
       kind: 'focus',
@@ -225,10 +227,10 @@ function seed() {
       startedAt,
       endedAt,
       durationSec: minutes * 60,
-      completed: true,
+      completed,
       date: localDate(startedAt),
     });
-    db.xpEvents.push({ amount: XP.pomodoroComplete, date: localDate(startedAt) });
+    if (completed) db.xpEvents.push({ amount: XP.pomodoroComplete, date: localDate(startedAt) });
   });
   for (const a of db.attempts) {
     if (a.source === 'solve') db.xpEvents.push({ amount: XP.solveQuestion, date: localDate(a.createdAt) });

@@ -18,3 +18,6 @@ export const UPLOAD_JPEG_QUALITY = 0.8;
 
 /** Solving a question or reading a karne can take a while (the model thinks first). */
 export const AI_UPLOAD_TIMEOUT_MS = 5 * 60 * 1000;
+
+/** Today's goals on Home: focus minutes and questions solved (reviews use the day's due count). */
+export const DAILY_GOALS = { focusMinutes: 50, solved: 3 } as const;
