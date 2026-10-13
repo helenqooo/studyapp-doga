@@ -18,3 +18,7 @@ web-build/
 # OS / editor
 .DS_Store
 *.log
+
+# Python
+__pycache__/
+*.pyc
