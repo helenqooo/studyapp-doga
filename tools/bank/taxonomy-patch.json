@@ -1,0 +1,122 @@
+{
+  "_comment": "Corrections from the taxonomy audits, applied by apply_taxonomy.py after the subject experts' lists.",
+  "labels": {
+    "tyt-mat-asal-carpanlar": "Asal Sayılar ve Asal Çarpanlar",
+    "tyt-mat-gorsel-zeka": "Görsel Zekâ",
+    "tyt-mat-problem-rutin-olmayan": "Rutin Olmayan Problemler (Sayısal-Sözel Mantık)",
+    "tyt-tr-sozel-mantik": "Sözel Mantık (Türkçe Testi)",
+    "ayt-kim-denge": "Kimyasal Denge",
+    "ayt-kim-mol-hesaplamalar": "Kimyasal Hesaplamalar (Stokiyometri)",
+    "ayt-mat-esitsizlikler": "Denklem ve Eşitsizlik Sistemleri",
+    "ayt-bio-canlilar-cevre": "Canlılar ve Çevre (Adaptasyon)"
+  },
+  "unitNames": {
+    "tyt-mat-gorsel-zeka-kagit-katlama": "Kâğıt Katlama ve Kesme",
+    "tyt-sos-tar-devrimler-cagi-birinci-mesrutiyet": "I. Meşrutiyet ve Kanun-ı Esasi",
+    "tyt-mat-problem-sayi-siralama-dizilim": "Sıralama ve Dizilim",
+    "tyt-sos-tar-savascilar-askerler-timar-sipahi": "Tımarlı Sipahiler (Askerî Yön)",
+    "tyt-sos-tar-osmanli-toplum-toprak-sistemi": "Mîrî Arazi ve Tımarın İşleyişi",
+    "tyt-kim-doga-kimya-hava-kirliligi": "Hava Kirleticileri ve Kimyasal Etkileri",
+    "tyt-kim-doga-kimya-su-ve-toprak-kirliligi": "Su ve Toprak Kirleticileri",
+    "tyt-bio-cevre-sorunlari-hava-kirliligi": "Hava Kirliliğinin Canlılara Etkisi",
+    "tyt-bio-cevre-sorunlari-su-ve-toprak-kirliligi": "Su ve Toprak Kirliliğinin Canlılara Etkisi",
+    "tyt-bio-temel-bilesenler-asitler-bazlar-tuzlar": "İnorganik Bileşikler: Asit, Baz ve Tuz",
+    "ayt-mat-fonksiyonlar-artan-azalan": "Grafikten Artan-Azalan Aralıklar ve Ekstremum",
+    "ayt-mat-fonksiyonlar-ortalama-degisim-hizi": "Ortalama Değişim Hızı (Grafikten)",
+    "ayt-mat-turev-kurallar-degisim-orani": "Anlık Değişim Oranı",
+    "ayt-mat-turev-uygulamalar-artan-azalan": "Türev ile Artan-Azalan Aralıklar",
+    "ayt-mat-parabol-en-buyuk-en-kucuk": "Parabolde En Büyük ve En Küçük Değer",
+    "ayt-mat-turev-uygulamalar-maks-min-problemleri": "Türev ile Maksimum-Minimum Problemleri",
+    "ayt-mat-binom-katsayilar-toplami": "Açılımda Katsayılar Toplamı ve Sabit Terim",
+    "ayt-kim-cozeltiler-cozunurluk": "Çözünürlüğe Sıcaklık ve Basıncın Etkisi",
+    "ayt-kim-enerji-entalpi-diyagramlari": "Entalpi Diyagramları (ΔH)",
+    "ayt-fiz-manyetizma-motor-ve-jenerator": "Elektrik Motoru",
+    "ayt-fiz-basit-makineler-egik-duzlem": "Eğik Düzlem (Basit Makine, Kuvvet Kazancı)",
+    "ayt-bio-canlilar-cevre-dogal-secilim-evrim": "Doğal Seçilim"
+  },
+  "dropUnits": [
+    "tyt-sos-din-bilgi-inanc-kurandan-mesajlar",
+    "tyt-sos-din-din-ve-islam-kurandan-mesajlar",
+    "tyt-sos-din-islam-ibadet-kurandan-mesajlar",
+    "tyt-sos-din-ahlak-degerler-kurandan-mesajlar",
+    "tyt-sos-din-kultur-medeniyet-kurandan-mesajlar",
+    "tyt-sos-din-hz-muhammed-kurandan-mesajlar",
+    "tyt-sos-din-ahlaki-tutum-kurandan-mesajlar",
+    "tyt-tr-paragraf-ana-dusunce-cevap-verdigi-soru",
+    "tyt-tr-sozel-mantik-tablo-grafik",
+    "ayt-kim-mol-hesaplamalar-temel-kanunlar",
+    "ayt-bio-canlilar-cevre-varyasyon-mutasyon"
+  ],
+  "addUnits": {
+    "tyt-tr-ses-bilgisi": [{ "id": "tyt-tr-ses-bilgisi-hece-bilgisi", "name": "Hece Bilgisi ve Satır Sonu Bölme" }],
+    "tyt-tr-paragraf-yardimci-dusunce": [{ "id": "tyt-tr-paragraf-yardimci-dusunce-metin-turleri", "name": "Metin Türleri (Anı, Günlük, Deneme, Makale, Eleştiri, Gezi Yazısı, Fıkra)" }]
+  },
+  "addTopics": [
+    {
+      "after": "tyt-sos-din-anadoluda-islam",
+      "id": "tyt-sos-din-kuranda-kavramlar", "exam": "TYT", "subject": "Sosyal", "topic": "Din Kültürü", "subtopic": "Kur'an'da Bazı Kavramlar",
+      "units": [
+        { "id": "tyt-sos-din-kuranda-kavramlar-iman-islam", "name": "İman, İslam ve İhsan" },
+        { "id": "tyt-sos-din-kuranda-kavramlar-salih-amel", "name": "Salih Amel, Takva ve Tevekkül" },
+        { "id": "tyt-sos-din-kuranda-kavramlar-ayet-hadis", "name": "Ayet ve Hadis Yorumu" }
+      ]
+    },
+    {
+      "after": "tyt-sos-din-kuranda-kavramlar",
+      "id": "tyt-sos-din-inancla-ilgili-meseleler", "exam": "TYT", "subject": "Sosyal", "topic": "Din Kültürü", "subtopic": "İnançla İlgili Meseleler",
+      "units": [
+        { "id": "tyt-sos-din-inancla-ilgili-meseleler-yaratilis", "name": "Yaratılış ve Evren" },
+        { "id": "tyt-sos-din-inancla-ilgili-meseleler-akimlar", "name": "Deizm, Ateizm, Agnostisizm ve Reenkarnasyon" },
+        { "id": "tyt-sos-din-inancla-ilgili-meseleler-kader", "name": "Kader, Kaza ve Özgür İrade" }
+      ]
+    },
+    {
+      "after": "tyt-sos-din-inancla-ilgili-meseleler",
+      "id": "tyt-sos-din-yahudilik-hristiyanlik", "exam": "TYT", "subject": "Sosyal", "topic": "Din Kültürü", "subtopic": "Yahudilik ve Hristiyanlık",
+      "units": [
+        { "id": "tyt-sos-din-yahudilik-hristiyanlik-yahudilik", "name": "Yahudilik: İnanç, İbadet ve Kutsal Metinler" },
+        { "id": "tyt-sos-din-yahudilik-hristiyanlik-hristiyanlik", "name": "Hristiyanlık: İnanç, İbadet ve Mezhepler" }
+      ]
+    },
+    {
+      "after": "tyt-sos-din-yahudilik-hristiyanlik",
+      "id": "tyt-sos-din-hint-cin-dinleri", "exam": "TYT", "subject": "Sosyal", "topic": "Din Kültürü", "subtopic": "Hint ve Çin Dinleri",
+      "units": [
+        { "id": "tyt-sos-din-hint-cin-dinleri-hinduizm-budizm", "name": "Hinduizm ve Budizm" },
+        { "id": "tyt-sos-din-hint-cin-dinleri-konfucyusculuk-taoculuk", "name": "Konfüçyüsçülük, Taoculuk ve Şintoizm" }
+      ]
+    },
+    {
+      "before": "ayt-mat-fonksiyonlar",
+      "id": "ayt-mat-temel-konular", "exam": "AYT", "subject": "Matematik", "topic": "Temel Konular (Sayılar ve Cebir)",
+      "units": [
+        { "id": "ayt-mat-temel-konular-sayilar", "name": "Sayı Kümeleri, Basamak ve Bölünebilme" },
+        { "id": "ayt-mat-temel-konular-ebob-ekok", "name": "EBOB – EKOK" },
+        { "id": "ayt-mat-temel-konular-rasyonel", "name": "Rasyonel Sayılar" },
+        { "id": "ayt-mat-temel-konular-esitsizlik-mutlak", "name": "Basit Eşitsizlik ve Mutlak Değer" },
+        { "id": "ayt-mat-temel-konular-uslu-koklu", "name": "Üslü ve Köklü İfadeler" },
+        { "id": "ayt-mat-temel-konular-carpanlara-ayirma", "name": "Çarpanlara Ayırma" }
+      ]
+    },
+    {
+      "after": "ayt-mat-temel-konular",
+      "id": "ayt-mat-problemler", "exam": "AYT", "subject": "Matematik", "topic": "Problemler, Mantık ve Kümeler",
+      "units": [
+        { "id": "ayt-mat-problemler-sozel", "name": "Sözel Problemler" },
+        { "id": "ayt-mat-problemler-mantik", "name": "Mantık" },
+        { "id": "ayt-mat-problemler-kumeler", "name": "Kümeler" }
+      ]
+    },
+    {
+      "before": "ayt-bio-sinir-sistemi",
+      "id": "ayt-bio-kalitim", "exam": "AYT", "subject": "Biyoloji", "topic": "Kalıtım",
+      "units": [
+        { "id": "ayt-bio-kalitim-mendel", "name": "Kalıtımın Genel İlkeleri (Mendel)" },
+        { "id": "ayt-bio-kalitim-esdominantlik", "name": "Eş Baskınlık, Eksik Baskınlık ve Çok Alellilik" },
+        { "id": "ayt-bio-kalitim-esey-bagli", "name": "Eşeye Bağlı Kalıtım" },
+        { "id": "ayt-bio-kalitim-soyagaci", "name": "Soyağacı Analizi" },
+        { "id": "ayt-bio-kalitim-bagli-genler", "name": "Bağlı Genler ve Krossing-over" }
+      ]
+    }
+  ]
+}

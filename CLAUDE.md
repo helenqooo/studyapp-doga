@@ -138,3 +138,6 @@ Bu bölüm yukarıdaki spesifikasyonu günceller; çelişirse bu bölüm geçerl
 - **Bugün halkaları:** Ana Sayfa'da üç halka (Tekrar: günün tekrar sayısı; Odak ve Soru: `config.ts` → `DAILY_GOALS`). `GET /sessions` günün `solved` sayısını da döner (demo aynı). Üçü kapanınca Lumi kutlar, günde bir kez titreşim.
 - **Durum ekranları:** Yükleme iskeletleri, Lumi'li hata (`ErrorState`, "Tekrar dene") ve boş durumlar (`EmptyState`) `components/states/` altında; ham `error.message` kartı kullanılmaz.
 - **Lumi konuşma balonu:** `MascotNote` artık balonla konuşur (`colors.bubble`, `layout.bubbleTail`).
+- **Konu listesi derinleşti:** `topics.ts` (iki kopya aynı) 257 konu ve `UNITS` içinde 1735 alt konu ("incik cincik") taşır. Alt konu id'leri konu id'siyle başlar ama konuya her zaman `UNITS` üzerinden gidilir, önekten değil (`tyt-bio-hucre` / `tyt-bio-hucre-bolunmeleri` gibi önekler çakışır). Liste uzman ajanlarla üretildi, denetimden gelen düzeltmeler `tools/bank/taxonomy-patch.json` içinde.
+- **Soru bankası:** Kitaplar `tools/bank/` ile Sınav/Ders/Konu/Zorluk/Test düzeninde kesilir, her soru gözle kontrol edilir (bkz. `docs/soru-bankasi.md`). Kitap PDF'leri, kesimler ve zip'ler telifli olduğu için depoya girmez (`.gitignore`).
+

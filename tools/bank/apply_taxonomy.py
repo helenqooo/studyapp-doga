@@ -1,6 +1,6 @@
 """Writes the deepened taxonomy into app/src/data/topics.ts (and the server copy).
 
-    python3 apply_taxonomy.py journal.jsonl topics.ts OUT.ts
+    python3 apply_taxonomy.py journal.jsonl topics.ts OUT.ts [taxonomy-patch.json]
 
 Keeps every existing id and its exam/subject; applies label renames; inserts new topics in
 the order the subject expert gave; adds UNITS (topic id → fine-grained units) and helpers.
@@ -10,6 +10,7 @@ import re
 import sys
 
 journal, topics_path, out_path = sys.argv[1:4]
+patch = json.load(open(sys.argv[4])) if len(sys.argv) > 4 else {}
 results = {}
 audits = []
 for line in open(journal):
@@ -83,6 +84,31 @@ for exam, subject in ORDER:
         if t['id'] not in seen:
             final.append(t)
             problems.append(f'kept missing existing id {t["id"]}')
+
+# Audit corrections.
+for tid, label in patch.get('labels', {}).items():
+    t = next((t for t in final if t['id'] == tid), None)
+    if t is None:
+        problems.append(f'patch: no topic {tid}')
+    elif t['subtopic']:
+        t['subtopic'] = label
+    else:
+        t['topic'] = label
+drop = set(patch.get('dropUnits', []))
+rename_units = patch.get('unitNames', {})
+for tid in list(units):
+    units[tid] = [dict(u, name=rename_units.get(u['id'], u['name'])) for u in units[tid] if u['id'] not in drop]
+for tid, extra in patch.get('addUnits', {}).items():
+    units.setdefault(tid, []).extend(extra)
+for add in patch.get('addTopics', []):
+    entry = {k: add.get(k) for k in ('id', 'exam', 'subject', 'topic', 'subtopic')}
+    anchor = add.get('after') or add.get('before')
+    idx = next((i for i, t in enumerate(final) if t['id'] == anchor), None)
+    if idx is None:
+        problems.append(f'patch: no anchor {anchor}')
+        idx = len(final) - 1
+    final.insert(idx + 1 if add.get('after') else idx, entry)
+    units[entry['id']] = add.get('units', [])
 
 all_ids = [t['id'] for t in final]
 assert len(all_ids) == len(set(all_ids)), 'duplicate ids'
