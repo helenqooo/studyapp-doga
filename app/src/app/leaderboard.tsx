@@ -37,7 +37,7 @@ function Podium({ items }: { items: LeaderboardEntry[] }) {
             {first ? <Icon name="crown" size={theme.layout.iconSize.md} color={theme.colors.xp} filled /> : null}
             <Avatar name={e.displayName} color={e.avatar} size={theme.layout.avatar * (first ? 1.6 : 1.3)} />
             <AppText variant="label" weight="semibold" numberOfLines={1}>
-              {e.isMe ? `${e.displayName} (sen)` : e.displayName}
+              {e.isMe && e.displayName !== 'Sen' ? `${e.displayName} (sen)` : e.displayName}
             </AppText>
             <AppText variant="caption" color="textMuted" style={{ fontVariant: ['tabular-nums'] }}>
               {e.xp} XP
@@ -70,7 +70,7 @@ function Row({ e, index }: { e: LeaderboardEntry; index: number }) {
     <Appear index={index}>
       <View
         accessible
-        accessibilityLabel={`${e.rank}. ${e.displayName}${e.isMe ? ' (sen)' : ''}, ${e.xp} XP, seviye ${e.level}, ${e.streak} günlük seri`}
+        accessibilityLabel={`${e.rank}. ${e.displayName}${e.isMe && e.displayName !== 'Sen' ? ' (sen)' : ''}, ${e.xp} XP, seviye ${e.level}, ${e.streak} günlük seri`}
         style={{
           flexDirection: 'row',
           alignItems: 'center',
@@ -87,7 +87,7 @@ function Row({ e, index }: { e: LeaderboardEntry; index: number }) {
         <Avatar name={e.displayName} color={e.avatar} />
         <View style={{ flex: 1, gap: theme.spacing.xxs }}>
           <AppText weight="semibold" numberOfLines={1}>
-            {e.isMe ? `${e.displayName} (sen)` : e.displayName}
+            {e.isMe && e.displayName !== 'Sen' ? `${e.displayName} (sen)` : e.displayName}
           </AppText>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.xs }}>
             <AppText variant="caption" color="textMuted">

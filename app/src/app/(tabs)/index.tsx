@@ -23,6 +23,7 @@ import { DEMO_MODE } from '../../config';
 import { YKS_DATE } from '../../data/exam';
 import { dayTitle, daysBetween, localToday, upperTr } from '../../lib/format';
 import { useResponsive } from '../../lib/layout';
+import { suffix } from '../../lib/turkish';
 import { formatClock, formatMinutes, useNow } from '../../lib/useNow';
 import { useAuthStore } from '../../store/authStore';
 import { remainingMs, useTimerStore } from '../../store/timerStore';
@@ -77,7 +78,7 @@ function raceLine(board: Leaderboard | undefined): { title: string; detail: stri
   const ahead = items.filter((e) => e.xp > me.xp).at(-1);
   return {
     title: `Bu hafta ${me.rank}. sıradasın`,
-    detail: ahead ? `${ahead.displayName}'i geçmek için ${ahead.xp - me.xp + 1} XP.` : '',
+    detail: ahead ? `${suffix(ahead.displayName, 'acc')} geçmek için ${ahead.xp - me.xp + 1} XP.` : '',
   };
 }
 

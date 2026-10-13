@@ -51,7 +51,12 @@ export function Button({
   style,
 }: Props) {
   const theme = useTheme();
-  const { bg, fg } = variantColors(theme, variant, selected);
+  // A disabled button reads as "not yet" (quiet grey), not as a faded alarm; loading keeps
+  // its colour under a spinner.
+  const { bg, fg } =
+    disabled && !loading && variant !== 'ghost'
+      ? { bg: theme.colors.surfaceAlt, fg: theme.colors.textMuted }
+      : variantColors(theme, variant, selected);
   const inactive = disabled || loading;
   const height = size === 'lg' ? theme.layout.minTouch + theme.spacing.xl : theme.layout.minTouch + theme.spacing.xs;
 
@@ -61,7 +66,7 @@ export function Button({
       accessibilityLabel={label}
       accessibilityState={{ disabled: inactive, selected }}
       disabled={inactive}
-      dimmed={inactive}
+      dimmed={loading || (disabled && variant === 'ghost')}
       onPress={() => {
         haptics.tap();
         onPress?.();

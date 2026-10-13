@@ -280,7 +280,7 @@ export default function QuestionScreen() {
         ) : graded ? (
           <>
             <AppText color="textMuted">
-              {picked ? `${picked} şıkkını seçtin. Emin misin?` : 'Kâğıtta bulduğun şıkkı yukarıdan seç.'}
+              {picked ? `${picked} şıkkını seçtin. Emin misin?` : `Kâğıtta bulduğun şıkkı ${split ? 'soldaki şıklardan' : 'yukarıdan'} seç.`}
             </AppText>
             {record.isError ? <AppText color="danger">{record.error.message}</AppText> : null}
             <Button
@@ -296,7 +296,7 @@ export default function QuestionScreen() {
           <>
             {q.choices?.length ? (
               <AppText variant="label" color="textMuted">
-                {picked ? `Cevabın: ${picked}. Doğru mu yaptın?` : 'İstersen cevabını yukarıdan seç, sonra sonucu işaretle.'}
+                {picked ? `Cevabın: ${picked}. Doğru mu yaptın?` : `İstersen cevabını ${split ? 'soldaki şıklardan' : 'yukarıdan'} seç, sonra sonucu işaretle.`}
               </AppText>
             ) : null}
             {record.isError ? <AppText color="danger">{record.error.message}</AppText> : null}

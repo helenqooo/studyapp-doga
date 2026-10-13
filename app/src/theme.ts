@@ -439,6 +439,8 @@ export const layout = {
   confetti: { long: 10, short: 5, dot: 7, radius: 2 },
   /** Size of the "thinking" spark loader. */
   spark: 56,
+  /** Round timer controls (pause, stop). */
+  roundControl: 68,
   /** Pomodoro ring diameter and stroke. */
   timerRing: 260,
   timerStroke: 10,

@@ -126,13 +126,7 @@ export default function ProfileScreen() {
   );
 
   const connection = DEMO_MODE ? (
-    <DemoBanner
-      detail={
-        API_URL
-          ? "EXPO_PUBLIC_DEMO=1 olduğu için uygulama örnek verilerle çalışıyor. Sunucuya bağlanmak için bu değişkeni kaldır ve Expo'yu yeniden başlat."
-          : "Sunucu adresi tanımlı değil, uygulama örnek verilerle çalışıyor. Gerçek kullanım için app/.env içine EXPO_PUBLIC_API_URL yaz ve Expo'yu yeniden başlat."
-      }
-    />
+    <DemoBanner detail="Örnek verilerle çalışıyor; yaptıkların uygulama kapanınca sıfırlanır. Kendi sunucunu bağlamak için README'deki kurulum adımlarına bak." />
   ) : (
     <Card title="Hesap ve sunucu">
       <View style={{ gap: theme.spacing.xs }}>

@@ -32,15 +32,84 @@ export function reviewDueLabel(dueDate: string): string {
   return `${diff} gün sonra`;
 }
 
-/** One-line plain-text preview of markdown + LaTeX. */
+const SUP: Record<string, string> = {
+  '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴', '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹',
+  '+': '⁺', '-': '⁻', '=': '⁼', '(': '⁽', ')': '⁾', n: 'ⁿ', x: 'ˣ', i: 'ⁱ', y: 'ʸ', a: 'ᵃ', b: 'ᵇ', k: 'ᵏ', m: 'ᵐ', t: 'ᵗ',
+};
+const SUB: Record<string, string> = {
+  '0': '₀', '1': '₁', '2': '₂', '3': '₃', '4': '₄', '5': '₅', '6': '₆', '7': '₇', '8': '₈', '9': '₉', '+': '₊', '-': '₋', n: 'ₙ', x: 'ₓ', i: 'ᵢ',
+};
+const SYMBOLS: Record<string, string> = {
+  cdot: '·', times: '×', div: '÷', pi: 'π', le: '≤', leq: '≤', ge: '≥', geq: '≥', neq: '≠', ne: '≠', infty: '∞',
+  Rightarrow: '⇒', rightarrow: '→', to: '→', alpha: 'α', beta: 'β', theta: 'θ', Delta: 'Δ', degree: '°', circ: '°', pm: '±',
+};
+
+/** The group starting at `i` ("{…}" with nested braces, or one character) and where it ends. */
+function group(src: string, i: number): [string, number] {
+  if (src[i] !== '{') return [src[i] ?? '', i + 1];
+  let depth = 0;
+  for (let j = i; j < src.length; j++) {
+    if (src[j] === '{') depth++;
+    else if (src[j] === '}' && --depth === 0) return [src.slice(i + 1, j), j + 1];
+  }
+  return [src.slice(i + 1), src.length];
+}
+
+const script = (text: string, map: Record<string, string>, mark: string) => {
+  const plain = latexToText(text).replace(/\s+/g, '');
+  const mapped = [...plain].map((ch) => map[ch]);
+  return mapped.every(Boolean) ? mapped.join('') : `${mark}(${plain})`;
+};
+
+/** LaTeX → readable plain text: fractions, powers, roots and common symbols. */
+function latexToText(src: string): string {
+  let out = '';
+  for (let i = 0; i < src.length; ) {
+    const ch = src[i]!;
+    if (ch === '\\') {
+      const name = /^[a-zA-Z]+/.exec(src.slice(i + 1))?.[0] ?? '';
+      i += 1 + name.length;
+      if (name === 'frac' || name === 'dfrac' || name === 'tfrac') {
+        const [a, j] = group(src, i);
+        const [b, k] = group(src, j);
+        // Parentheses only around compound parts: 5/18, (x+1)/(x-1).
+        const wrap = (t: string) => (/^[\p{L}\p{N}.,]+$/u.test(t) ? t : `(${t})`);
+        out += `${wrap(latexToText(a))}/${wrap(latexToText(b))}`;
+        i = k;
+      } else if (name === 'sqrt') {
+        const [a, j] = group(src, i);
+        const t = latexToText(a);
+        out += /^[\p{L}\p{N}.,]+$/u.test(t) ? `√${t}` : `√(${t})`;
+        i = j;
+      } else if (name in SYMBOLS) {
+        out += SYMBOLS[name];
+      } else if (!name) {
+        out += src[i] ?? '';
+        i += 1;
+      }
+      continue;
+    }
+    if (ch === '^' || ch === '_') {
+      const [a, j] = group(src, i + 1);
+      out += script(a, ch === '^' ? SUP : SUB, ch);
+      i = j;
+      continue;
+    }
+    if (ch === '{' || ch === '}') {
+      i += 1;
+      continue;
+    }
+    out += ch;
+    i += 1;
+  }
+  return out;
+}
+
+/** One-line plain-text preview of markdown + LaTeX: "3ˣ⁺² + 3ˣ⁺¹ ifadesinin değeri…". */
 export function plainSnippet(markdown: string, max = 140): string {
-  const text = markdown
-    .replace(/\$\$?/g, '')
-    .replace(/\\(dfrac|frac)\{([^}]*)\}\{([^}]*)\}/g, '($2)/($3)')
-    .replace(/\\cdot/g, '·')
-    .replace(/\\times/g, '×')
-    .replace(/\\[a-zA-Z]+/g, '')
-    .replace(/[{}*_#>`]/g, '')
+  const text = String(markdown)
+    .replace(/\$\$([\s\S]+?)\$\$|\$([^$]+?)\$/g, (_, a, b) => latexToText(a ?? b))
+    .replace(/[*_#>`]/g, '')
     .replace(/\s+/g, ' ')
     .trim();
   return text.length > max ? `${text.slice(0, max - 1)}…` : text;

@@ -213,7 +213,9 @@ export function ExamForm({ initial, submitLabel, submitting, error, onSubmit }: 
                 <Switch
                   value={s.included}
                   onValueChange={(v) => updateSection(s.subject, { included: v })}
-                  trackColor={{ true: theme.colors.primary, false: theme.colors.surfaceAlt }}
+                  trackColor={{ true: theme.colors.primary, false: theme.colors.border }}
+                  thumbColor={theme.colors.surface}
+                  {...({ activeThumbColor: theme.colors.surface } as object)}
                   accessibilityLabel={`${s.subject} bölümüne girdim`}
                 />
               </View>

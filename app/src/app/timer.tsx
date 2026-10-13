@@ -9,7 +9,7 @@ import { Card } from '../components/Card';
 import { Mascot } from '../components/mascot/Mascot';
 import { Chip } from '../components/Chip';
 import { Columns } from '../components/Grid';
-import { Icon } from '../components/Icon';
+import { Icon, type IconName } from '../components/Icon';
 import { Appear } from '../components/motion/Appear';
 import { PressableScale } from '../components/motion/PressableScale';
 import { Screen } from '../components/Screen';
@@ -198,6 +198,34 @@ function TodayCard() {
   );
 }
 
+/** A round icon button with a caption under it (timer controls). */
+function RoundControl({ icon, label, onPress, primary = false }: { icon: IconName; label: string; onPress: () => void; primary?: boolean }) {
+  const theme = useTheme();
+  const size = theme.layout.roundControl;
+  return (
+    <View style={{ alignItems: 'center', gap: theme.spacing.xs }}>
+      <PressableScale
+        accessibilityRole="button"
+        accessibilityLabel={label}
+        onPress={onPress}
+        style={{
+          width: size,
+          height: size,
+          borderRadius: size / 2,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: primary ? theme.colors.primary : theme.colors.surfaceAlt,
+        }}
+      >
+        <Icon name={icon} size={theme.layout.iconSize.lg} color={primary ? theme.colors.textOnAccent : theme.colors.text} filled={icon === 'square' || icon === 'play' || icon === 'pause'} />
+      </PressableScale>
+      <AppText variant="label" color="textMuted">
+        {label}
+      </AppText>
+    </View>
+  );
+}
+
 export default function TimerScreen() {
   const theme = useTheme();
   const timer = useTimerStore();
@@ -238,31 +266,27 @@ export default function TimerScreen() {
         <Button label={`${settings.breakMinutes} dk mola ver`} icon="coffee" variant="ghost" onPress={() => timer.start('break', settings.breakMinutes, null)} />
       </View>
     ) : (
-      <View style={{ flexDirection: 'row', gap: theme.spacing.sm }}>
+      // Round buttons with captions: nothing to truncate on a narrow phone.
+      <View style={{ flexDirection: 'row', justifyContent: 'center', gap: theme.spacing.xl }}>
         {focus ? (
-          <Button
-            label={paused ? 'Devam' : 'Duraklat'}
+          <RoundControl
             icon={paused ? 'play' : 'pause'}
-            variant="secondary"
-            size="lg"
+            label={paused ? 'Devam' : 'Duraklat'}
+            primary
             onPress={() => {
               haptics.tap();
               if (paused) timer.resume();
               else timer.pause();
             }}
-            style={{ flex: 1 }}
           />
         ) : null}
-        <Button
-          label={focus ? 'Bitir' : 'Molayı atla'}
+        <RoundControl
           icon={focus ? 'square' : 'skip-forward'}
-          variant={focus ? 'neutral' : 'secondary'}
-          size="lg"
+          label={focus ? 'Bitir' : 'Molayı atla'}
           onPress={() => {
             haptics.press();
             stop();
           }}
-          style={{ flex: 1 }}
         />
       </View>
     );
