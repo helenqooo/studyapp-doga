@@ -1,6 +1,9 @@
 """Files the cut questions as Ders / Konu / Test and zips them with a manifest and a viewer.
 
-    python3 package.py BOOK.json boxes.json crops topics.ts OUT_DIR [units.json]
+    python3 package.py BOOK.json boxes.json crops topics.ts OUT_DIR [units.json] [--split "01-09;10-14,16-18;15;19-27"]
+
+--split makes several zips (each under the upload limits), grouping the book's subject's topic
+folders by their numbers; every part has its own manifest, viewer and answer keys.
 
 BOOK.json names the book and maps each section to a topic id. units.json (optional) holds the
 per-question classification: {"questionTopics": {qid: topicId}, "subtopics": {qid: unitId}}.
@@ -15,8 +18,14 @@ import zipfile
 
 from PIL import Image
 
-book_path, boxes_path, crops_dir, topics_path, out_dir = sys.argv[1:6]
-units_path = sys.argv[6] if len(sys.argv) > 6 else None
+argv = list(sys.argv[1:])
+split_spec = None
+if '--split' in argv:
+    i = argv.index('--split')
+    split_spec = argv[i + 1]
+    del argv[i:i + 2]
+book_path, boxes_path, crops_dir, topics_path, out_dir = argv[:5]
+units_path = argv[5] if len(argv) > 5 else None
 
 _book = json.load(open(book_path))
 BOOK = {k: v for k, v in _book.items() if k != 'sections'}
@@ -232,14 +241,18 @@ function render(){
 for (const id of ['topic','diff','past']) document.getElementById(id).addEventListener('change', render);
 render();
 </script></html>"""
-with open(os.path.join(stage, 'index.html'), 'w', encoding='utf-8') as f:
-    f.write(viewer.replace('__MANIFEST__', json.dumps(dict(topics=manifest['topics'], tests=tests_out, questions=questions), ensure_ascii=False)))
+
+
+def write_viewer(root, qs, ts):
+    with open(os.path.join(root, 'index.html'), 'w', encoding='utf-8') as f:
+        f.write(viewer.replace('__MANIFEST__', json.dumps(dict(topics=manifest['topics'], tests=ts, questions=qs), ensure_ascii=False)))
+
 
 readme = f"""Lumi Soru Bankası
 =================
 
 Kitap: {BOOK['title']} ({BOOK['year']})
-Soru: {len(questions)} · Test: {len(tests_out)}
+Soru: {{count_q}} · Test: {{count_t}}{{part_note}}
 
 Düzen: Sınav / Ders / Konu / Zorluk / Test. Bütün TYT ve AYT dersleri ve konuları klasör olarak var;
 bu kitaptaki sorular TYT / Temel Matematik konularının altında. Her konunun alt konuları
@@ -259,18 +272,80 @@ manifest.json: uygulamanın içe aktaracağı liste (konu id'leri app/src/data/t
 
 Bu sorular kitabın sahibinin kişisel çalışması içindir; paylaşma.
 """
-with open(os.path.join(stage, 'BENİOKU.txt'), 'w', encoding='utf-8') as f:
-    f.write(readme)
 
-zip_path = os.path.join(out_dir, 'Lumi-Soru-Bankasi.zip')
-with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zf:
-    for base, dnames, fnames in os.walk(stage):
-        rel_base = os.path.relpath(base, out_dir)
-        if not fnames and not dnames:
-            zf.writestr(rel_base.replace(os.sep, '/') + '/', '')
-        for fn in sorted(fnames):
-            full = os.path.join(base, fn)
-            arc = os.path.relpath(full, out_dir).replace(os.sep, '/')
-            # Images are already compressed; store them.
-            zf.write(full, arc, compress_type=zipfile.ZIP_STORED if fn.endswith('.webp') else zipfile.ZIP_DEFLATED)
-print(f"{len(questions)} questions, {len(tests_out)} tests -> {zip_path} ({os.path.getsize(zip_path) // 1024 // 1024} MB)")
+
+def write_readme(root, n_q, n_t, part_note=''):
+    with open(os.path.join(root, 'BENİOKU.txt'), 'w', encoding='utf-8') as f:
+        f.write(readme.replace('{count_q}', str(n_q)).replace('{count_t}', str(n_t)).replace('{part_note}', part_note))
+
+
+def write_zip(zip_path, root):
+    base_dir = os.path.dirname(root)
+    with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zf:
+        for base, dnames, fnames in os.walk(root):
+            rel_base = os.path.relpath(base, base_dir)
+            if not fnames and not dnames:
+                zf.writestr(rel_base.replace(os.sep, '/') + '/', '')
+            for fn in sorted(fnames):
+                full = os.path.join(base, fn)
+                arc = os.path.relpath(full, base_dir).replace(os.sep, '/')
+                # Images are already compressed; store them.
+                zf.write(full, arc, compress_type=zipfile.ZIP_STORED if fn.endswith('.webp') else zipfile.ZIP_DEFLATED)
+    print(f"-> {zip_path} ({os.path.getsize(zip_path) // 1024 // 1024} MB)")
+
+
+if not split_spec:
+    write_viewer(stage, questions, tests_out)
+    write_readme(stage, len(questions), len(tests_out))
+    write_zip(os.path.join(out_dir, 'Lumi-Soru-Bankasi.zip'), stage)
+    print(f"{len(questions)} questions, {len(tests_out)} tests")
+else:
+    # Parts: groups of topic folder numbers inside the book's subject ("01-09;10-14,16-18;15").
+    subject_root = f"{BOOK['exam']}/{BOOK['subject']}/"
+
+    def numbers(spec):
+        out = set()
+        for chunk in spec.split(','):
+            lo, _, hi = chunk.partition('-')
+            out.update(range(int(lo), int(hi or lo) + 1))
+        return out
+
+    groups = [numbers(g) for g in split_spec.split(';')]
+    for k, nums in enumerate(groups, 1):
+        def in_part(folder):
+            if not folder.startswith(subject_root):
+                return False
+            return int(folder[len(subject_root):].split(' ', 1)[0]) in nums
+        part_tests = [t for t in tests_out if in_part(t['folder'])]
+        keys = {t['key'] for t in part_tests}
+        part_qs = [q for q in questions if q['testKey'] in keys]
+        topic_dirs_in = sorted({t['folder'].split('/')[2] for t in part_tests}, key=lambda n: int(n.split(' ', 1)[0]))
+        first = topic_dirs_in[0].split(' ', 1)[1]
+        last = topic_dirs_in[-1].split(' ', 1)[1]
+        name = f"{ROOT} {k}-{len(groups)} ({first}" + (f" – {last})" if len(topic_dirs_in) > 1 else ")")
+        part_root = os.path.join(out_dir, 'parts', safe(name))
+        if os.path.exists(part_root):
+            shutil.rmtree(part_root)
+        os.makedirs(part_root)
+        # Only this part's topic folders (the first part also carries every other subject's empty folders).
+        for top in os.listdir(stage):
+            src_top = os.path.join(stage, top)
+            if not os.path.isdir(src_top):
+                continue
+            for dirpath, dirnames, filenames in os.walk(src_top):
+                rel = os.path.relpath(dirpath, stage).replace(os.sep, '/')
+                inside_book = rel.startswith(subject_root) or rel + '/' == subject_root
+                if inside_book:
+                    if rel + '/' != subject_root and not in_part(rel + '/' if rel.count('/') == 2 else '/'.join(rel.split('/')[:3]) + '/'):
+                        continue
+                elif k != 1:
+                    continue
+                os.makedirs(os.path.join(part_root, rel), exist_ok=True)
+                for fn in filenames:
+                    shutil.copyfile(os.path.join(dirpath, fn), os.path.join(part_root, rel, fn))
+        part_manifest = dict(manifest, part=dict(index=k, of=len(groups), topics=topic_dirs_in), tests=part_tests, questions=part_qs)
+        with open(os.path.join(part_root, 'manifest.json'), 'w', encoding='utf-8') as f:
+            json.dump(part_manifest, f, ensure_ascii=False, indent=1)
+        write_viewer(part_root, part_qs, part_tests)
+        write_readme(part_root, len(part_qs), len(part_tests), f"\nParça {k}/{len(groups)}: {', '.join(n.split(' ', 1)[1] for n in topic_dirs_in)}")
+        write_zip(os.path.join(out_dir, f"Lumi-Soru-Bankasi-{k}-{len(groups)}.zip"), part_root)

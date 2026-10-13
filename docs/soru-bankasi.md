@@ -77,6 +77,7 @@ Gerekenler: poppler (`pdftoppm`), `python3 -m pip install pdfplumber pillow nump
 7. **Uygula:** `python3 apply_review.py work/boxes.json work/boxes.reviewed.json <journal…>`, ardından düzeltilmiş kutularla yeniden `render.py crops`.
 8. **Alt konular:** Soru metinleri ve konunun `UNITS` listesi ajanlara verilir, her soru için `topicId` ve `unitId` seçilir (`units.json`).
 9. **Paket:** `python3 package.py books/KITAP.json work/boxes.reviewed.json crops ../../app/src/data/topics.ts OUT [units.json]`
+   - `--split "01-09;10-14,16-18;15;19-27"`: zip'i konu klasörü numaralarına göre parçalara böler (dosya gönderme sınırı 30 MB). Her parça kendi `manifest.json`'u (`part: {index, of, topics}`), `index.html`'i ve `BENİOKU.txt`'siyle tek başına açılır; uygulama parçaları birleştirerek içe aktarır.
 
 Yeni kitap için `books/` altına içindekiler sayfasını (bölüm adı, başlangıç sayfası, konu id'si) yazmak yeterli. Seri adları ve gösterge farklı bir yayınevinde farklıysa `boxes.py` içindeki `series_of`'a ve `gauge.py`'ye bakılır.
 
