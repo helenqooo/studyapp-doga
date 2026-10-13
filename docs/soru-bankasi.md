@@ -84,3 +84,5 @@ Yeni kitap için `books/` altına içindekiler sayfasını (bölüm adı, başla
 ## Uygulamaya aktarım (sonraki faz)
 
 Zip sunucuya yüklenecek (`POST /books`). Kitaplar, testler ve sorular kendi tablolarına girecek, görseller `server/data/books/<kitap>/` altına. Cevap anahtarı kitaptan gelir. Çözüm ve ipuçları soru ilk açıldığında üretilir. Yanlışlar normal tekrar kuyruğuna girer.
+
+Bir kitap, onu yükleyen hesaba aittir. Diğer kullanıcılar o kitabı ve sorularını görmez, sıralamaya yalnızca XP girer. Kişisel kullanım için çoğaltma serbesttir ama başkalarına dağıtmak yayınevinin iznine bağlıdır. Çıkmış sorular için de durum aynıdır: ÖSYM kitapçıkları izinsiz çoğaltmayı ve yayımlamayı yasaklar. Bu yüzden her kullanıcı kendi kitabını yükler. Uygulamaya hazır soru konacaksa önce hak sahibinden yazılı izin alınır.
