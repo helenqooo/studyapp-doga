@@ -101,6 +101,7 @@ for path in dirs.values():
     os.makedirs(os.path.join(stage, path), exist_ok=True)
 
 SERIES_DIR = {'Test': 'Test', 'ÖSYM Tadında': 'ÖSYM Tadında', 'Orijinal Sorular': 'Orijinal Sorular'}
+LEVELS = ['Kolay', 'Kolay-Orta', 'Orta', 'Orta-Zor', 'Zor']
 questions = []
 tests_out = []
 for t in boxes['tests']:
@@ -113,9 +114,15 @@ for t in boxes['tests']:
     if re.sub(r'\W', '', t['section'].lower()) != re.sub(r'\W', '', topic_name.lower()):
         parts.append(t['section'])
     parts.append(f"{SERIES_DIR.get(t['series'], t['series'])} {t['number']:02d}")
+    test_name = safe(' · '.join(parts))
+    # Konu / Zorluk / Test: the level folder sorts from easy to hard.
     if diff.get('label'):
-        parts.append(diff['label'])
-    test_dir = os.path.join(dirs[topic_id], safe(' · '.join(parts)))
+        level_dir = f"{LEVELS.index(diff['label']) + 1} {diff['label']}"
+    elif t['series'] == 'Orijinal Sorular':
+        level_dir = 'Orijinal Sorular (ÖSYM-MEB)'
+    else:
+        level_dir = 'Zorluk belirtilmemiş'
+    test_dir = os.path.join(dirs[topic_id], level_dir, test_name)
     os.makedirs(os.path.join(stage, test_dir), exist_ok=True)
     key_lines = []
     test_qs = []
@@ -131,6 +138,11 @@ for t in boxes['tests']:
             src = os.path.join(crops_dir, f"t{t['id']:03d}-q{q['n']:02d}.png")
             im = Image.open(src).convert('RGB')
             im.save(os.path.join(stage, rel), 'WEBP', quality=90, method=6)
+            if q.get('pastExam'):
+                # Every past exam question of a topic also sits in its "Çıkmış Sorular" folder.
+                past_dir = os.path.join(stage, dirs[topic_id], 'Çıkmış Sorular')
+                os.makedirs(past_dir, exist_ok=True)
+                shutil.copyfile(os.path.join(stage, rel), os.path.join(past_dir, safe(f"{q['pastExam']} · {test_name} · Soru {q['n']:02d}") + '.webp'))
             key_lines.append(f"{q['n']}-{q['answer']}")
             item = dict(
                 id=qid,
@@ -224,15 +236,16 @@ readme = f"""Lumi Soru Bankası
 Kitap: {BOOK['title']} ({BOOK['year']})
 Soru: {len(questions)} · Test: {len(tests_out)}
 
-Düzen: Sınav / Ders / Konu / Test. Bütün TYT ve AYT dersleri ve konuları klasör olarak var;
+Düzen: Sınav / Ders / Konu / Zorluk / Test. Bütün TYT ve AYT dersleri ve konuları klasör olarak var;
 bu kitaptaki sorular TYT / Temel Matematik konularının altında. Her konunun alt konuları
 ("incik cincik") manifest.json içinde; her sorunun alt konusu da orada (unitId) ve index.html'de
 etiket olarak görünür.
 
-Test klasörü adı: kitap · (bölüm) · seri ve numara · zorluk.
-  Seri: "Test" (konu tanıma ve klasik sorular), "ÖSYM Tadında", "Orijinal Sorular" (MEB / ÖSYM).
-  Zorluk: kitabın test başındaki göstergesinden (Kolay, Kolay-Orta, Orta, Orta-Zor, Zor).
-  Orijinal Sorular testlerinde gösterge yok.
+Zorluk klasörleri: "1 Kolay", "2 Kolay-Orta", "3 Orta", "4 Orta-Zor", "5 Zor" (kitabın test başındaki
+göstergesinden) ve "Orijinal Sorular (ÖSYM-MEB)" (göstergesi olmayan gerçek sınav soruları).
+Test klasörü adı: kitap · (bölüm) · seri ve numara. Seri: "Test" (konu tanıma ve klasik sorular),
+"ÖSYM Tadında", "Orijinal Sorular".
+Her konunun "Çıkmış Sorular" klasöründe o konudaki bütün çıkmış soruların bir kopyası var.
 Dosya adı: "Soru 07.webp"; çıkmış sorularda "(Çıkmış TYT 2018)" gibi bir ek var.
 Her test klasöründe cevap-anahtari.txt bulunur.
 

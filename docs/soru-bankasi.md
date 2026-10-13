@@ -1,6 +1,6 @@
 # Soru bankası: kitaptan konu/test klasörlerine
 
-Bir soru bankası PDF'i, her sorusu ayrı bir görsel olacak şekilde kesilir ve **Sınav / Ders / Konu / Test** düzeninde bir zip'e konur. Zip, uygulama soru bankasını içe aktarmaya hazır olduğunda kullanılır.
+Bir soru bankası PDF'i, her sorusu ayrı bir görsel olacak şekilde kesilir ve **Sınav / Ders / Konu / Zorluk / Test** düzeninde bir zip'e konur. Zip, uygulama soru bankasını içe aktarmaya hazır olduğunda kullanılır.
 
 Kitap içeriği (PDF, kesimler, zip) **depoya girmez**: kitaplar telifli ve kişisel çalışma içindir. Depoda yalnızca betikler (`tools/bank/`) ve her kitabın içindekiler sayfası (`tools/bank/books/<kitap>.json`) durur.
 
@@ -15,20 +15,22 @@ Lumi Soru Bankası/
     Türkçe/01 Sözcükte Anlam/ …           (bütün dersler ve konular, boş olsa da)
     Temel Matematik/
       11 Üslü Sayılar/
-        345 TYT Mat · Test 01 · Kolay/
-          Soru 01.webp … Soru 12.webp
-          Soru 07 (Çıkmış TYT 2018).webp
-          cevap-anahtari.txt
-        345 TYT Mat · ÖSYM Tadında 03 · Orta-Zor/
-        345 TYT Mat · Orijinal Sorular 01/
+        1 Kolay/
+          345 TYT Mat · Test 01/
+            Soru 01.webp … Soru 12.webp
+            Soru 07 (Çıkmış TYT 2018).webp
+            cevap-anahtari.txt
+        4 Orta-Zor/345 TYT Mat · ÖSYM Tadında 03/
+        Orijinal Sorular (ÖSYM-MEB)/345 TYT Mat · Orijinal Sorular 01/
+        Çıkmış Sorular/TYT 2018 · 345 TYT Mat · Test 01 · Soru 07.webp   (kopyalar)
       16 Problemler/03 Yaş Problemleri/ …
   AYT/ …
 ```
 
 - Konu klasörleri `app/src/data/topics.ts`'ten gelir, müfredat sırasıyla numaralıdır. Alt başlıklı konular (Problemler › Yaş, Tarih › Millî Mücadele) grubunun klasörüne girer.
-- Test klasörü: kitap · (konudan farklıysa kitabın bölümü) · seri ve numara · zorluk.
-  - **Seri:** "Test" (konu tanıma ve klasik sorular), "ÖSYM Tadında" ve "Orijinal Sorular" (MEB/ÖSYM).
-  - **Zorluk:** kitabın her testin başına bastığı göstergeden okunur.
+- Zorluk klasörü: "1 Kolay" … "5 Zor", kitabın her testin başına bastığı göstergeden okunur. Göstergesi olmayan gerçek sınav soruları "Orijinal Sorular (ÖSYM-MEB)" klasörüne girer.
+- Test klasörü: kitap · (konudan farklıysa kitabın bölümü) · seri ve numara. **Seri:** "Test" (konu tanıma ve klasik sorular), "ÖSYM Tadında" ve "Orijinal Sorular" (MEB/ÖSYM).
+- Her konunun "Çıkmış Sorular" klasörü o konudaki çıkmış soruların kopyalarını toplar.
 - Çıkmış sorular ("ÇIKMIŞ SORU · TYT 2018" çerçeveli) dosya adında ve manifest'te işaretlidir.
 
 ## manifest.json
