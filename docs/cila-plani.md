@@ -11,18 +11,19 @@ iPad, marka), 180 fikir. İki jüri (mühendis, ürün) puanladı ve birleştird
 - Kayma yok: matematik görünümü yüksekliği yumuşak değişir; yeni ipucu, çözüm ve sonuç görünür alana kayar.
 - Soru metni "Soru metni" düğmesinin arkasında; ipucu noktaları (●●○).
 - Sunucu: günlük çalışma özetine o gün çözülen soru sayısı (`solved`) eklendi (demo da).
+- Ana Sayfa "Bugün halkası": logo geometrisinde üç halka + dokunulabilir açıklama satırları, Lumi'nin cümlesi balonda, "Soru Çöz" + galeri düğmesi ilk ekranda (390×844'te y≈416), demo uyarısı küçük etiket.
+- Durumlar: iskelet yükleme (tek nefes saati), Lumi'li hata ekranı ("Tekrar dene"), boş durumlar.
+- Çözüm beklerken: kırpma kutusunun üstünde tarama ışığı, üç adımlı kontrol listesi, Lumi okuyor.
+- Tekrar sekmesinde bekleyen sayısı rozeti; çözüm/ipucu metni 17pt; açık temada Türkçe/Sosyal/Temel Matematik ders renkleri 3:1'in üstüne çekildi; sayaçta çift titreşim kaldırıldı.
 
 ## Sıradaki (jürilerin ortak "mutlaka" listesi, sırayla)
-1. Ana Sayfa "Bugün halkası": logo geometrisinde üç halka (Tekrar, Odak, Soru), tek bir sonraki adım düğmesi ilk ekranda, Lumi'nin günlük cümlesi, demo uyarısı küçük bir etikete.
-2. Durumlar: iskelet yükleme, Lumi'li boş ve hata ekranları (ham hata metni yerine).
-3. Hareket dili ve titreşim sözlüğü: ortak yay/eğri token'ları, Button'daki çift titreşimin düzeltilmesi, basma fiziği.
-4. Çözüm beklerken tarama ışığı ve üç adımlı kontrol listesi (crop ekranı).
-5. Lumi'nin sesi (`voice.ts`, durum anahtarları, günde sabit seçim) ve konuşma balonu.
-6. Sekme çubuğu: Tekrar'da bekleyen sayısı rozeti, dolu aktif ikonlar, ortada büyük "Çöz" düğmesi.
-7. Deneme › Analiz: önce net grafiği, AI özeti kısa, deneme kartlarında fark etiketleri.
-8. Rozetler: kilitli rozetlerde ilerleme halkası, "Sıradaki rozet".
-9. Ders renkleri kontrastı: açık temada Sosyal ve Temel Matematik çizgi renkleri 3:1'in altında, düzelt.
-10. Okuma boyu (çözüm metni 17pt), segment kontrolünde kayan seçim göstergesi.
+1. Lumi'nin sesi: `voice.ts` (durum anahtarları, günde sabit seçim, yasaklı kalıplar) ve asistan/koç istemlerinde aynı ton.
+2. Hareket dili: ortak yay/eğri token'ları, kontrol türüne göre basma fiziği, segment kontrolünde kayan seçim göstergesi, büyük başlıkların kayarken küçülmesi.
+3. Sekme çubuğu: dolu aktif ikonlar, ortada yükseltilmiş "Çöz" düğmesi (uzun basınca galeri).
+4. Deneme › Analiz: önce net grafiği, AI özeti kısa, deneme kartlarında fark etiketleri, hedef çizgisi.
+5. Rozetler: kilitli rozetlerde ilerleme halkası, "Sıradaki rozet" kartı.
+6. Çözüm bekleme adımlarının sunucudan gerçek `{stage}` olaylarıyla ilerlemesi (NDJSON).
+7. Yanlış dokunulan sonucu 5 sn geri alma; seviye eğrisini yumuşatma.
 
 ## Jürilerin eksik bulduğu konular
 - Repoda görsel kontrol turu (Playwright, telefon/iPad, açık/koyu).

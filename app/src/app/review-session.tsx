@@ -256,7 +256,7 @@ export default function ReviewSessionScreen() {
           <Appear style={{ gap: theme.spacing.lg }}>
             {outcome ? <Feedback outcome={outcome} /> : null}
             <Card title={showSolution ? 'Çözüm' : 'Doğru cevap'}>
-              <MathView markdown={showSolution ? solutionMarkdown(q) : answerMarkdown(q)} />
+              <MathView markdown={showSolution ? solutionMarkdown(q) : answerMarkdown(q)} fontSize={theme.fontSize.lg} />
             </Card>
           </Appear>
         </RevealOnMount>

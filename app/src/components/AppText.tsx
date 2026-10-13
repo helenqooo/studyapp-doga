@@ -2,7 +2,7 @@ import { StyleSheet, Text, type TextProps, type TextStyle } from 'react-native';
 import { font, useTheme, type ColorTokens, type FontKind, type FontWeightName, type Theme } from '../theme';
 
 type Variant = 'display' | 'title' | 'heading' | 'body' | 'label' | 'caption' | 'eyebrow';
-type ColorName = Exclude<keyof ColorTokens, 'subject' | 'chart' | 'confetti' | 'celebrationScrim' | 'badge' | 'avatar' | 'mascot' | 'shadow' | 'exam' | 'rings'>;
+type ColorName = Exclude<keyof ColorTokens, 'subject' | 'chart' | 'confetti' | 'celebrationScrim' | 'badge' | 'avatar' | 'mascot' | 'shadow' | 'exam' | 'rings' | 'bubble'>;
 
 interface Props extends TextProps {
   variant?: Variant;

@@ -2,11 +2,14 @@ import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Image, PanResponder, View, type LayoutChangeEvent } from 'react-native';
+import Animated, { Easing, useAnimatedStyle, useReducedMotion, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSolve } from '../api/hooks';
 import { AppText } from '../components/AppText';
 import { Button } from '../components/Button';
+import { Icon } from '../components/Icon';
 import { Mascot } from '../components/mascot/Mascot';
+import { ThinkingSpark } from '../components/motion/ThinkingSpark';
 import { DEMO_MODE } from '../config';
 import { haptics } from '../lib/haptics';
 import { prepareUpload, type LocalImage } from '../lib/image';
@@ -22,13 +25,29 @@ interface Rect {
 
 type Handle = 'tl' | 'tr' | 'bl' | 'br' | 'move';
 
-const WAIT_MESSAGES = [
-  'Soru okunuyor…',
-  'Konu belirleniyor…',
-  'Çözüm hazırlanıyor…',
-  'İpuçları yazılıyor…',
-  'Son kontroller yapılıyor…',
-];
+/** What the AI is doing, as a checklist; a step ticks every few seconds (its real pace is close). */
+const WAIT_STEPS = ['Soruyu okuyorum', 'Konuyu buluyorum', 'Çözümü ve ipuçlarını yazıyorum'];
+const WAIT_STEP_MS = 5000;
+
+/** A band of light sweeping down the photo while it is read. */
+function ScanBeam({ rect }: { rect: Rect }) {
+  const theme = useTheme();
+  const reduceMotion = useReducedMotion();
+  const y = useSharedValue(0);
+  const height = theme.layout.scanBeam;
+  useEffect(() => {
+    if (reduceMotion) return;
+    y.value = withRepeat(withTiming(1, { duration: theme.motion.duration.celebrate * 1.3, easing: Easing.inOut(Easing.sin) }), -1, true);
+  }, [y, reduceMotion, theme.motion.duration.celebrate]);
+  const style = useAnimatedStyle(() => ({ transform: [{ translateY: y.value * (rect.h - height) }] }));
+  if (reduceMotion) return null;
+  return (
+    <View pointerEvents="none" style={{ position: 'absolute', left: rect.x, top: rect.y, width: rect.w, height: rect.h, overflow: 'hidden' }}>
+      <Animated.View style={[{ height, backgroundColor: theme.colors.cropFrame, opacity: 0.22 }, style]} />
+      <Animated.View style={[{ position: 'absolute', left: 0, right: 0, height: theme.layout.frameBorder, backgroundColor: theme.colors.cropFrame, marginTop: height - theme.layout.frameBorder }, style]} />
+    </View>
+  );
+}
 
 const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v));
 
@@ -89,10 +108,11 @@ export default function CropScreen() {
     return () => clearTimeout(id);
   }, [phase]);
 
-  // Rotate the "still working" messages while Claude solves.
+  // Tick the checklist while Claude solves (the last step stays open until the answer lands).
   useEffect(() => {
     if (phase !== 'solving') return;
-    const id = setInterval(() => setWaitIndex((i) => (i + 1) % WAIT_MESSAGES.length), 3500);
+    setWaitIndex(0);
+    const id = setInterval(() => setWaitIndex((i) => Math.min(WAIT_STEPS.length - 1, i + 1)), WAIT_STEP_MS);
     return () => clearInterval(id);
   }, [phase]);
 
@@ -269,8 +289,10 @@ export default function CropScreen() {
           </>
         ) : null}
 
+        {busy && crop && phase === 'solving' ? <ScanBeam rect={crop} /> : null}
         {busy ? (
           <View
+            pointerEvents="none"
             style={{
               position: 'absolute',
               left: 0,
@@ -278,29 +300,50 @@ export default function CropScreen() {
               bottom: 0,
               top: 0,
               alignItems: 'center',
-              justifyContent: 'center',
-              gap: theme.spacing.md,
+              justifyContent: 'flex-end',
+              padding: theme.spacing.md,
             }}
           >
             <View
               style={{
                 backgroundColor: c.cameraScrim,
                 borderRadius: theme.radius.lg,
-                padding: theme.spacing.xl,
+                borderCurve: 'continuous',
+                padding: theme.spacing.lg,
+                flexDirection: 'row',
                 alignItems: 'center',
                 gap: theme.spacing.md,
+                width: '100%',
+                maxWidth: theme.layout.readableWidth / 2,
               }}
             >
-              <Mascot mood={phase === 'preparing' || phase === 'uploading' ? 'thinking' : 'reading'} size={theme.layout.mascot.hero} />
-              <AppText variant="heading" tint={c.cameraForeground} align="center">
-                {phase === 'preparing'
-                  ? 'Görsel hazırlanıyor…'
-                  : phase === 'uploading'
-                    ? uploadPct > 0
-                      ? `Yükleniyor… %${uploadPct}`
-                      : 'Yükleniyor…'
-                    : WAIT_MESSAGES[waitIndex]}
-              </AppText>
+              <Mascot mood={phase === 'solving' ? 'reading' : 'thinking'} size={theme.layout.mascot.note} />
+              <View style={{ flex: 1, gap: theme.spacing.xs }}>
+                {phase !== 'solving' ? (
+                  <AppText weight="semibold" tint={c.cameraForeground}>
+                    {phase === 'preparing' ? 'Görsel hazırlanıyor…' : uploadPct > 0 ? `Yükleniyor… %${uploadPct}` : 'Yükleniyor…'}
+                  </AppText>
+                ) : (
+                  WAIT_STEPS.map((step, i) => {
+                    const done = i < waitIndex;
+                    const current = i === waitIndex;
+                    return (
+                      <View key={step} style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm, opacity: done || current ? 1 : 0.5 }}>
+                        {done ? (
+                          <Icon name="circle-check" size={theme.layout.iconSize.sm} color={c.cropFrame} />
+                        ) : current ? (
+                          <ThinkingSpark size={theme.layout.iconSize.sm} color={c.cropFrame} />
+                        ) : (
+                          <Icon name="circle-dashed" size={theme.layout.iconSize.sm} color={c.cameraForeground} />
+                        )}
+                        <AppText variant="label" weight={current ? 'semibold' : 'regular'} tint={c.cameraForeground}>
+                          {step}
+                        </AppText>
+                      </View>
+                    );
+                  })
+                )}
+              </View>
             </View>
           </View>
         ) : null}

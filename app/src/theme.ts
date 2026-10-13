@@ -80,6 +80,8 @@ export interface ColorTokens {
   shadow: { card: string; raised: string; floating: string; accent: string; none: string };
   /** Home's goal rings: reviews (clay), focus minutes (olive), questions solved (sky). */
   rings: { review: string; focus: string; solve: string };
+  /** Lumi's speech bubble. */
+  bubble: string;
   /** Exam pills: TYT clay, AYT slate-blue, so the exam is clear at a glance. */
   exam: Record<'TYT' | 'AYT', { fg: string; bg: string }>;
   /** A control that can't be used yet: quiet paper-grey with readable text. */
@@ -189,6 +191,7 @@ const light: ColorTokens = {
   neutralStrong: '#6E6B63',
   info: '#4F79A8',
   rings: { review: '#B5573A', focus: '#6F8A4E', solve: '#4F79A8' },
+  bubble: '#F3EEE4',
 
   xp: '#C9954C',
   xpText: '#7E5616',
@@ -233,9 +236,9 @@ const light: ColorTokens = {
 
   // Every subject has its own hue (TYT and AYT maths, Fen and Biyoloji no longer share one).
   subject: {
-    'Türkçe': '#D97757',
-    'Sosyal': '#C9954C',
-    'Temel Matematik': '#6A9BCC',
+    'Türkçe': '#C4603D',
+    'Sosyal': '#A8783A',
+    'Temel Matematik': '#4A7AAE',
     'Fen': '#788C5D',
     'Matematik': '#5468B0',
     'Fizik': '#2F8A87',
@@ -281,6 +284,7 @@ const dark: ColorTokens = {
   neutralStrong: '#76736A',
   info: '#8DB4DE',
   rings: { review: '#E08B6D', focus: '#A3B886', solve: '#8DB4DE' },
+  bubble: '#33312D',
 
   xp: '#D4A27F',
   xpText: '#E3B98F',
@@ -526,6 +530,10 @@ export const layout = {
   mascot: { note: 84, hero: 150 },
   /** Home's three goal rings (outer diameter, stroke, space between rings) and the legend dot. */
   todayRings: { size: 132, stroke: 11, gap: 4, dot: 10 },
+  /** The little diamond under Lumi's speech bubble. */
+  bubbleTail: 14,
+  /** The scanning light over a photo while the AI reads it: its height. */
+  scanBeam: 28,
   /** Lumi next to a chat reply, and the size of the "typing" dots. */
   chatAvatar: 36,
   chatDot: 7,

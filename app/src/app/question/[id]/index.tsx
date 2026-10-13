@@ -273,7 +273,7 @@ export default function QuestionScreen() {
         <RevealOnMount key={i}>
           <Appear>
             <Card title={`İpucu ${i + 1}`} background={theme.colors.hintBackground}>
-              <MathView markdown={hint} typing="type" />
+              <MathView markdown={hint} typing="type" fontSize={theme.fontSize.lg} />
             </Card>
           </Appear>
         </RevealOnMount>
@@ -283,7 +283,7 @@ export default function QuestionScreen() {
         <RevealOnMount>
           <Appear>
             <Card title="Tam çözüm">
-              <MathView markdown={solutionMarkdown(q)} typing="type" />
+              <MathView markdown={solutionMarkdown(q)} typing="type" fontSize={theme.fontSize.lg} />
             </Card>
           </Appear>
         </RevealOnMount>

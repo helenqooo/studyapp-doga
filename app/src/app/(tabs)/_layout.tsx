@@ -1,4 +1,5 @@
 import { Tabs } from 'expo-router/js-tabs';
+import { useReviewsToday } from '../../api/hooks';
 import { Icon, type IconName } from '../../components/Icon';
 import { useWindowLayout } from '../../lib/layout';
 import { font, useTheme } from '../../theme';
@@ -15,6 +16,8 @@ export default function TabsLayout() {
   const theme = useTheme();
   // Large windows (iPad landscape, 13" portrait) get a sidebar instead of bottom tabs.
   const { sidebar } = useWindowLayout();
+  // Reviews waiting today sit on the Tekrar tab as a badge.
+  const due = useReviewsToday().data?.items.length ?? 0;
   return (
     <Tabs
       screenOptions={{
@@ -43,6 +46,17 @@ export default function TabsLayout() {
             title: tab.title,
             // Bottom bar: a slightly smaller icon leaves room for the label in the 49pt bar.
             tabBarIcon: ({ color, size }) => <Icon name={tab.icon} color={color} size={sidebar ? size : theme.layout.iconSize.md} />,
+            ...(tab.name === 'review' && due
+              ? {
+                  tabBarBadge: due,
+                  tabBarBadgeStyle: {
+                    backgroundColor: theme.colors.primary,
+                    color: theme.colors.textOnAccent,
+                    fontSize: theme.fontSize.xs,
+                    ...font('sans', 'semibold'),
+                  },
+                }
+              : {}),
           }}
         />
       ))}
