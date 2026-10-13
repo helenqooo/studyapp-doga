@@ -485,6 +485,9 @@ export const layout = {
   confetti: { long: 10, short: 5, dot: 7, radius: 2 },
   /** Size of the "thinking" spark loader. */
   spark: 56,
+  /** Question photos: the tallest they show before "Tamamını gör", and the fade height. */
+  questionImageCap: { compact: 150, regular: 360, large: 540 },
+  questionImageFade: 72,
   /** Round timer controls (pause, stop). */
   roundControl: 68,
   /** Pomodoro ring diameter and stroke. */
