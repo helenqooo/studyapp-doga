@@ -1,3 +1,11 @@
+import { Lora_400Regular } from '@expo-google-fonts/lora/400Regular';
+import { Lora_500Medium } from '@expo-google-fonts/lora/500Medium';
+import { Lora_600SemiBold } from '@expo-google-fonts/lora/600SemiBold';
+import { Lora_700Bold } from '@expo-google-fonts/lora/700Bold';
+import { Poppins_400Regular } from '@expo-google-fonts/poppins/400Regular';
+import { Poppins_500Medium } from '@expo-google-fonts/poppins/500Medium';
+import { Poppins_600SemiBold } from '@expo-google-fonts/poppins/600SemiBold';
+import { Poppins_700Bold } from '@expo-google-fonts/poppins/700Bold';
 import { focusManager, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useFonts } from 'expo-font';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
@@ -19,17 +27,16 @@ import { fonts, useTheme } from '../theme';
 // Keep the splash up until the fonts are ready, so text never flashes in a system font.
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
-// Vendored OFL fonts (assets/fonts), one family name per weight as in theme.fonts. The
-// display keys load one weight heavier than their names (condensed figures read light).
+// Poppins and Lora from @expo-google-fonts, one family name per weight as in theme.fonts.
 const FONT_FILES = {
-  [fonts.sans.regular]: require('../../assets/fonts/BeVietnamPro-Regular.ttf'),
-  [fonts.sans.medium]: require('../../assets/fonts/BeVietnamPro-Medium.ttf'),
-  [fonts.sans.semibold]: require('../../assets/fonts/BeVietnamPro-SemiBold.ttf'),
-  [fonts.sans.bold]: require('../../assets/fonts/BeVietnamPro-Bold.ttf'),
-  [fonts.display.regular]: require('../../assets/fonts/BarlowCondensed-Medium.ttf'),
-  [fonts.display.medium]: require('../../assets/fonts/BarlowCondensed-SemiBold.ttf'),
-  [fonts.display.semibold]: require('../../assets/fonts/BarlowCondensed-Bold.ttf'),
-  [fonts.display.bold]: require('../../assets/fonts/BarlowCondensed-ExtraBold.ttf'),
+  [fonts.sans.regular]: Poppins_400Regular,
+  [fonts.sans.medium]: Poppins_500Medium,
+  [fonts.sans.semibold]: Poppins_600SemiBold,
+  [fonts.sans.bold]: Poppins_700Bold,
+  [fonts.serif.regular]: Lora_400Regular,
+  [fonts.serif.medium]: Lora_500Medium,
+  [fonts.serif.semibold]: Lora_600SemiBold,
+  [fonts.serif.bold]: Lora_700Bold,
 };
 
 // The single-file web preview ships these fonts as inline CSS (see scripts/build-web-preview.mjs).

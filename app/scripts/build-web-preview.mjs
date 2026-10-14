@@ -67,20 +67,19 @@ js = js.replace(/uri:"(\/assets\/[^"]+?(\.png|\.jpe?g|\.gif))"/g, (match, uri, e
 // Keep the bundle from closing or confusing the inline <script> element.
 js = js.replace(/<\/script/gi, '<\\/script').replace(/<!--/g, '<\\!--');
 
-// Fonts: the vendored TTFs in assets/fonts under the same family names the app uses
-// (theme.fonts, FONT_FILES in src/app/_layout.tsx), so no runtime loading is needed.
+// Fonts: same family names the app uses (see src/theme.ts), so no runtime loading is needed.
 const FONTS = [
-  ['BeVietnamPro-Regular.ttf', 'BeVietnamPro_400Regular'],
-  ['BeVietnamPro-Medium.ttf', 'BeVietnamPro_500Medium'],
-  ['BeVietnamPro-SemiBold.ttf', 'BeVietnamPro_600SemiBold'],
-  ['BeVietnamPro-Bold.ttf', 'BeVietnamPro_700Bold'],
-  ['BarlowCondensed-Medium.ttf', 'BarlowCondensed_500Medium'],
-  ['BarlowCondensed-SemiBold.ttf', 'BarlowCondensed_600SemiBold'],
-  ['BarlowCondensed-Bold.ttf', 'BarlowCondensed_700Bold'],
-  ['BarlowCondensed-ExtraBold.ttf', 'BarlowCondensed_800ExtraBold'],
+  ['poppins', '400Regular', 'Poppins_400Regular'],
+  ['poppins', '500Medium', 'Poppins_500Medium'],
+  ['poppins', '600SemiBold', 'Poppins_600SemiBold'],
+  ['poppins', '700Bold', 'Poppins_700Bold'],
+  ['lora', '400Regular', 'Lora_400Regular'],
+  ['lora', '500Medium', 'Lora_500Medium'],
+  ['lora', '600SemiBold', 'Lora_600SemiBold'],
+  ['lora', '700Bold', 'Lora_700Bold'],
 ];
-const fontCss = FONTS.map(([fileName, family]) => {
-  const file = path.join(appDir, 'assets', 'fonts', fileName);
+const fontCss = FONTS.map(([pkg, dir, family]) => {
+  const file = path.join(appDir, 'node_modules/@expo-google-fonts', pkg, dir, `${family}.ttf`);
   return `@font-face{font-family:'${family}';src:url(${dataUri(file, 'font/ttf')}) format('truetype');font-display:block}`;
 }).join('\n');
 
@@ -89,9 +88,9 @@ const page = `<title>${appName}</title>
 <style>
 /* react-native-web root: one full-height app view. */
 html { height: 100%; box-sizing: border-box; }
-body { height: 100%; overflow: hidden; background: #EEF1F5; }
+body { height: 100%; overflow: hidden; background: #F4F2EC; }
 #root { display: flex; height: 100%; flex: 1; }
-@media (prefers-color-scheme: dark) { body { background: #161A21; } }
+@media (prefers-color-scheme: dark) { body { background: #1A1917; } }
 ${fontCss}
 </style>
 <div id="root"></div>
@@ -135,8 +134,8 @@ for (const f of fs.readdirSync(path.join(appDir, 'assets', 'pwa'))) {
   fs.copyFileSync(path.join(appDir, 'assets', 'pwa', f), path.join(pwaDir, 'icons', f));
 }
 // theme.ts colors.background (light paper, dark night desk).
-const PAPER = '#EEF1F5';
-const NIGHT = '#161A21';
+const PAPER = '#F4F2EC';
+const NIGHT = '#1A1917';
 fs.writeFileSync(
   path.join(pwaDir, 'manifest.webmanifest'),
   JSON.stringify(

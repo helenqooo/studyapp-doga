@@ -283,8 +283,9 @@ function TabItem({ label, a11yLabel, a11yHint, focused, badge, icon, tablet, com
         </Bubble>
         {badge !== undefined ? <TabBadge value={badge} bubbleW={bubble.w} tablet={tablet} /> : null}
       </Animated.View>
-      <Animated.View style={labelBox}>
-        {/* The wider semibold label holds the space; the regular one sits over it, centered. */}
+      {/* The box spans the whole tab, so neither label is squeezed to the other's measured width. */}
+      <Animated.View style={[{ alignSelf: 'stretch' }, labelBox]}>
+        {/* The wider semibold label holds the height; the regular one sits over it, centered. */}
         <Animated.View style={activeLabel}>
           <AppText variant="micro" weight="semibold" color="text" align="center" numberOfLines={1} maxFontSizeMultiplier={1.2}>
             {label}

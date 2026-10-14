@@ -11,13 +11,13 @@ const LOGO_STROKE = 14;
 const LOGO_VIEWBOX = '13 13 74 74';
 
 /**
- * The mark in the ink of the page: the ring in `text`, the dot in fosfor (`accent`).
- * `color` paints the whole mark in one ink (on a fill, say); `dotColor` overrides the dot.
+ * The mark in clay (`accent`), ring and dot alike. `color` paints the whole mark in one ink
+ * (on a fill, say); `dotColor` overrides the dot.
  */
 export function LogoMark({ size, color, dotColor }: { size?: number; color?: string; dotColor?: string }) {
   const theme = useTheme();
   const s = size ?? theme.layout.iconSize.lg;
-  const ring = color ?? theme.colors.text;
+  const ring = color ?? theme.colors.accent;
   const dot = dotColor ?? color ?? theme.colors.accent;
   return (
     // Decorative: hidden from screen readers on the wrapper (the web Svg can't take a11y props).

@@ -25,6 +25,8 @@ export function Kareli({ height, fade = true, style }: Props) {
   const { cell } = theme.layout.kareli;
   const line = theme.layout.borderWidth;
   const top = theme.opacity.kareli[theme.scheme];
+  // The Anthropic look has no graph paper: a zero opacity token turns the band off.
+  if (top <= 0) return null;
 
   const onLayout = (e: LayoutChangeEvent) => {
     const w = Math.round(e.nativeEvent.layout.width);

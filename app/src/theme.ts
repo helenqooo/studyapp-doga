@@ -2,14 +2,10 @@
 // Components read tokens through `useTheme()` and never hardcode values.
 // Design changes: edit this file first, then the component.
 //
-// Aesthetic: "Fosfor", a study desk. Cool question-book paper, a graphite pencil for every
-// mark the student makes (`mark`, light `primary`), printed optik ink for what is not marked
-// yet (`optik`), a fosfor highlighter that is Lumi's light (`accent`, `highlight`), a red pen
-// for wrong answers only (`danger`), and one highlighter per subject (`subject`, `subjectSoft`).
-// Be Vietnam Pro reads, Barlow Condensed counts (every number that moves or compares).
-// Contrast was measured, not eyeballed: text ≥ 4.5:1, large text and UI marks ≥ 3:1.
-//
-// Keys marked @deprecated stay until the post-merge cleanup so every consumer compiles.
+// Aesthetic: warm and calm, after Anthropic's Claude — ivory and charcoal surfaces, clay
+// accent, olive/kraft/slate-blue supporting hues, Lora (serif) for titles, big numbers and
+// Lumi's own words, Poppins for the interface. Colors stay soft; every color or state change
+// cross-fades. Contrast was measured: body and label text >= 4.5:1, chart marks >= 3:1.
 
 import { useColorScheme, type TextStyle } from 'react-native';
 import type { Subject } from './data/topics';
@@ -185,16 +181,17 @@ export interface MascotColors {
 
 /** Lumi: a brighter tangerine, so it reads as made of highlighter colors. */
 const MASCOT_BASE = {
-  body: '#F28A55',
-  shade: '#DB6E3C',
-  highlight: '#FFB287',
-  arm: '#EC7D48',
-  foot: '#C9612F',
+  body: '#E07B54',
+  shade: '#C9623F',
+  highlight: '#F4A27F',
+  arm: '#D96F4B',
+  foot: '#B4553A',
   ink: '#2A1C17',
   eyeShine: '#FFFFFF',
-  cheek: '#FF9E92',
-  glow: '#FFDC6E',
-  glowShine: '#FFF7CF',
+  cheek: '#F59C93',
+  glow: '#FFC94D',
+  glowSoft: 'rgba(255, 201, 77, 0.28)',
+  glowShine: '#FFF3C4',
   gear: '#3B3633',
   gearSoft: '#5A524C',
   gold: '#E9B23E',
@@ -206,268 +203,267 @@ const MASCOT_BASE = {
   water: '#7FB8E6',
   steam: '#B9B2A6',
   flame: '#F08A3C',
-  accentBlue: '#2F7FE0',
-  accentGreen: '#2E9F57',
-  marker: '#FFDC6E',
-  markerCap: '#4B5567',
+  accentBlue: '#6A9BCC',
+  accentGreen: '#7FA36A',
+  marker: '#D97757',
+  markerCap: '#3B3633',
 };
 
 /** Avatar fills shared by both schemes (dark lifts the three darkest). */
 const AVATAR_BASE = {
-  clay: '#D2552E',
-  kraft: '#A66A1E',
-  olive: '#5A7F1C',
-  sky: '#2D6CC0',
-  plum: '#9437A8',
-  sand: '#8A7350',
-  slate: '#4F5D73',
-  rose: '#C53A6B',
+  clay: '#B5573A',
+  kraft: '#8F6328',
+  olive: '#566F3D',
+  sky: '#3F6D9C',
+  plum: '#8A4F75',
+  sand: '#7A6A4F',
+  slate: '#56606B',
+  rose: '#A8484F',
 };
 
 const light: ColorTokens = {
-  background: '#F1F4F8',
-  surface: '#FFFFFF',
-  surfaceAlt: '#E9EDF3',
-  border: '#E0E5EC',
-  text: '#2A2F38',
-  textMuted: '#5E6878',
+  background: '#F4F2EC',
+  surface: '#FFFEFB',
+  surfaceAlt: '#EEEBE3',
+  border: '#E4E1D8',
+  text: '#141413',
+  textMuted: '#6B6962',
   textOnAccent: '#FFFFFF',
   onPrimary: '#FFFFFF',
   transparent: 'transparent',
 
-  primary: '#4B5567',
-  primaryText: '#3A4352',
-  primarySoft: '#E9EDF5',
-  accent: '#FFDC6E',
-  mark: '#4B5567',
+  primary: '#B5573A',
+  primaryText: '#A84F33',
+  primarySoft: '#F6E8E1',
+  accent: '#D97757',
+  mark: '#B5573A',
   markInk: '#FFFFFF',
-  optik: '#B9C2E4',
-  optikSoft: '#E5E9F6',
-  highlight: '#FFEC94',
-  highlightInk: '#2A2F38',
-  note: '#FFF6CF',
-  noteInk: '#2A2F38',
-  noteEdge: '#F3E4A6',
-  bubble: '#FFF6CF',
-  hintBackground: '#FFF9E0',
+  optik: '#D3CCBF',
+  optikSoft: '#ECE7DD',
+  highlight: '#F5D9CB',
+  highlightInk: '#141413',
+  note: '#F3EEE4',
+  noteInk: '#141413',
+  noteEdge: '#E6DFD2',
+  bubble: '#F3EEE4',
+  hintBackground: '#F7EFE2',
 
-  success: '#2B804C',
-  successSoft: '#E4F4E8',
-  danger: '#C9473A',
-  dangerSoft: '#FCE8E4',
-  warning: '#8F5A00',
-  warningSoft: '#FFF1D2',
-  neutral: '#5F6876',
-  neutralSoft: '#E9EDF2',
-  successStrong: '#2B804C',
-  dangerStrong: '#C9473A',
-  neutralStrong: '#6D7685',
-  info: '#2B62C9',
+  success: '#566F3D',
+  successSoft: '#E9EEDF',
+  danger: '#A8443A',
+  dangerSoft: '#F9EAE6',
+  warning: '#8A5E1A',
+  warningSoft: '#F6EDDB',
+  neutral: '#66635C',
+  neutralSoft: '#ECEAE2',
+  successStrong: '#566F3D',
+  dangerStrong: '#A8443A',
+  neutralStrong: '#6E6B63',
+  info: '#4F79A8',
 
-  xp: '#FFDC6E',
-  xpText: '#2A2F38',
-  xpTrack: '#E6EAF1',
-  streak: '#F48B5A',
-  streakSoft: '#FFE7DA',
+  xp: '#C9954C',
+  xpText: '#7E5616',
+  xpTrack: '#EFE6D8',
+  streak: '#D97757',
+  streakSoft: '#F6E8E1',
 
-  tabBar: '#FFFFFF',
-  tabActive: '#4B5567',
-  tabInactive: '#6D7685',
-  disabledBg: '#E9EDF2',
-  disabledFg: '#7C8594',
-  focusVignette: 'rgba(42, 47, 56, 0.08)',
-  celebrationScrim: 'rgba(241, 244, 248, 0.84)',
+  tabBar: '#FFFEFB',
+  tabActive: '#A84F33',
+  tabInactive: '#6B6962',
+  disabledBg: '#ECE9E1',
+  disabledFg: '#7A776F',
+  focusVignette: 'rgba(20, 20, 19, 0.06)',
+  celebrationScrim: 'rgba(245, 244, 238, 0.72)',
 
   cameraBackground: '#000000',
   cameraForeground: '#FFFFFF',
   cameraScrim: 'rgba(0, 0, 0, 0.55)',
-  cropFrame: '#FFDC6E',
+  cropFrame: '#FFFFFF',
 
-  confetti: ['#FFDC6E', '#FF6FA8', '#4FD08A', '#5AA2FF', '#FF9A4D'],
-  badge: { gold: '#B88A12', silver: '#7A8698', bronze: '#A85F2C', ink: '#FFFFFF', locked: '#DDE3EB', lockedInk: '#8792A3', foil: '#FFF3B0' },
-  mascot: { ...MASCOT_BASE, glowSoft: 'rgba(255, 220, 110, 0.30)', shadow: 'rgba(20, 28, 40, 0.12)' },
+  confetti: ['#D97757', '#C9954C', '#788C5D', '#6A9BCC', '#E4B9A3'],
+  badge: { gold: '#B8862F', silver: '#7D8794', bronze: '#B87A45', ink: '#FFFFFF', locked: '#E4E1D8', lockedInk: '#8F8C84', foil: '#F6E3D6' },
+  mascot: { ...MASCOT_BASE, shadow: 'rgba(0, 0, 0, 0.10)' },
   shadow: {
-    card: '0px 1px 0px rgba(28, 36, 52, 0.04)',
-    raised: '0px 1px 0px rgba(28, 36, 52, 0.04), 0px 12px 24px -14px rgba(28, 36, 52, 0.16)',
-    floating: '0px 2px 4px rgba(28, 36, 52, 0.04), 0px 16px 32px -12px rgba(28, 36, 52, 0.18)',
-    accent: '0px 6px 14px -6px rgba(75, 85, 103, 0.30)',
-    note: '1px 2px 0px rgba(28, 36, 52, 0.03), 4px 14px 22px -10px rgba(28, 36, 52, 0.20)',
+    card: '0px 1px 2px rgba(48, 36, 24, 0.06), 0px 4px 14px rgba(48, 36, 24, 0.05)',
+    raised: '0px 2px 6px rgba(48, 36, 24, 0.07), 0px 14px 32px -10px rgba(48, 36, 24, 0.18)',
+    floating: '0px 10px 24px rgba(48, 36, 24, 0.10), 0px 30px 60px -20px rgba(48, 36, 24, 0.28)',
+    accent: '0px 8px 18px -8px rgba(181, 87, 58, 0.45)',
+    note: '0px 2px 6px rgba(48, 36, 24, 0.06), 0px 12px 24px -12px rgba(48, 36, 24, 0.16)',
     none: '0px 0px 0px rgba(0, 0, 0, 0)',
   },
-  rings: { review: '#E0457F', focus: '#2E9F57', solve: '#2F7FE0' },
-  exam: { TYT: { fg: '#7A4B00', bg: '#FFF0B8' }, AYT: { fg: '#3A2FA8', bg: '#E4E0FF' } },
+  rings: { review: '#B5573A', focus: '#6F8A4E', solve: '#4F79A8' },
+  exam: { TYT: { fg: '#A84F33', bg: '#F6E8E1' }, AYT: { fg: '#3F6D9C', bg: '#E5EDF6' } },
   avatar: AVATAR_BASE,
 
   subject: {
-    'Türkçe': '#C02C6B',
-    'Sosyal': '#A65512',
-    'Temel Matematik': '#2365C8',
-    'Fen': '#2C8240',
-    'Matematik': '#5A3FC8',
-    'Fizik': '#0B7D86',
-    'Kimya': '#9837AE',
-    'Biyoloji': '#5A820F',
+    'Türkçe': '#C4603D',
+    'Sosyal': '#A8783A',
+    'Temel Matematik': '#4A7AAE',
+    'Fen': '#788C5D',
+    'Matematik': '#5468B0',
+    'Fizik': '#2F8A87',
+    'Kimya': '#B0739B',
+    'Biyoloji': '#5E9442',
   },
   subjectSoft: {
-    'Türkçe': '#FFD8E8',
-    'Sosyal': '#FFE3C7',
-    'Temel Matematik': '#D8E7FF',
-    'Fen': '#D4F2DB',
-    'Matematik': '#E3DEFF',
-    'Fizik': '#CCF1EE',
-    'Kimya': '#F3DBF9',
-    'Biyoloji': '#E5F3C8',
+    'Türkçe': '#F6E3DA',
+    'Sosyal': '#F2E7D6',
+    'Temel Matematik': '#E2EAF3',
+    'Fen': '#E8EDE0',
+    'Matematik': '#E3E6F3',
+    'Fizik': '#DDEEEC',
+    'Kimya': '#F1E5EC',
+    'Biyoloji': '#E4EFDD',
   },
 
   chart: {
-    line: '#4B5567',
-    area: 'rgba(255, 220, 110, 0.32)',
-    bar: '#4B5567',
-    today: '#FFDC6E',
-    grid: '#E1E6EE',
-    axisText: '#6A7380',
-    crosshair: '#4B5567',
-    markerRing: '#FFFFFF',
+    line: '#C96442',
+    area: 'rgba(201, 100, 66, 0.10)',
+    bar: '#C96442',
+    today: '#D97757',
+    grid: '#E4E1D8',
+    axisText: '#6B6962',
+    crosshair: '#6B6962',
+    markerRing: '#FBFAF7',
   },
 };
 
 const dark: ColorTokens = {
-  background: '#1B2029',
-  surface: '#232934',
-  surfaceAlt: '#2B323D',
-  border: '#323A47',
-  text: '#E3E7EE',
-  textMuted: '#A4ADBA',
+  background: '#1A1917',
+  surface: '#252422',
+  surfaceAlt: '#302E2B',
+  border: '#3B3A36',
+  text: '#F3F0E9',
+  textMuted: '#ABA79C',
   textOnAccent: '#FFFFFF',
-  onPrimary: '#2A2F38',
+  onPrimary: '#FFFFFF',
   transparent: 'transparent',
 
-  primary: '#F2D373',
-  primaryText: '#F2D373',
-  primarySoft: '#2C333F',
-  accent: '#F2D373',
-  mark: '#CDD3DE',
-  markInk: '#232934',
-  optik: '#4F5A7A',
-  optikSoft: '#2D3445',
-  highlight: '#EBCB66',
-  highlightInk: '#232934',
+  primary: '#B5573A',
+  primaryText: '#E08B6D',
+  primarySoft: '#3B2A22',
+  accent: '#D97757',
+  mark: '#C2603F',
+  markInk: '#FFFFFF',
+  optik: '#4D4A44',
+  optikSoft: '#33312D',
+  highlight: '#5A3B2E',
+  highlightInk: '#F3F0E9',
   // Dark mode: a dim warm paper note instead of a bright yellow block (soft palette).
-  note: '#3A3526',
-  noteInk: '#F1E7C4',
-  noteEdge: '#4A4230',
-  bubble: '#3A3526',
-  hintBackground: '#2F2B1C',
+  note: '#33312D',
+  noteInk: '#F3F0E9',
+  noteEdge: '#3F3C37',
+  bubble: '#33312D',
+  hintBackground: '#322C24',
 
-  success: '#6CC892',
-  successSoft: '#1C3326',
-  danger: '#F08A7C',
-  dangerSoft: '#3B2220',
+  success: '#A3B886',
+  successSoft: '#2B3224',
+  danger: '#E48A7D',
+  dangerSoft: '#3D2622',
   // Orange in dark, so a warning never reads as the fosfor CTA.
-  warning: '#FFAA5E',
-  warningSoft: '#3A2A1A',
-  neutral: '#A9B1BE',
-  neutralSoft: '#2A303A',
-  successStrong: '#2E8552',
-  dangerStrong: '#C24A3F',
-  neutralStrong: '#5E6776',
-  info: '#82AEFF',
+  warning: '#DDB377',
+  warningSoft: '#3A3023',
+  neutral: '#B3B0A6',
+  neutralSoft: '#33322F',
+  successStrong: '#5E7A44',
+  dangerStrong: '#B04A3E',
+  neutralStrong: '#76736A',
+  info: '#8DB4DE',
 
-  xp: '#F2D373',
-  xpText: '#F2D373',
-  xpTrack: '#2B323D',
-  streak: '#F79A6C',
-  streakSoft: '#3A251B',
+  xp: '#D4A27F',
+  xpText: '#E3B98F',
+  xpTrack: '#3A332B',
+  streak: '#E08B6D',
+  streakSoft: '#3B2A22',
 
-  tabBar: '#262C37',
-  tabActive: '#CDD3DE',
-  tabInactive: '#8F99A8',
-  disabledBg: '#2A303A',
-  disabledFg: '#8A93A1',
-  focusVignette: 'rgba(5, 7, 12, 0.55)',
-  celebrationScrim: 'rgba(27, 32, 41, 0.84)',
+  tabBar: '#252422',
+  tabActive: '#E08B6D',
+  tabInactive: '#908D84',
+  disabledBg: '#33312E',
+  disabledFg: '#9D998F',
+  focusVignette: 'rgba(0, 0, 0, 0.45)',
+  celebrationScrim: 'rgba(31, 30, 29, 0.72)',
 
   cameraBackground: '#000000',
   cameraForeground: '#FFFFFF',
   cameraScrim: 'rgba(0, 0, 0, 0.55)',
-  cropFrame: '#F2D373',
+  cropFrame: '#FFFFFF',
 
-  confetti: ['#F2D373', '#FF7DB3', '#5FD07C', '#72A9FF', '#FF9A5C'],
-  badge: { gold: '#D4A52A', silver: '#9AA6B8', bronze: '#C27A45', ink: '#FFFFFF', locked: '#2F3642', lockedInk: '#7D8796', foil: '#FFF3B0' },
-  mascot: { ...MASCOT_BASE, glowSoft: 'rgba(242, 211, 115, 0.34)', shadow: 'rgba(0, 0, 0, 0.45)' },
+  confetti: ['#E08B6D', '#D4A27F', '#A3B886', '#8DB4DE', '#F0C6B3'],
+  badge: { gold: '#B8862F', silver: '#7D8794', bronze: '#B87A45', ink: '#FFFFFF', locked: '#3B3A36', lockedInk: '#85827A', foil: '#F0C6B3' },
+  mascot: { ...MASCOT_BASE, shadow: 'rgba(0, 0, 0, 0.45)' },
   shadow: {
-    card: 'inset 0px 1px 0px rgba(255, 255, 255, 0.04)',
-    raised: 'inset 0px 1px 0px rgba(255, 255, 255, 0.05), 0px 16px 36px -14px rgba(0, 0, 0, 0.40)',
-    floating: 'inset 0px 1px 0px rgba(255, 255, 255, 0.06), 0px 24px 48px -16px rgba(0, 0, 0, 0.46)',
-    // A subtle lamp glow around the fosfor CTA.
-    accent: '0px 0px 0px 1px rgba(242, 211, 115, 0.22), 0px 8px 24px -8px rgba(242, 211, 115, 0.22)',
-    note: '0px 18px 30px -14px rgba(0, 0, 0, 0.42)',
+    card: 'inset 0px 1px 0px rgba(255, 248, 240, 0.04)',
+    raised: 'inset 0px 1px 0px rgba(255, 248, 240, 0.06), 0px 16px 40px -12px rgba(0, 0, 0, 0.55)',
+    floating: 'inset 0px 1px 0px rgba(255, 248, 240, 0.07), 0px 24px 60px -16px rgba(0, 0, 0, 0.70)',
+    accent: '0px 0px 0px rgba(0, 0, 0, 0)',
+    note: '0px 16px 30px -14px rgba(0, 0, 0, 0.50)',
     none: '0px 0px 0px rgba(0, 0, 0, 0)',
   },
-  rings: { review: '#FF6FA0', focus: '#5CCB86', solve: '#6FA8FF' },
-  exam: { TYT: { fg: '#F2D373', bg: '#3A3218' }, AYT: { fg: '#B4A8FF', bg: '#2B2748' } },
-  avatar: { ...AVATAR_BASE, olive: '#5E8424', sand: '#8C7552', slate: '#66758D' },
+  rings: { review: '#E08B6D', focus: '#A3B886', solve: '#8DB4DE' },
+  exam: { TYT: { fg: '#E08B6D', bg: '#3B2A22' }, AYT: { fg: '#8DB4DE', bg: '#22303D' } },
+  avatar: AVATAR_BASE,
 
   subject: {
-    'Türkçe': '#FF7DB3',
-    'Sosyal': '#F2A562',
-    'Temel Matematik': '#72A9FF',
-    'Fen': '#5FD07C',
-    'Matematik': '#A898FF',
-    'Fizik': '#4CD0C9',
-    'Kimya': '#DB8FEC',
-    'Biyoloji': '#AAD45C',
+    'Türkçe': '#E08B6D',
+    'Sosyal': '#D4A27F',
+    'Temel Matematik': '#8DB4DE',
+    'Fen': '#A3B886',
+    'Matematik': '#9AA8E0',
+    'Fizik': '#7CC4C0',
+    'Kimya': '#C99BB8',
+    'Biyoloji': '#9CC685',
   },
   subjectSoft: {
-    'Türkçe': '#44233A',
-    'Sosyal': '#42301F',
-    'Temel Matematik': '#1F2F4D',
-    'Fen': '#1D3A28',
-    'Matematik': '#2D2852',
-    'Fizik': '#153B3A',
-    'Kimya': '#3B2445',
-    'Biyoloji': '#2F3A1B',
+    'Türkçe': '#3B2A22',
+    'Sosyal': '#3A3023',
+    'Temel Matematik': '#22303D',
+    'Fen': '#2B3224',
+    'Matematik': '#272C3D',
+    'Fizik': '#213634',
+    'Kimya': '#352833',
+    'Biyoloji': '#283325',
   },
 
   chart: {
-    line: '#F2D373',
-    area: 'rgba(242, 211, 115, 0.12)',
-    bar: '#CDD3DE',
-    today: '#F2D373',
-    grid: '#2C333F',
-    axisText: '#8E98A7',
-    crosshair: '#E3E7EE',
-    markerRing: '#232934',
+    line: '#D4714F',
+    area: 'rgba(212, 113, 79, 0.12)',
+    bar: '#D4714F',
+    today: '#E08B6D',
+    grid: '#3B3A36',
+    axisText: '#A8A59B',
+    crosshair: '#A8A59B',
+    markerRing: '#2A2927',
   },
 };
 
 /**
- * Font families, one per weight (iOS custom fonts don't synthesize weights). Vendored OFL
- * TTFs in assets/fonts, loaded in the root layout (FONT_FILES) and inlined by the web
- * preview (scripts/build-web-preview.mjs): the same family names in all three places.
+ * Font families, one per weight (iOS custom fonts don't synthesize weights). Loaded in the
+ * root layout from @expo-google-fonts and inlined by the web preview. Poppins and Lora are
+ * the open fonts of Anthropic's brand guidelines: Poppins for the interface, Lora for titles,
+ * big numbers and Lumi's own words.
  */
 const sans = {
-  regular: 'BeVietnamPro_400Regular',
-  medium: 'BeVietnamPro_500Medium',
-  semibold: 'BeVietnamPro_600SemiBold',
-  bold: 'BeVietnamPro_700Bold',
+  regular: 'Poppins_400Regular',
+  medium: 'Poppins_500Medium',
+  semibold: 'Poppins_600SemiBold',
+  bold: 'Poppins_700Bold',
 } as const;
 
-// Condensed figures read light, so each key loads one weight heavier than its name.
-const display = {
-  regular: 'BarlowCondensed_500Medium',
-  medium: 'BarlowCondensed_600SemiBold',
-  semibold: 'BarlowCondensed_700Bold',
-  bold: 'BarlowCondensed_800ExtraBold',
+const serif = {
+  regular: 'Lora_400Regular',
+  medium: 'Lora_500Medium',
+  semibold: 'Lora_600SemiBold',
+  bold: 'Lora_700Bold',
 } as const;
 
 export const fonts = {
-  /** Be Vietnam Pro: everything that reads. It has no tabular figures. */
+  /** Poppins: the interface. */
   sans,
-  /** Barlow Condensed: every number that counts, moves or compares (always tabular-nums). */
-  display,
-  /** @deprecated alias of `display`; removed in cleanup. */
-  serif: display,
+  /** Lora: titles and big numbers (the `display` text variants). */
+  display: serif,
+  /** Lora: Lumi's own words. Same faces as `display`. */
+  serif,
 } as const;
 
 /** `serif` is a deprecated alias of `display`. */
@@ -520,11 +516,11 @@ export const fontSize = {
   md: 16,
   lg: 17,
   xl: 20,
-  xxl: 32,
-  display: 44,
-  hero: 64,
+  xxl: 30,
+  display: 40,
+  hero: 56,
   /** The timer clock. */
-  numeral: 96,
+  numeral: 64,
 } as const;
 
 export const fontSizeTablet = {
@@ -534,10 +530,10 @@ export const fontSizeTablet = {
   md: 17,
   lg: 19,
   xl: 22,
-  xxl: 44,
-  display: 52,
-  hero: 88,
-  numeral: 132,
+  xxl: 40,
+  display: 48,
+  hero: 76,
+  numeral: 96,
 } as const;
 
 /** One font-size table (`fontSize` or `fontSizeTablet`). */
@@ -546,7 +542,7 @@ export type FontScale = { readonly [K in keyof typeof fontSize]: number };
 export type TypeVariant = 'hero' | 'numeral' | 'title' | 'stat' | 'numeric' | 'heading' | 'body' | 'note' | 'label' | 'caption' | 'micro';
 
 export interface TypeStyle {
-  /** `display` = Barlow Condensed (numbers and titles), `sans` = Be Vietnam Pro. */
+  /** `display` = Lora (titles and big numbers), `sans` = Poppins. */
   kind: 'sans' | 'display';
   weight: FontWeightName;
   /** Phone size, and the size once the window is ≥ 560 pt wide (never the content width). */
@@ -557,28 +553,28 @@ export interface TypeStyle {
   /** Letter spacing on phone and tablet. */
   tracking: number;
   trackingTablet: number;
-  /** Tabular figures (only the display family has them). */
+  /** Tabular figures. */
   tabular: boolean;
   /** Dynamic Type cap (maxFontSizeMultiplier). */
   maxScale: number;
 }
 
 /**
- * The text styles AppText reads. Rule: any number that animates, aligns in a column or
- * compares uses a display variant (Be Vietnam Pro has no tabular figures). Units after a
- * number are a separate label/caption, never inside the numeral string.
+ * The text styles AppText reads. Big numbers and titles are Lora (serif), everything else
+ * Poppins. Units after a number are a separate label/caption, never inside the numeral
+ * string. Lora needs real line height: never below 1.1 or ascenders clip (İ, Ş).
  */
 export const typography: Record<TypeVariant, TypeStyle> = {
   /** YKS countdown, deneme net hero, review count. */
-  hero: { kind: 'display', weight: 'bold', size: fontSize.hero, sizeTablet: fontSizeTablet.hero, lineRatio: 1.0, tracking: -0.5, trackingTablet: -1.0, tabular: true, maxScale: 1.2 },
+  hero: { kind: 'display', weight: 'semibold', size: fontSize.hero, sizeTablet: fontSizeTablet.hero, lineRatio: 1.15, tracking: -0.5, trackingTablet: -1.0, tabular: true, maxScale: 1.2 },
   /** The timer clock. */
-  numeral: { kind: 'display', weight: 'regular', size: fontSize.numeral, sizeTablet: fontSizeTablet.numeral, lineRatio: 1.0, tracking: -1.0, trackingTablet: -1.0, tabular: true, maxScale: 1.2 },
+  numeral: { kind: 'display', weight: 'regular', size: fontSize.numeral, sizeTablet: fontSizeTablet.numeral, lineRatio: 1.15, tracking: -1.0, trackingTablet: -1.0, tabular: true, maxScale: 1.2 },
   /** Screen titles, on tab and stack screens alike. */
-  title: { kind: 'display', weight: 'semibold', size: fontSize.xxl, sizeTablet: fontSizeTablet.xxl, lineRatio: 1.1, tracking: -0.2, trackingTablet: -0.2, tabular: false, maxScale: 1.2 },
+  title: { kind: 'display', weight: 'semibold', size: fontSize.xxl, sizeTablet: fontSizeTablet.xxl, lineRatio: 1.2, tracking: -0.3, trackingTablet: -0.4, tabular: false, maxScale: 1.2 },
   /** Card numbers: 6, 82,25, 1275. */
-  stat: { kind: 'display', weight: 'medium', size: 30, sizeTablet: 40, lineRatio: 1.05, tracking: 0, trackingTablet: 0, tabular: true, maxScale: 1.3 },
+  stat: { kind: 'display', weight: 'semibold', size: 28, sizeTablet: 34, lineRatio: 1.18, tracking: 0, trackingTablet: 0, tabular: true, maxScale: 1.3 },
   /** Inline numbers: 0/5, 12/50 dk, D Y B, XP, ranks, the clock in the timer ear. */
-  numeric: { kind: 'display', weight: 'medium', size: 18, sizeTablet: 20, lineRatio: 1.2, tracking: 0, trackingTablet: 0, tabular: true, maxScale: 1.6 },
+  numeric: { kind: 'sans', weight: 'semibold', size: 16, sizeTablet: 17, lineRatio: 1.35, tracking: 0, trackingTablet: 0, tabular: true, maxScale: 1.6 },
   /** Section headings on the paper, sheet titles. */
   heading: { kind: 'sans', weight: 'semibold', size: fontSize.lg, sizeTablet: fontSizeTablet.lg, lineRatio: 1.32, tracking: -0.2, trackingTablet: -0.2, tabular: false, maxScale: 1.6 },
   /** The default, in `text`. */
@@ -759,7 +755,8 @@ export const opacity = {
   /** Loading placeholders breathe between these. */
   skeleton: { low: 0.45, high: 1 },
   /** The graph-paper band's lines, per scheme. */
-  kareli: { light: 0.18, dark: 0.14 },
+  /** Graph-paper band; 0 = off (the warm Anthropic paper is plain). */
+  kareli: { light: 0, dark: 0 },
   /** FocusPull ghosts and other echoes. */
   ghost: 0.35,
   /** Analysis content while it refetches. */

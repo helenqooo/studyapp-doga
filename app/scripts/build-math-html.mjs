@@ -1,5 +1,5 @@
 // Builds src/components/math/mathHtml.generated.ts: one self-contained HTML page with
-// KaTeX (JS, CSS, woff2 fonts as data URIs), marked and Be Vietnam Pro inlined, so math
+// KaTeX (JS, CSS, woff2 fonts as data URIs), marked, Lora and Poppins inlined, so math
 // renders offline without any CDN. Re-run after upgrading katex or marked, or after editing
 // this page's CSS or scripts/math-runtime.js:  npm run build:math
 import fs from 'node:fs';
@@ -27,22 +27,27 @@ if (/url\(fonts\//.test(katexCss)) {
   throw new Error('Some KaTeX font URLs were not inlined; the CSS format may have changed.');
 }
 
-// Be Vietnam Pro (the app's reading face) as 'LumiSans': solutions, hints, chat replies and
-// the choice letters. Read from assets/fonts, the same files the app loads (spec 2.3).
-const fontDir = path.join(appRoot, 'assets', 'fonts');
-const sansFace = (file, weight) =>
-  `@font-face { font-family: 'LumiSans'; font-style: normal; font-weight: ${weight}; font-display: block; ` +
-  `src: url(data:font/ttf;base64,${fs.readFileSync(path.join(fontDir, file)).toString('base64')}) format("truetype"); }`;
-const fontCss = [sansFace('BeVietnamPro-Regular.ttf', '400 500'), sansFace('BeVietnamPro-SemiBold.ttf', '600 800')].join('\n');
+// Lora: the serif the app uses for Lumi's own words (solutions, hints, chat replies), and
+// Poppins (the interface face) for the choice letters, as 'LumiSans'.
+const loraDir = pkgDir('@expo-google-fonts/lora');
+const poppinsDir = pkgDir('@expo-google-fonts/poppins');
+const face = (family, dir, file, weight) =>
+  `@font-face { font-family: '${family}'; font-style: normal; font-weight: ${weight}; font-display: block; ` +
+  `src: url(data:font/ttf;base64,${fs.readFileSync(path.join(dir, file)).toString('base64')}) format("truetype"); }`;
+const fontCss = [
+  face('Lora', loraDir, '400Regular/Lora_400Regular.ttf', '400 500'),
+  face('Lora', loraDir, '600SemiBold/Lora_600SemiBold.ttf', '600 800'),
+  face('LumiSans', poppinsDir, '600SemiBold/Poppins_600SemiBold.ttf', '400 800'),
+].join('\n');
 
 // Defaults only; the app passes its theme colors, radii and durations in on every render
 // (src/components/math/payload.ts). Every color change cross-fades over --fade-ms; verdict
 // strokes are drawn by math-runtime.js with the Web Animations API.
 const pageCss = `
 :root {
-  --text: #2A2F38; --muted: #5E6878; --accent: #3A4352; --answer-bg: #E9EDF5; --border: #E0E5EC; --code-bg: #E9EDF3; --font-size: 16px;
-  --surface: #FFFFFF; --mark: #4B5567; --mark-ink: #FFFFFF; --optik: #B9C2E4; --fosfor: #FFDC6E; --highlight: #FFEC94; --sweep-alpha: 0.6;
-  --success: #2B804C; --success-strong: #2B804C; --success-soft: #E4F4E8; --on-status: #FFFFFF; --danger: #C9473A; --danger-soft: #FCE8E4;
+  --text: #141413; --muted: #6B6962; --accent: #A84F33; --answer-bg: #F6E8E1; --border: #E4E1D8; --code-bg: #EEEBE3; --font-size: 16px;
+  --surface: #FFFEFB; --mark: #B5573A; --mark-ink: #FFFFFF; --optik: #D3CCBF; --fosfor: #D97757; --highlight: #F5D9CB; --sweep-alpha: 0.6;
+  --success: #566F3D; --success-strong: #566F3D; --success-soft: #E9EEDF; --on-status: #FFFFFF; --danger: #A8443A; --danger-soft: #F9EAE6;
   --r-choice: 12px; --r-sm: 8px; --r-xs: 4px; --bubble-w: 32px; --bubble-h: 22px; --bubble-line: 1.6px;
   --fade-ms: 220ms; --verdict-ms: 260ms; --pen-ms: 320ms; --sweep-ms: 420ms; --reveal-ms: 380ms;
   --ease-standard: cubic-bezier(0.2, 0, 0, 1); --ease-breath: cubic-bezier(0.37, 0, 0.63, 1);
@@ -50,7 +55,7 @@ const pageCss = `
 html, body { margin: 0; padding: 0; background: transparent; }
 body {
   color: var(--text);
-  font-family: 'LumiSans', system-ui, -apple-system, sans-serif;
+  font-family: 'Lora', Georgia, serif;
   font-size: var(--font-size);
   line-height: 1.6;
   -webkit-text-size-adjust: 100%;

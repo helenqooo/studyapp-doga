@@ -10,8 +10,8 @@ import { useHomeDay } from './homeDay';
 import { Highlight } from '../Highlight';
 import { useCompactHeader } from '../Screen';
 
-// TOKEN-PENDING: typography.figureDrop = 0.02 (how far Barlow figures sit above their line box bottom, as a share of the size; aligns labels beside a big number)
-export const FIGURE_DROP = 0.02;
+// TOKEN-PENDING: typography.figureDrop = 0.12 (how far Lora figures sit above their line box bottom, as a share of the size; aligns labels beside a big number)
+export const FIGURE_DROP = 0.12;
 
 /** Days left to YKS (0 once it has passed). */
 export function daysToYks(): number {
