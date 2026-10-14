@@ -21,7 +21,7 @@ import { exit } from '../components/motion/presets';
 import { QuestionImage } from '../components/QuestionImage';
 import { Merdiven, rungIndex } from '../components/review/Merdiven';
 import { SessionPips, type PipResult } from '../components/review/SessionPips';
-import { RevealOnMount, Screen, SplitScreen } from '../components/Screen';
+import { PaneTitle, RevealOnMount, Screen, SplitScreen } from '../components/Screen';
 import { TextToggle } from '../components/TextToggle';
 import { ErrorState } from '../components/states/ErrorState';
 import { BoneText, Skeleton, SkeletonQuestion } from '../components/states/Skeleton';
@@ -146,24 +146,6 @@ function SheetMath({ markdown }: { markdown: string }) {
       >
         <MathView markdown={markdown} fontSize={theme.fontSize.lg} />
       </View>
-    </View>
-  );
-}
-
-/**
- * The title block in the split layout, where Screen doesn't draw it (as on the question
- * screen): the topic in Lora and its unit under it. Reports its height so the answering
- * side's first sheet starts level with the question sheet.
- */
-function PaneTitle({ title, subtitle, onHeight }: { title: string; subtitle?: string; onHeight: (h: number) => void }) {
-  const theme = useTheme();
-  const sl = theme.layout.screen;
-  return (
-    <View onLayout={(e) => onHeight(Math.round(e.nativeEvent.layout.height))} style={{ gap: sl.titleGap.tablet, marginBottom: sl.afterTitle.tablet }}>
-      <AppText variant="title" accessibilityRole="header">
-        {title}
-      </AppText>
-      {subtitle ? <AppText color="textMuted">{subtitle}</AppText> : null}
     </View>
   );
 }
@@ -509,12 +491,11 @@ export default function ReviewSessionScreen() {
   // question's title block heads its pane and the progress sits in a band as tall beside it,
   // so both sheets start on one line. The photo is what she solves from, so it gets the wider
   // pane, as on the question screen (the share holds after the verdict, so nothing reflows
-  // under her). The large title replaces the native one there, as on the question screen.
+  // under her). PaneTitle's native title fades in once the large one scrolls away.
   if (split) {
     const sl = theme.layout.screen;
     return (
       <>
-        <Stack.Screen options={{ headerTitle: () => null }} />
         <SplitScreen
           key={q.id}
           leftFlex={theme.layout.splitQuestion}

@@ -18,7 +18,7 @@ import { HintStack, SolutionSheet } from '../../../components/question/HintStack
 import { ResultTag } from '../../../components/question/ResultTag';
 import { WorkDesk } from '../../../components/question/WorkDesk';
 import { QuestionImage } from '../../../components/QuestionImage';
-import { RevealOnMount, Screen, SplitScreen } from '../../../components/Screen';
+import { PaneTitle, RevealOnMount, Screen, SplitScreen } from '../../../components/Screen';
 import { SectionHeader } from '../../../components/SectionHeader';
 import { ErrorState } from '../../../components/states/ErrorState';
 import { Skeleton, SkeletonQuestion } from '../../../components/states/Skeleton';
@@ -99,24 +99,6 @@ function AttemptHistory({ q }: { q: Question }) {
       <ListRow title={`${reviews.length} tekrar`} detail={span} trailing={<ResultTag result={result} label={all} />} accessibilityLabel={`${reviews.length} tekrar, ${span}, ${all}`} />
       {first.map(row)}
     </Card>
-  );
-}
-
-/**
- * The title block in the split layout, where Screen doesn't draw it: the topic in Lora and
- * its unit under it. Reports its height so the desk's first sheet starts level with the
- * question sheet.
- */
-function PaneTitle({ title, subtitle, onHeight }: { title: string; subtitle?: string; onHeight: (h: number) => void }) {
-  const theme = useTheme();
-  const sl = theme.layout.screen;
-  return (
-    <View onLayout={(e) => onHeight(Math.round(e.nativeEvent.layout.height))} style={{ gap: sl.titleGap.tablet, marginBottom: sl.afterTitle.tablet }}>
-      <AppText variant="title" accessibilityRole="header">
-        {title}
-      </AppText>
-      {subtitle ? <AppText color="textMuted">{subtitle}</AppText> : null}
-    </View>
   );
 }
 
@@ -236,8 +218,8 @@ export default function QuestionScreen() {
   // the pane draws the title instead.
   const heading = topic ? (topic.subtopic ?? topic.topic) : q.subject;
   const subheading = topic?.subtopic ? topic.topic : undefined;
-  // Only the split sets headerTitle: a `headerTitle` key here would override Screen's own.
-  const title = <Stack.Screen options={split ? { title: q.subject, headerTitle: () => null } : { title: q.subject }} />;
+  // No headerTitle key here: Screen (one column) and PaneTitle (the split) set their own.
+  const title = <Stack.Screen options={{ title: q.subject }} />;
   const sl = theme.layout.screen;
 
   // ---- Soru kâğıdı -----------------------------------------------------------------------

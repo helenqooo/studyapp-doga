@@ -534,6 +534,7 @@ function Pane({ children, flex, dock }: { children: ReactNode; flex: number; doc
   const scrollRef = useRef<ScrollView>(null);
   const contentRef = useRef<View>(null);
   const offset = useRef(0);
+  const scrollY = useSharedValue(0);
   const scrollTo = useCallback((y: number, animated: boolean) => scrollRef.current?.scrollTo({ y, animated }), []);
   const { revealer, onViewport, onScrollBeginDrag } = useRevealer(scrollTo, contentRef, theme.spacing.lg, dockHeight, () => offset.current);
   return (
@@ -547,6 +548,7 @@ function Pane({ children, flex, dock }: { children: ReactNode; flex: number; doc
         keyboardDismissMode="on-drag"
         onScroll={(e: NativeSyntheticEvent<NativeScrollEvent>) => {
           offset.current = e.nativeEvent.contentOffset.y;
+          scrollY.value = offset.current;
         }}
         onScrollBeginDrag={onScrollBeginDrag}
         scrollEventThrottle={32}
@@ -555,19 +557,44 @@ function Pane({ children, flex, dock }: { children: ReactNode; flex: number; doc
           onViewport(e.nativeEvent.layout.height);
         }}
       >
-        <RevealContext.Provider value={revealer}>
-          <ContentSizeContext.Provider value={{ width, size: contentSizeClass(theme, width) }}>
-            <View ref={contentRef} style={{ gap: win.tablet ? sl.gap.tablet : sl.gap.compact }}>
-              {children}
-            </View>
-          </ContentSizeContext.Provider>
-        </RevealContext.Provider>
+        <ScreenScrollContext.Provider value={scrollY}>
+          <RevealContext.Provider value={revealer}>
+            <ContentSizeContext.Provider value={{ width, size: contentSizeClass(theme, width) }}>
+              <View ref={contentRef} style={{ gap: win.tablet ? sl.gap.tablet : sl.gap.compact }}>
+                {children}
+              </View>
+            </ContentSizeContext.Provider>
+          </RevealContext.Provider>
+        </ScreenScrollContext.Provider>
       </ScrollView>
       {dock ? (
         <DockSlot maxWidth={theme.layout.readableWidth} onHeight={setDockHeight}>
           {dock}
         </DockSlot>
       ) : null}
+    </View>
+  );
+}
+
+/**
+ * The large title of a SplitScreen pane (the split has no Screen to draw one): the same block
+ * as Screen's, and the native header title fades in once it scrolls away. `onHeight` reports
+ * its height, e.g. to line the other pane up with it.
+ */
+export function PaneTitle({ title, subtitle, onHeight }: { title: string; subtitle?: string; onHeight?: (h: number) => void }) {
+  const theme = useTheme();
+  const sl = theme.layout.screen;
+  const navigation = useNavigation();
+  const scrollY = useScreenScroll();
+  useLayoutEffect(() => {
+    navigation.setOptions({ headerTitle: () => <FadingHeaderTitle title={title} scrollY={scrollY} /> });
+  }, [navigation, title, scrollY]);
+  return (
+    <View onLayout={onHeight ? (e) => onHeight(Math.round(e.nativeEvent.layout.height)) : undefined} style={{ gap: sl.titleGap.tablet, marginBottom: sl.afterTitle.tablet }}>
+      <AppText variant="title" accessibilityRole="header">
+        {title}
+      </AppText>
+      {subtitle ? <AppText color="textMuted">{subtitle}</AppText> : null}
     </View>
   );
 }
