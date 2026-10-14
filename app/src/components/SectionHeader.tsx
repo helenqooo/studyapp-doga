@@ -1,4 +1,6 @@
+import type { ReactNode } from 'react';
 import { View, type StyleProp, type ViewStyle } from 'react-native';
+import { useWindowLayout } from '../lib/layout';
 import { useTheme } from '../theme';
 import { AppText } from './AppText';
 import { Button } from './Button';
@@ -19,13 +21,14 @@ interface Props {
 /** A heading that sits on the paper above a group of sheets (replaces muted card titles). */
 export function SectionHeader({ title, count, action, swipe, style }: Props) {
   const theme = useTheme();
+  const { touch } = useWindowLayout();
   const heading = (
     <AppText variant="heading" numberOfLines={1} accessibilityRole="header">
       {title}
     </AppText>
   );
   return (
-    <View style={[{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm, minHeight: theme.layout.system.minTouch }, style]}>
+    <View style={[{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm, minHeight: touch }, style]}>
       <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: theme.spacing.sm, flexShrink: 1, flexGrow: 1 }}>
         {swipe ? (
           // Highlight's own wrap aligns to flex-start; baseline keeps the count on the title's line.
@@ -44,6 +47,35 @@ export function SectionHeader({ title, count, action, swipe, style }: Props) {
       {action ? (
         <Button variant="ghost" size="sm" label={action.label} icon={action.icon} onPress={action.onPress} style={{ marginRight: -theme.spacing.md }} />
       ) : null}
+    </View>
+  );
+}
+
+interface SectionProps extends Props {
+  /** One muted line under the heading (what the section is, or a state). */
+  caption?: string;
+  children: ReactNode;
+}
+
+/**
+ * A section set straight on the paper: a SectionHeader, an optional caption and the content,
+ * with no box around it. For secondary content that doesn't need a sheet (stats, a short
+ * list, a chart with its own frame); the screen's one primary block keeps the sheet.
+ */
+export function Section({ title, count, action, swipe, caption, children, style }: SectionProps) {
+  const theme = useTheme();
+  const { tablet } = useWindowLayout();
+  return (
+    <View style={[{ gap: tablet ? theme.spacing.md : theme.spacing.sm }, style]}>
+      <View style={{ gap: theme.spacing.xxs }}>
+        <SectionHeader title={title} count={count} action={action} swipe={swipe} />
+        {caption ? (
+          <AppText variant="caption" color="textMuted" style={{ marginTop: -theme.spacing.xs }}>
+            {caption}
+          </AppText>
+        ) : null}
+      </View>
+      {children}
     </View>
   );
 }

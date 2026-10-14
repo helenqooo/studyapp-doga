@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { Pressable, View, type StyleProp, type ViewStyle } from 'react-native';
 import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSpring } from 'react-native-reanimated';
+import { useWindowLayout } from '../lib/layout';
 import { elevated, useTheme } from '../theme';
 import { AppText } from './AppText';
 import { Icon } from './Icon';
@@ -28,7 +29,8 @@ export function Note({ title, children, action, onClose, tilt = true, style }: P
   const theme = useTheme();
   const reduceMotion = useReducedMotion();
   const c = theme.colors;
-  const { minTouch, iconSize } = theme.layout.system;
+  const { touch: minTouch } = useWindowLayout();
+  const { iconSize } = theme.layout.system;
   const rest = tilt ? theme.layout.note.tiltDeg : 0;
   const angle = useSharedValue(rest);
   const straighten = (on: boolean) => {

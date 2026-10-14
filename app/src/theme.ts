@@ -510,7 +510,9 @@ export const radius = {
 /**
  * Raw font sizes for text drawn outside AppText (SvgText, TextInput, tab labels), phone
  * sizes. `fontSizeTablet` has the same keys for windows ≥ 560 pt; pick the table with
- * `useFontScale()` (lib/layout.tsx).
+ * `useFontScale()` (lib/layout.tsx). The tablet table is read at arm's length on a 10–13"
+ * iPad: nothing under 13, captions 15, labels 16, body 17, headings 20; the Lora display
+ * sizes are unchanged.
  */
 export const fontSize = {
   xxs: 11,
@@ -527,12 +529,12 @@ export const fontSize = {
 } as const;
 
 export const fontSizeTablet = {
-  xxs: 12,
-  xs: 14,
-  sm: 15,
+  xxs: 13,
+  xs: 15,
+  sm: 16,
   md: 17,
-  lg: 19,
-  xl: 22,
+  lg: 20,
+  xl: 23,
   xxl: 40,
   display: 48,
   hero: 76,
@@ -577,13 +579,13 @@ export const typography: Record<TypeVariant, TypeStyle> = {
   /** Card numbers: 6, 82,25, 1275. */
   stat: { kind: 'display', weight: 'semibold', size: 28, sizeTablet: 34, lineRatio: 1.18, tracking: 0, trackingTablet: 0, tabular: true, maxScale: 1.3 },
   /** Inline numbers: 0/5, 12/50 dk, D Y B, XP, ranks, the clock in the timer ear. */
-  numeric: { kind: 'sans', weight: 'semibold', size: 16, sizeTablet: 17, lineRatio: 1.35, tracking: 0, trackingTablet: 0, tabular: true, maxScale: 1.6 },
+  numeric: { kind: 'sans', weight: 'semibold', size: 16, sizeTablet: 18, lineRatio: 1.35, tracking: 0, trackingTablet: 0, tabular: true, maxScale: 1.6 },
   /** Section headings on the paper, sheet titles. */
   heading: { kind: 'sans', weight: 'semibold', size: fontSize.lg, sizeTablet: fontSizeTablet.lg, lineRatio: 1.32, tracking: -0.2, trackingTablet: -0.2, tabular: false, maxScale: 1.6 },
   /** The default, in `text`. */
   body: { kind: 'sans', weight: 'regular', size: fontSize.md, sizeTablet: fontSizeTablet.md, lineRatio: 1.5, tracking: 0, trackingTablet: 0, tabular: false, maxScale: 1.6 },
   /** Lumi's notes and hints. */
-  note: { kind: 'sans', weight: 'medium', size: 15, sizeTablet: 16, lineRatio: 1.45, tracking: 0, trackingTablet: 0, tabular: false, maxScale: 1.6 },
+  note: { kind: 'sans', weight: 'medium', size: 15, sizeTablet: 17, lineRatio: 1.45, tracking: 0, trackingTablet: 0, tabular: false, maxScale: 1.6 },
   /** Controls, row titles. */
   label: { kind: 'sans', weight: 'medium', size: fontSize.sm, sizeTablet: fontSizeTablet.sm, lineRatio: 1.36, tracking: 0, trackingTablet: 0, tabular: false, maxScale: 1.6 },
   /** Secondary lines (in `textMuted`). */
@@ -779,6 +781,8 @@ export const breakpoints = {
 } as const;
 
 const minTouch = 44;
+/** Touch height per window: the HIG 44 on a phone, 48 on a tablet (read at arm's length). */
+const touch = { compact: 44, tablet: 48 } as const;
 const borderWidth = 1;
 const selectedBorder = 1.5;
 const iconSize = { sm: 18, md: 22, lg: 28, xl: 40 } as const;
@@ -786,7 +790,7 @@ const iconStroke = 2.0;
 
 export const layout = {
   /** Interaction basics: the minimum touch target (Apple HIG), hairlines, icon sizes. */
-  system: { minTouch, borderWidth, selectedBorder, hitSlop: 8, iconSize, iconStroke },
+  system: { minTouch, touch, borderWidth, selectedBorder, hitSlop: 8, iconSize, iconStroke },
   /** Window grid: 4 / 8 / 12 columns by window width (< 560, < 1000, ≥ 1000). */
   grid: {
     compact: { columns: 4, gutter: 12, margin: 16 },
@@ -798,21 +802,43 @@ export const layout = {
   /** Comfortable reading width for single-column content (solutions, forms, chat). */
   readableWidth: 720,
   /** Inside a sheet. */
-  sheetPadding: { compact: 16, tablet: 20 },
+  sheetPadding: { compact: 16, tablet: 24 },
+  /**
+   * Screen anatomy: the gap between a screen's blocks, the gap from the title block to the
+   * content, and the space kept under the last block on stack screens so Lumi's nest (bottom
+   * right) never covers it.
+   */
+  screen: { gap: { compact: 16, tablet: 24 }, titleGap: { compact: 4, tablet: 6 }, afterTitle: { compact: 4, tablet: 8 }, nestClear: 16 },
+  /**
+   * A group of rows in one sheet (Card `group`, ListRow): a row's least height, its vertical
+   * padding, the hairline divider's left inset past a leading element, and a leading slot.
+   */
+  group: { rowMinHeight: { compact: 52, tablet: 60 }, rowPadY: { compact: 10, tablet: 12 }, leading: { compact: 32, tablet: 36 } },
+  /** Button label sizes (sm and md share one) per window. */
+  button: { label: { compact: { md: 16, lg: 17 }, tablet: { md: 17, lg: 18 } } },
+  /** The segmented control: on a tablet it hugs its labels up to this width; each segment's least width. */
+  segmented: { maxWidth: 440, minSegment: { compact: 72, tablet: 104 } },
+  /** Karne row (StatTile): a cell's side padding and the least width a cell keeps before the row folds. */
+  karne: { cellPadX: { compact: 12, tablet: 14 }, cellPadY: { compact: 8, tablet: 12 }, minCell: { compact: 120, tablet: 128 } },
   /** The floating optik strip (navigation), its badge, the timer ear and the paper fade above it. */
   tabBar: {
-    height: { compact: 66, tablet: 72 },
+    height: { compact: 66, tablet: 80 },
     compactHeight: 54,
-    maxWidth: 520,
+    maxWidth: 560,
+    /** Narrowest centered tablet strip; a narrower window (split view) sets it left with Lumi's nest beside it. */
+    centeredMinWidth: 440,
     sideInset: { compact: 12, tablet: 32 },
     bottomGap: 12,
     insetTrim: 8,
-    bubble: { compact: { w: 52, h: 32 }, tablet: { w: 58, h: 36 } },
+    bubble: { compact: { w: 52, h: 32 }, tablet: { w: 64, h: 40 } },
+    /** The tab icon inside the bubble. */
+    icon: { compact: 22, tablet: 24 },
+    /** Least tab width; the strip clamps it to its own width / tab count so all five always fit. */
     itemMinWidth: { compact: 48, tablet: 72 },
-    labelGap: 4,
+    labelGap: { compact: 4, tablet: 6 },
     padY: 8,
     nestGap: { compact: 8, tablet: 12 },
-    badge: { compact: 20, tablet: 22 },
+    badge: { compact: 20, tablet: 24 },
     badgeRing: 2,
     ear: { height: 44, minWidth: 92, ring: 28, gap: 6 },
     fadeAbove: 56,

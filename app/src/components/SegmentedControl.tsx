@@ -1,43 +1,74 @@
 import { useEffect, useState } from 'react';
-import { View, type LayoutChangeEvent } from 'react-native';
-import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSpring } from 'react-native-reanimated';
+import { View, type LayoutChangeEvent, type StyleProp, type ViewStyle } from 'react-native';
+import Animated, { ReduceMotion, useAnimatedStyle, useReducedMotion, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import { haptics } from '../lib/haptics';
-import { useTheme } from '../theme';
+import { useWindowLayout } from '../lib/layout';
+import { elevated, useTheme } from '../theme';
 import { FadeText } from './motion/FadeText';
 import { PressableScale } from './motion/PressableScale';
 import { spring } from './motion/presets';
+
+// TOKEN-PENDING: motion.duration.rmFade = 120 (the Reduce Motion cross-fade, spec 0.7 / 5.6)
+const RM_FADE_MS = 120;
 
 interface Props<T extends string> {
   options: { value: T; label: string }[];
   value: T;
   onChange: (value: T) => void;
+  /**
+   * Stretch across the whole width on a tablet too. By default a tablet's control hugs its
+   * labels (equal segments, at most `layout.segmented.maxWidth`), left-aligned under the title;
+   * a phone's always fills the row.
+   */
+  fill?: boolean;
+  style?: StyleProp<ViewStyle>;
 }
 
 type Slot = { x: number; w: number };
 
 /**
- * A row of options on a 44 pt `surfaceAlt` track. The chosen one sits in a graphite pill
- * (the filled bubble) that slides over measured widths with `springs.thumb`; under Reduce
- * Motion it jumps. Labels cross-fade between active (semibold markInk) and inactive.
+ * A row of options on a `surfaceAlt` track (44 pt on a phone, 48 on a tablet). The chosen one
+ * sits on a raised paper thumb that slides over measured widths with `springs.thumb` (under
+ * Reduce Motion it cross-fades in place); labels cross-fade between the chosen look
+ * (semibold `primaryText`) and the rest (medium `textMuted`).
  */
-export function SegmentedControl<T extends string>({ options, value, onChange }: Props<T>) {
+export function SegmentedControl<T extends string>({ options, value, onChange, fill = false, style }: Props<T>) {
   const theme = useTheme();
   const reduceMotion = useReducedMotion();
-  const { minTouch } = theme.layout.system;
+  const { tablet, touch } = useWindowLayout();
+  const hug = tablet && !fill;
   const inset = theme.spacing.xs;
+  const seg = theme.layout.segmented;
   const [slots, setSlots] = useState<Record<string, Slot>>({});
+  // The width the parent gives: a hugging control never grows past it (or past maxWidth).
+  const [avail, setAvail] = useState(0);
   const x = useSharedValue(0);
   const w = useSharedValue(0);
   const placed = useSharedValue(0);
 
+  // Hugging: every segment takes the widest label's width, so the control reads as one even row.
+  const cap = avail > 0 ? Math.min(avail, seg.maxWidth) : seg.maxWidth;
+  const widest = Math.max(0, ...options.map((o) => slots[o.value]?.w ?? 0));
+  const share = Math.floor((cap - inset * 2) / Math.max(1, options.length));
+  const even = hug ? Math.min(Math.max(widest, seg.minSegment.tablet), share) : 0;
+
   const slot = slots[value];
   useEffect(() => {
     if (!slot) return;
-    // The first placement (and Reduce Motion) jumps; later changes slide.
-    if (reduceMotion || placed.value === 0) {
+    // The first placement jumps; Reduce Motion fades the thumb out and back in at the new place.
+    if (placed.value === 0) {
       x.value = slot.x;
       w.value = slot.w;
       placed.value = 1;
+      return;
+    }
+    if (reduceMotion) {
+      const never = { reduceMotion: ReduceMotion.Never };
+      placed.value = withTiming(0, { duration: RM_FADE_MS / 2, ...never }, () => {
+        x.value = slot.x;
+        w.value = slot.w;
+        placed.value = withTiming(1, { duration: RM_FADE_MS / 2, ...never });
+      });
       return;
     }
     x.value = withSpring(slot.x, spring('thumb'));
@@ -53,55 +84,69 @@ export function SegmentedControl<T extends string>({ options, value, onChange }:
     setSlots((s) => ({ ...s, [key]: { x: sx, w: sw } }));
   };
 
+  // Light: a paper thumb raised off the track. Dark paper sits below the track, so the thumb
+  // takes the soft clay tone there instead.
+  const raised = elevated(theme, 'raised');
+  const thumb: ViewStyle =
+    theme.scheme === 'dark'
+      ? { backgroundColor: theme.colors.primarySoft, borderWidth: theme.layout.borderWidth, borderColor: theme.colors.border }
+      : { backgroundColor: raised.backgroundColor, borderWidth: raised.borderWidth, borderColor: raised.borderColor, boxShadow: theme.colors.shadow.card };
+
   return (
-    <View
-      accessibilityRole="tablist"
-      style={{
-        flexDirection: 'row',
-        minHeight: minTouch,
-        padding: inset,
-        borderRadius: theme.radius.pill,
-        borderCurve: 'continuous',
-        backgroundColor: theme.colors.surfaceAlt,
-      }}
-    >
-      <Animated.View
-        pointerEvents="none"
+    <View style={style} onLayout={hug ? (e: LayoutChangeEvent) => setAvail(Math.floor(e.nativeEvent.layout.width)) : undefined}>
+      <View
+        accessibilityRole="tablist"
         style={[
-          { position: 'absolute', left: 0, top: inset, bottom: inset, borderRadius: theme.radius.pill, borderCurve: 'continuous', backgroundColor: theme.colors.mark },
-          thumbStyle,
+          {
+            flexDirection: 'row',
+            minHeight: touch,
+            padding: inset,
+            borderRadius: theme.radius.pill,
+            borderCurve: 'continuous',
+            backgroundColor: theme.colors.surfaceAlt,
+          },
+          hug ? { alignSelf: 'flex-start', maxWidth: cap } : null,
         ]}
-      />
-      {options.map((o) => {
-        const active = o.value === value;
-        return (
-          <PressableScale
-            key={o.value}
-            kind="bubble"
-            accessibilityRole="tab"
-            accessibilityState={{ selected: active }}
-            hitSlop={inset}
-            onLayout={onSlotLayout(o.value)}
-            onPress={() => {
-              if (active) return;
-              haptics.select();
-              onChange(o.value);
-            }}
-            style={{
-              flex: 1,
-              minHeight: minTouch - inset * 2,
-              paddingHorizontal: theme.spacing.md,
-              alignItems: 'center',
-              justifyContent: 'center',
-              borderRadius: theme.radius.pill,
-            }}
-          >
-            <FadeText variant="label" tint={active ? theme.colors.markInk : theme.colors.textMuted} weight={active ? 'semibold' : 'medium'} numberOfLines={1}>
-              {o.label}
-            </FadeText>
-          </PressableScale>
-        );
-      })}
+      >
+        <Animated.View
+          pointerEvents="none"
+          style={[{ position: 'absolute', left: 0, top: inset, bottom: inset, borderRadius: theme.radius.pill, borderCurve: 'continuous' }, thumb, thumbStyle]}
+        />
+        {options.map((o) => {
+          const active = o.value === value;
+          return (
+            <PressableScale
+              key={o.value}
+              kind="bubble"
+              accessibilityRole="tab"
+              accessibilityState={{ selected: active }}
+              hitSlop={inset}
+              onLayout={onSlotLayout(o.value)}
+              onPress={() => {
+                if (active) return;
+                haptics.select();
+                onChange(o.value);
+              }}
+              style={[
+                {
+                  minHeight: touch - inset * 2,
+                  paddingHorizontal: hug ? theme.spacing.lg : theme.spacing.md,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderRadius: theme.radius.pill,
+                },
+                // Natural width between the even width and an equal share of the room, so the
+                // widest label is measured and the row never runs past its parent.
+                hug ? { minWidth: even, maxWidth: share } : { flex: 1, minWidth: seg.minSegment.compact },
+              ]}
+            >
+              <FadeText variant="label" tint={active ? theme.colors.primaryText : theme.colors.textMuted} weight={active ? 'semibold' : 'medium'} numberOfLines={1}>
+                {o.label}
+              </FadeText>
+            </PressableScale>
+          );
+        })}
+      </View>
     </View>
   );
 }

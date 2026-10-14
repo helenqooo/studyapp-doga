@@ -47,10 +47,17 @@ export function stripGeometry(theme: Theme, windowWidth: number, insetBottom: nu
   const lumi = theme.layout.companion.size;
   let left: number;
   let width: number;
-  if (tablet) {
+  const nest = lumi.tablet + tb.nestGap.tablet;
+  const centered = windowWidth - 2 * (tb.sideInset.tablet + nest);
+  if (tablet && centered >= tb.centeredMinWidth) {
     // Centered, leaving room on both sides for Lumi's nest to its right.
-    width = Math.min(tb.maxWidth, windowWidth - 2 * (tb.sideInset.tablet + lumi.tablet + tb.nestGap.tablet));
+    width = Math.min(tb.maxWidth, centered);
     left = (windowWidth - width) / 2;
+  } else if (tablet) {
+    // A narrow tablet window (split view): left-aligned like the phone, so five tabs keep
+    // their room; Lumi's nest still sits to its right.
+    left = tb.sideInset.tablet;
+    width = Math.min(tb.maxWidth, windowWidth - 2 * tb.sideInset.tablet - nest);
   } else {
     // Left-aligned; Lumi's nest slot is on the right.
     left = tb.sideInset.compact;
@@ -198,13 +205,15 @@ interface ItemProps {
   badge: number | string | undefined;
   icon: ((color: string, focused: boolean) => ReactNode) | null;
   tablet: boolean;
+  /** Least width of the tab: the token, clamped to the strip's share so all tabs fit. */
+  minWidth: number;
   compact: SharedValue<number>;
   wiggle: number;
   onPress: () => void;
   onLongPress: () => void;
 }
 
-function TabItem({ label, a11yLabel, a11yHint, focused, badge, icon, tablet, compact, wiggle, onPress, onLongPress }: ItemProps) {
+function TabItem({ label, a11yLabel, a11yHint, focused, badge, icon, tablet, minWidth, compact, wiggle, onPress, onLongPress }: ItemProps) {
   const theme = useTheme();
   const reduceMotion = useReducedMotion();
   const tb = theme.layout.tabBar;
@@ -271,10 +280,10 @@ function TabItem({ label, a11yLabel, a11yHint, focused, badge, icon, tablet, com
       delayLongPress={tabs.longPress}
       style={{
         flex: 1,
-        minWidth: tablet ? tb.itemMinWidth.tablet : tb.itemMinWidth.compact,
+        minWidth,
         alignItems: 'center',
         paddingTop: tb.padY,
-        gap: tb.labelGap,
+        gap: tablet ? tb.labelGap.tablet : tb.labelGap.compact,
       }}
     >
       <Animated.View style={bubbleStyle}>
@@ -292,7 +301,7 @@ function TabItem({ label, a11yLabel, a11yHint, focused, badge, icon, tablet, com
           </AppText>
         </Animated.View>
         <Animated.View style={[StyleSheet.absoluteFill, idleLabel]}>
-          <AppText variant="micro" weight="medium" tint={theme.colors.tabInactive} align="center" numberOfLines={1} maxFontSizeMultiplier={1.2}>
+          <AppText variant="micro" weight={tablet ? 'semibold' : 'medium'} tint={theme.colors.tabInactive} align="center" numberOfLines={1} maxFontSizeMultiplier={1.2}>
             {label}
           </AppText>
         </Animated.View>
@@ -303,6 +312,8 @@ function TabItem({ label, a11yLabel, a11yHint, focused, badge, icon, tablet, com
 
 /**
  * The "optik şerit": one floating row of an optik form, five tabs, five bubbles (design spec 4).
+ * On a tablet it is 80 pt tall and up to 560 wide, with 64 × 40 bubbles, 24 pt icons and
+ * 13 pt semibold labels, centered with Lumi's nest to its right.
  * Rendered by the tabs layout through `tabBar`; scenes run full height underneath and pad
  * themselves by the height this reports.
  */
@@ -389,6 +400,9 @@ export function OptikStrip({ state, descriptors, navigation, insets }: BottomTab
     const flat = StyleSheet.flatten(descriptors[route.key]?.options.tabBarItemStyle);
     return flat?.display !== 'none';
   });
+  // A narrow tablet window (split view, ~560-640 pt) gives the strip less than five full tabs:
+  // never ask for more than each tab's share, or the last one is cut off.
+  const itemMin = Math.min(g.tablet ? tb.itemMinWidth.tablet : tb.itemMinWidth.compact, Math.floor(g.width / Math.max(1, routes.length)));
 
   return (
     <Animated.View
@@ -444,8 +458,9 @@ export function OptikStrip({ state, descriptors, navigation, insets }: BottomTab
               a11yHint={solve ? 'Basılı tut: kamerayı aç' : undefined}
               focused={focused}
               badge={options.tabBarBadge}
-              icon={renderIcon ? (color, f) => renderIcon({ focused: f, color, size: theme.layout.iconSize.md }) : null}
+              icon={renderIcon ? (color, f) => renderIcon({ focused: f, color, size: g.tablet ? tb.icon.tablet : tb.icon.compact }) : null}
               tablet={g.tablet}
+              minWidth={itemMin}
               compact={compact}
               wiggle={wiggles[route.key] ?? 0}
               onPress={() => {

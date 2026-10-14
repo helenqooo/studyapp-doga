@@ -57,7 +57,12 @@ interface Props {
   eyebrow?: string;
   /** Floats over the bottom of the page (the answer dock); the page scrolls clear of it. */
   dock?: ReactNode;
-  /** Actions beside the title (tab screens: repeated in the compact bar; stack screens: the native header). */
+  /**
+   * Actions beside the title, in the title row on tab and stack screens alike. Once the title
+   * scrolls away they repeat at icon size (`useCompactHeader()` is true there): in the compact
+   * bar on tab screens, in the native header on stack screens. A stack screen without a
+   * `title` shows them in the native header all along.
+   */
   headerRight?: ReactNode;
   /** The graph-paper band behind the header; tab screens default to `kareli`. */
   band?: 'kareli' | 'none';
@@ -77,18 +82,19 @@ export function useCompactHeader() {
   return useContext(CompactHeaderContext);
 }
 
-/** An icon-size header action: a 44 pt target with a line icon in `primaryText`. */
+/** An icon-size header action: a 44 pt (phone) or 48 pt (tablet) target with a line icon in `primaryText`. */
 export function HeaderAction({ icon, label, onPress }: { icon: IconName; label: string; onPress: () => void }) {
   const theme = useTheme();
+  const { touch, tablet } = useWindowLayout();
   return (
     <PressableScale
       kind="bubble"
       accessibilityRole="button"
       accessibilityLabel={label}
       onPress={onPress}
-      style={{ width: theme.layout.minTouch, height: theme.layout.minTouch, alignItems: 'center', justifyContent: 'center' }}
+      style={{ width: touch, height: touch, alignItems: 'center', justifyContent: 'center' }}
     >
-      <Icon name={icon} color={theme.colors.primaryText} />
+      <Icon name={icon} size={tablet ? theme.layout.iconSize.lg - theme.spacing.xs : theme.layout.iconSize.md} color={theme.colors.primaryText} />
     </PressableScale>
   );
 }
@@ -208,13 +214,18 @@ function useSwitch(scrollY: SharedValue<number>, at: number, active: boolean) {
   return v;
 }
 
-/** The native header title on stack screens: fades in once the in-content title scrolls away. */
-function FadingHeaderTitle({ title, scrollY }: { title: string; scrollY: SharedValue<number> }) {
+/** Opacity of the native header's title and actions on a stack screen: in once the large title scrolls away. */
+function useStackHeaderFade(scrollY: SharedValue<number>) {
   const reduceMotion = useReducedMotion();
   const rm = useSwitch(scrollY, SCROLL.rmSwitch, reduceMotion);
-  const style = useAnimatedStyle(() => ({
+  return useAnimatedStyle(() => ({
     opacity: reduceMotion ? rm.value : interpolate(scrollY.value, [SCROLL.stackTitleFrom, SCROLL.stackTitleTo], [0, 1], Extrapolation.CLAMP),
   }));
+}
+
+/** The native header title on stack screens: fades in once the in-content title scrolls away. */
+function FadingHeaderTitle({ title, scrollY }: { title: string; scrollY: SharedValue<number> }) {
+  const style = useStackHeaderFade(scrollY);
   return (
     <Animated.View style={style}>
       <AppText variant="heading" numberOfLines={1}>
@@ -224,15 +235,40 @@ function FadingHeaderTitle({ title, scrollY }: { title: string; scrollY: SharedV
   );
 }
 
+/** The header actions repeated at icon size in a stack screen's native header, with the title. */
+function FadingHeaderRight({ children, scrollY }: { children: ReactNode; scrollY: SharedValue<number> }) {
+  const style = useStackHeaderFade(scrollY);
+  const [on, setOn] = useState(false);
+  useAnimatedReaction(
+    () => scrollY.value > (SCROLL.stackTitleFrom + SCROLL.stackTitleTo) / 2,
+    (next, prev) => {
+      if (next !== prev) runOnJS(setOn)(next);
+    },
+  );
+  return (
+    <Animated.View
+      pointerEvents={on ? 'box-none' : 'none'}
+      accessibilityElementsHidden={!on}
+      importantForAccessibility={on ? 'auto' : 'no-hide-descendants'}
+      style={[{ flexDirection: 'row', alignItems: 'center' }, style]}
+    >
+      <CompactHeaderContext.Provider value>{children}</CompactHeaderContext.Provider>
+    </Animated.View>
+  );
+}
+
 /**
  * Scrolling page. Content is centered with a max width and its measured width is
  * provided to children (see useContentSize), so grids adapt to iPad, split view and
  * rotation rather than to the device model.
  *
- * On tab screens it pads clear of the optik strip, scrolls to top on a tab re-tap, drives
- * the strip's compaction (through the companion store's active scroll), lays a graph-paper
- * band behind the header and collapses the large title into a compact bar. On stack screens
- * with a `title`, the native header title fades in once the in-content title has scrolled away.
+ * Anatomy, the same on tab and stack screens: a large Lora `title` with `headerRight` beside
+ * it and a one-line `subtitle` under it, then the content. On tab screens it pads clear of
+ * the optik strip, scrolls to top on a tab re-tap, drives the strip's compaction (through the
+ * companion store's active scroll), lays a graph-paper band behind the header and collapses
+ * the large title into a compact bar. On stack screens the native header keeps the back
+ * button; with a `title`, its title and actions fade in once the large title has scrolled
+ * away, and the page pads clear of Lumi's nest at the bottom right.
  */
 export function Screen({ title, subtitle, children, safeTop = true, width = 'dashboard', titleIcon, eyebrow, dock, headerRight, band }: Props) {
   const theme = useTheme();
@@ -253,6 +289,14 @@ export function Screen({ title, subtitle, children, safeTop = true, width = 'das
   const scrollRef = useAnimatedRef<Animated.ScrollView>();
   const contentRef = useRef<View>(null);
   const topPad = (safeTop ? insets.top : 0) + theme.spacing.lg;
+  const sl = theme.layout.screen;
+  const blockGap = win.tablet ? sl.gap.tablet : sl.gap.compact;
+  // Stack screens: Lumi's nest sits at the bottom right (no strip), so the last block clears it.
+  // Under a native header iOS adds the bottom safe area itself.
+  const nestPad = isTab
+    ? 0
+    : (safeTop ? insets.bottom : 0) + theme.layout.tabBar.bottomGap + theme.layout.companion.size[win.tablet ? 'tablet' : 'compact'] + sl.nestClear;
+  const bottomPad = Math.max(theme.spacing.xxl, nestPad) + dockHeight + tabInset;
 
   const scrollY = useSharedValue(0);
   const onScroll = useAnimatedScrollHandler((e) => {
@@ -282,7 +326,8 @@ export function Screen({ title, subtitle, children, safeTop = true, width = 'das
     }, [scrollY]),
   );
 
-  // Stack screens: the native title fades in after scroll; headerRight goes into the native header.
+  // Stack screens: the native title (and the actions) fade in after scroll; without a large
+  // title, headerRight lives in the native header all along.
   const headerRightRef = useRef(headerRight);
   headerRightRef.current = headerRight;
   const hasHeaderRight = !!headerRight;
@@ -290,7 +335,9 @@ export function Screen({ title, subtitle, children, safeTop = true, width = 'das
     if (isTab) return;
     const options: Record<string, unknown> = {};
     if (title) options.headerTitle = () => <FadingHeaderTitle title={title} scrollY={scrollY} />;
-    if (hasHeaderRight) options.headerRight = () => headerRightRef.current;
+    if (hasHeaderRight) {
+      options.headerRight = title ? () => <FadingHeaderRight scrollY={scrollY}>{headerRightRef.current}</FadingHeaderRight> : () => headerRightRef.current;
+    }
     if (Object.keys(options).length) navigation.setOptions(options);
   }, [isTab, title, hasHeaderRight, navigation, scrollY]);
 
@@ -327,7 +374,7 @@ export function Screen({ title, subtitle, children, safeTop = true, width = 'das
   });
 
   const titleRow = title ? (
-    <Animated.View style={[{ gap: theme.spacing.xs }, titleStyle]}>
+    <Animated.View style={[{ gap: win.tablet ? sl.titleGap.tablet : sl.titleGap.compact, marginBottom: win.tablet ? sl.afterTitle.tablet : sl.afterTitle.compact }, titleStyle]}>
       {eyebrow ? (
         <AppText variant="caption" color="textMuted">
           {eyebrow}
@@ -342,7 +389,7 @@ export function Screen({ title, subtitle, children, safeTop = true, width = 'das
         <AppText variant="title" accessibilityRole="header" style={{ flexShrink: 1, flexGrow: 1 }}>
           {title}
         </AppText>
-        {isTab && headerRight ? <View style={{ flexDirection: 'row', alignItems: 'center' }}>{headerRight}</View> : null}
+        {headerRight ? <View style={{ flexDirection: 'row', alignItems: 'center' }}>{headerRight}</View> : null}
       </View>
       {subtitle ? <AppText color="textMuted">{subtitle}</AppText> : null}
     </Animated.View>
@@ -356,7 +403,7 @@ export function Screen({ title, subtitle, children, safeTop = true, width = 'das
         contentContainerStyle={{
           paddingTop: topPad,
           paddingHorizontal: win.margin,
-          paddingBottom: theme.spacing.xxl + dockHeight + tabInset,
+          paddingBottom: bottomPad,
         }}
         scrollIndicatorInsets={{ bottom: dockHeight + tabInset }}
         onLayout={(e: LayoutChangeEvent) => {
@@ -378,7 +425,7 @@ export function Screen({ title, subtitle, children, safeTop = true, width = 'das
         <ScreenScrollContext.Provider value={scrollY}>
           <RevealContext.Provider value={reveal}>
             <ContentSizeContext.Provider value={{ width: contentWidth, size: contentSizeClass(theme, contentWidth) }}>
-              <View ref={contentRef} style={{ width: '100%', maxWidth, alignSelf: 'center', gap: theme.spacing.lg }}>
+              <View ref={contentRef} style={{ width: '100%', maxWidth, alignSelf: 'center', gap: blockGap }}>
                 {titleRow}
                 {children}
               </View>
@@ -407,7 +454,7 @@ export function Screen({ title, subtitle, children, safeTop = true, width = 'das
           />
           <View
             style={{
-              minHeight: theme.layout.minTouch,
+              minHeight: win.touch,
               paddingHorizontal: sideInset,
               flexDirection: 'row',
               alignItems: 'center',
@@ -419,7 +466,7 @@ export function Screen({ title, subtitle, children, safeTop = true, width = 'das
             </AppText>
             {headerRight ? (
               <CompactHeaderContext.Provider value>
-                <View style={{ flexDirection: 'row', alignItems: 'center', height: theme.layout.minTouch }}>{headerRight}</View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', height: win.touch }}>{headerRight}</View>
               </CompactHeaderContext.Provider>
             ) : null}
           </View>
@@ -437,6 +484,10 @@ export function Screen({ title, subtitle, children, safeTop = true, width = 'das
 
 function Pane({ children, flex, dock }: { children: ReactNode; flex: number; dock?: ReactNode }) {
   const theme = useTheme();
+  const win = useWindowLayout();
+  const sl = theme.layout.screen;
+  // Clear Lumi's nest (bottom right of a stack screen) like Screen does.
+  const nestPad = theme.layout.tabBar.bottomGap + theme.layout.companion.size[win.tablet ? 'tablet' : 'compact'] + sl.nestClear;
   const [width, setWidth] = useState(0);
   const [dockHeight, setDockHeight] = useState(0);
   const scrollRef = useRef<ScrollView>(null);
@@ -449,7 +500,7 @@ function Pane({ children, flex, dock }: { children: ReactNode; flex: number; doc
       <ScrollView
         ref={scrollRef}
         style={{ flex: 1 }}
-        contentContainerStyle={{ paddingVertical: theme.spacing.lg, paddingBottom: theme.spacing.xxl + dockHeight }}
+        contentContainerStyle={{ paddingVertical: theme.spacing.lg, paddingBottom: Math.max(theme.spacing.xxl, nestPad) + dockHeight }}
         contentInsetAdjustmentBehavior="automatic"
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
@@ -464,7 +515,7 @@ function Pane({ children, flex, dock }: { children: ReactNode; flex: number; doc
       >
         <RevealContext.Provider value={reveal}>
           <ContentSizeContext.Provider value={{ width, size: contentSizeClass(theme, width) }}>
-            <View ref={contentRef} style={{ gap: theme.spacing.lg }}>
+            <View ref={contentRef} style={{ gap: win.tablet ? sl.gap.tablet : sl.gap.compact }}>
               {children}
             </View>
           </ContentSizeContext.Provider>

@@ -1,6 +1,7 @@
 import { View, type StyleProp, type ViewStyle } from 'react-native';
 import { ReduceMotion, useAnimatedStyle, useReducedMotion, withTiming } from 'react-native-reanimated';
 import { haptics } from '../lib/haptics';
+import { useWindowLayout } from '../lib/layout';
 import { useTheme, type Theme } from '../theme';
 import { Icon, type IconName } from './Icon';
 import { FadeText } from './motion/FadeText';
@@ -27,12 +28,16 @@ function softFor(theme: Theme, ink: string): string | undefined {
   return key ? subjectSoft[key] : undefined;
 }
 
-/** Tappable filter / suggestion pill. Selection is always a fill (graphite, or the subject's tint). */
+/**
+ * Tappable filter / suggestion pill, 44 pt tall on a phone and 48 on a tablet, its label in
+ * `label` (16 on a tablet). Selection is always a fill (graphite, or the subject's tint).
+ */
 export function Chip({ label, selected = false, onPress, color, icon, style }: Props) {
   const theme = useTheme();
   const reduceMotion = useReducedMotion();
+  const { touch, tablet } = useWindowLayout();
   const c = theme.colors;
-  const { minTouch, borderWidth, selectedBorder } = theme.layout.system;
+  const { borderWidth, selectedBorder } = theme.layout.system;
   const neutralFill = selected && !color;
   const fg = neutralFill ? c.markInk : c.text;
   const bg = neutralFill ? c.mark : selected ? (softFor(theme, color!) ?? c.surfaceAlt) : c.surface;
@@ -57,9 +62,9 @@ export function Chip({ label, selected = false, onPress, color, icon, style }: P
         {
           flexDirection: 'row',
           alignItems: 'center',
-          gap: theme.spacing.xs,
-          minHeight: minTouch,
-          paddingHorizontal: theme.spacing.md,
+          gap: tablet ? theme.spacing.sm : theme.spacing.xs,
+          minHeight: touch,
+          paddingHorizontal: tablet ? theme.spacing.lg : theme.spacing.md,
           borderRadius: theme.radius.pill,
           borderCurve: 'continuous',
           // The selected border is thicker; padding absorbs the difference so the label holds still.
@@ -72,7 +77,7 @@ export function Chip({ label, selected = false, onPress, color, icon, style }: P
       ]}
     >
       {color ? <View style={{ width: theme.spacing.sm, height: theme.spacing.sm, borderRadius: theme.radius.pill, backgroundColor: color }} /> : null}
-      {icon ? <Icon name={icon} size={theme.layout.system.iconSize.sm} color={fg} /> : null}
+      {icon ? <Icon name={icon} size={theme.layout.system.iconSize[tablet ? 'md' : 'sm']} color={fg} /> : null}
       <FadeText variant="label" tint={fg} weight={selected ? 'semibold' : 'medium'}>
         {label}
       </FadeText>

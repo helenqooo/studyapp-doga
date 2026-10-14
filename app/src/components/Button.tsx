@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { View, type LayoutChangeEvent, type StyleProp, type ViewStyle } from 'react-native';
 import Animated, { ReduceMotion, useAnimatedStyle, useReducedMotion, useSharedValue, withTiming } from 'react-native-reanimated';
 import { haptics } from '../lib/haptics';
+import { useWindowLayout } from '../lib/layout';
 import { useTheme, type Theme } from '../theme';
 import { HighlightBand } from './Highlight';
 import { Icon, type IconName } from './Icon';
@@ -22,7 +23,7 @@ interface Props {
   label: string;
   onPress?: () => void;
   variant?: ButtonVariant;
-  /** Heights 44 / 52 / 60. Default `md`. */
+  /** Heights 44 / 52 / 60 on a phone, 48 / 56 / 64 on a tablet. Default `md`. */
   size?: ButtonSize;
   icon?: IconName;
   loading?: boolean;
@@ -83,6 +84,7 @@ export function Button({
 }: Props) {
   const theme = useTheme();
   const reduceMotion = useReducedMotion();
+  const { touch, tablet } = useWindowLayout();
   const c = theme.colors;
   const ghost = variant === 'ghost';
   // A disabled button reads as "not yet" (quiet grey), not as a faded alarm; loading keeps
@@ -92,8 +94,8 @@ export function Button({
       ? { bg: c.disabledBg, fg: c.disabledFg, border: c.transparent }
       : variantLook(theme, variant, selected);
   const inactive = disabled || loading;
-  const { minTouch, selectedBorder, iconSize } = theme.layout.system;
-  const height = size === 'lg' ? minTouch + theme.spacing.lg : size === 'md' ? minTouch + theme.spacing.sm : minTouch;
+  const { selectedBorder, iconSize } = theme.layout.system;
+  const height = size === 'lg' ? touch + theme.spacing.lg : size === 'md' ? touch + theme.spacing.sm : touch;
   const outlined = look.border !== c.transparent;
 
   const fade = { duration: reduceMotion ? RM_FADE_MS : theme.motion.duration.base, easing: ease('standard'), reduceMotion: ReduceMotion.Never };
@@ -124,7 +126,8 @@ export function Button({
       : withTiming(0, { duration: theme.motion.highlight.retract, easing: ease('standard') });
   };
 
-  const labelSize = size === 'lg' ? theme.fontSize.lg : theme.fontSize.md;
+  const labelSizes = theme.layout.button.label[tablet ? 'tablet' : 'compact'];
+  const labelSize = size === 'lg' ? labelSizes.lg : labelSizes.md;
   const iconPx = size === 'lg' ? iconSize.md : iconSize.sm;
 
   return (

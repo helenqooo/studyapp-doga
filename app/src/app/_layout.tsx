@@ -18,7 +18,7 @@ import { CompanionHost } from '../components/companion/CompanionHost';
 import { CelebrationProvider } from '../components/motion/Celebration';
 import { TimerPill } from '../components/TimerPill';
 import { TimerSupervisor } from '../components/TimerSupervisor';
-import { isTabletDevice } from '../lib/layout';
+import { isTabletDevice, useFontScale } from '../lib/layout';
 import { useAuthStore } from '../store/authStore';
 import { useCompanionStore } from '../store/companionStore';
 import { usePrefsStore } from '../store/prefsStore';
@@ -51,6 +51,7 @@ function noteTouch() {
 
 export default function RootLayout() {
   const theme = useTheme();
+  const type = useFontScale();
   const [fontsLoaded, fontError] = useFonts(fontsInlined ? {} : FONT_FILES);
   const authStatus = useAuthStore((s) => s.status);
   const userId = useAuthStore((s) => s.user?.id ?? null);
@@ -113,12 +114,16 @@ export default function RootLayout() {
           <View style={{ flex: 1 }} onStartShouldSetResponderCapture={noteTouch}>
             <Stack
               screenOptions={{
-                // The header sits on the paper: same color, no shadow, a graphite (or lamp) back chevron.
+                // The header sits on the paper: same color, no shadow, and a clear way back: a
+                // chevron and "Geri" in primaryText. The screen's large title lives in the
+                // content (Screen `title`); the header's own title fades in after scroll.
                 headerTintColor: theme.colors.primaryText,
-                headerTitleStyle: { color: theme.colors.text, fontFamily: theme.fonts.sans.semibold, fontSize: theme.fontSize.lg },
+                headerTitleStyle: { color: theme.colors.text, fontFamily: theme.fonts.sans.semibold, fontSize: type.lg },
                 headerStyle: { backgroundColor: theme.colors.background },
                 headerShadowVisible: false,
-                headerBackButtonDisplayMode: 'minimal',
+                headerBackButtonDisplayMode: 'default',
+                headerBackTitle: 'Geri',
+                headerBackTitleStyle: { fontFamily: theme.fonts.sans.medium, fontSize: type.md },
                 contentStyle: { backgroundColor: theme.colors.background },
               }}
             >

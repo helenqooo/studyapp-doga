@@ -47,6 +47,10 @@ export function useWindowLayout() {
     sizeClass,
     /** The grid's side margin for this window (16 / 28 / 32). */
     margin: theme.layout.grid[sizeClass].margin,
+    /** Least height of a control here: 44 on a phone, 48 on a tablet (`layout.system.touch`). */
+    touch: tablet ? theme.layout.system.touch.tablet : theme.layout.system.touch.compact,
+    /** Padding inside a sheet here (`layout.sheetPadding`). */
+    sheetPadding: tablet ? theme.layout.sheetPadding.tablet : theme.layout.sheetPadding.compact,
     /** @deprecated use `margin` (the grid). The old screen padding: 16 on phone, 24 on tablet. */
     padding: tablet ? theme.layout.screenPaddingRegular : theme.layout.screenPadding,
   };

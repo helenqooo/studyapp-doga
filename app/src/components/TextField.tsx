@@ -1,6 +1,7 @@
 import { useState, type Ref } from 'react';
 import { TextInput, View, type TextInputProps } from 'react-native';
 import Animated, { ReduceMotion, useAnimatedStyle, useReducedMotion, withTiming } from 'react-native-reanimated';
+import { useFontScale, useWindowLayout } from '../lib/layout';
 import { font, useTheme } from '../theme';
 import { AppText } from './AppText';
 import { Icon } from './Icon';
@@ -25,7 +26,9 @@ export function TextField({ label, hint, error = false, secret = false, ref, ...
   const [focused, setFocused] = useState(false);
   const [shown, setShown] = useState(false);
   const reduceMotion = useReducedMotion();
-  const { borderWidth, selectedBorder, minTouch } = theme.layout.system;
+  const { touch: minTouch } = useWindowLayout();
+  const type = useFontScale();
+  const { borderWidth, selectedBorder } = theme.layout.system;
   // Paper field with a soft edge; focus darkens the edge to graphite, an error to red pen.
   const edge = error ? theme.colors.danger : focused ? theme.colors.mark : theme.colors.border;
   const fade = { duration: reduceMotion ? RM_FADE_MS : theme.motion.duration.base, easing: ease('standard'), reduceMotion: ReduceMotion.Never };
@@ -66,7 +69,7 @@ export function TextField({ label, hint, error = false, secret = false, ref, ...
             setFocused(false);
             input.onBlur?.(e);
           }}
-          style={{ flex: 1, paddingVertical: theme.spacing.sm, color: theme.colors.text, fontSize: theme.fontSize.md, ...font('sans') }}
+          style={{ flex: 1, paddingVertical: theme.spacing.sm, color: theme.colors.text, fontSize: type.md, ...font('sans') }}
         />
         {secret ? (
           <PressableScale

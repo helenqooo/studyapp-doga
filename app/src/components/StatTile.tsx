@@ -1,7 +1,7 @@
 import { Fragment } from 'react';
 import { View, type StyleProp, type ViewStyle } from 'react-native';
 import { haptics } from '../lib/haptics';
-import { useWindowLayout } from '../lib/layout';
+import { useContentSize, useWindowLayout } from '../lib/layout';
 import { useTheme, elevated } from '../theme';
 import { AppText } from './AppText';
 import { Card } from './Card';
@@ -20,16 +20,16 @@ export interface KarneCell {
   cacheKey?: string;
 }
 
-/** One cell: the value in `stat`, its unit beside it, the caption under. */
-function Cell({ cell }: { cell: KarneCell }) {
+/** One cell: the value in `stat` with its unit beside it on the same line, the caption under on one line. */
+function Cell({ cell, padX, padY, flush = false }: { cell: KarneCell; padX: number; padY: number; flush?: boolean }) {
   const theme = useTheme();
   return (
     <View
       accessible
       accessibilityLabel={`${cell.label}: ${cell.value ?? '—'}${cell.unit ? ` ${cell.unit}` : ''}`}
-      style={{ flex: 1, gap: theme.spacing.xxs, paddingHorizontal: theme.spacing.md, paddingVertical: theme.spacing.sm }}
+      style={{ flex: 1, minWidth: 0, gap: theme.spacing.xxs, paddingLeft: flush ? 0 : padX, paddingRight: padX, paddingVertical: padY }}
     >
-      <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: theme.spacing.xs }}>
+      <View style={{ flexDirection: 'row', flexWrap: 'nowrap', alignItems: 'baseline', gap: theme.spacing.xs }}>
         {cell.value === null ? (
           <AppText variant="stat" color="textMuted">
             —
@@ -38,12 +38,12 @@ function Cell({ cell }: { cell: KarneCell }) {
           <Odometer value={cell.value} variant="stat" cacheKey={cell.cacheKey} />
         )}
         {cell.unit ? (
-          <AppText variant="label" color="textMuted">
+          <AppText variant="label" color="textMuted" numberOfLines={1} style={{ flexShrink: 1 }}>
             {cell.unit}
           </AppText>
         ) : null}
       </View>
-      <AppText variant="caption" color="textMuted" numberOfLines={2}>
+      <AppText variant="caption" color="textMuted" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85}>
         {cell.label}
       </AppText>
     </View>
@@ -51,30 +51,38 @@ function Cell({ cell }: { cell: KarneCell }) {
 }
 
 /**
- * "Karne satırı": a report-card row in one sheet, cells split by optik hairlines. Four
- * cells sit in one row; on a phone they fold into 2 × 2 inside the same sheet.
+ * "Karne satırı": a report-card row, cells split by optik hairlines, each number with its
+ * unit on one line and its caption on one line. The cells stay in one row while each gets
+ * `layout.karne.minCell` of the measured width (four fit a half-width landscape column);
+ * narrower, they fold into two rows. `sheet` (default) sits in one sheet; `plain` sets the
+ * same row straight on the paper.
  */
-export function KarneRow({ cells, style }: { cells: KarneCell[]; style?: StyleProp<ViewStyle> }) {
+export function KarneRow({ cells, variant = 'sheet', style }: { cells: KarneCell[]; variant?: 'sheet' | 'plain'; style?: StyleProp<ViewStyle> }) {
   const theme = useTheme();
-  const { sizeClass } = useWindowLayout();
-  const perRow = sizeClass === 'compact' && cells.length > 2 ? Math.ceil(cells.length / 2) : cells.length;
+  const { tablet, sizeClass } = useWindowLayout();
+  const { width } = useContentSize();
+  const k = theme.layout.karne;
+  const minCell = tablet ? k.minCell.tablet : k.minCell.compact;
+  // Width 0 means not measured yet: decide by the window so the first frame doesn't jump.
+  const fold = cells.length > 2 && (width === 0 ? sizeClass === 'compact' : width < cells.length * minCell);
+  const perRow = fold ? Math.ceil(cells.length / 2) : cells.length;
   const rows: KarneCell[][] = [];
   for (let i = 0; i < cells.length; i += perRow) rows.push(cells.slice(i, i + perRow));
+  const padX = tablet ? k.cellPadX.tablet : k.cellPadX.compact;
+  const padY = tablet ? k.cellPadY.tablet : k.cellPadY.compact;
   const hairline = { borderColor: theme.colors.optikSoft };
-  return (
-    <Card style={[{ paddingHorizontal: 0, paddingVertical: theme.spacing.sm, gap: 0 }, style]}>
-      {rows.map((row, r) => (
-        <View key={r} style={[{ flexDirection: 'row' }, r > 0 ? { ...hairline, borderTopWidth: theme.layout.borderWidth } : null]}>
-          {row.map((cell, i) => (
-            <Fragment key={cell.label}>
-              {i > 0 ? <View style={{ width: theme.layout.borderWidth, alignSelf: 'stretch', backgroundColor: theme.colors.optikSoft }} /> : null}
-              <Cell cell={cell} />
-            </Fragment>
-          ))}
-        </View>
+  const body = rows.map((row, r) => (
+    <View key={r} style={[{ flexDirection: 'row' }, r > 0 ? { ...hairline, borderTopWidth: theme.layout.borderWidth } : null]}>
+      {row.map((cell, i) => (
+        <Fragment key={cell.label}>
+          {i > 0 ? <View style={{ width: theme.layout.borderWidth, alignSelf: 'stretch', backgroundColor: theme.colors.optikSoft }} /> : null}
+          <Cell cell={cell} padX={padX} padY={padY} flush={variant === 'plain' && i === 0} />
+        </Fragment>
       ))}
-    </Card>
-  );
+    </View>
+  ));
+  if (variant === 'plain') return <View style={style}>{body}</View>;
+  return <Card style={[{ paddingLeft: 0, paddingRight: 0, paddingVertical: theme.spacing.xs, gap: 0 }, style]}>{body}</Card>;
 }
 
 interface Props {

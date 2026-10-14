@@ -1,6 +1,6 @@
 import { Children, cloneElement, createContext, isValidElement, useContext, useState, type ReactElement, type ReactNode } from 'react';
 import { View, type LayoutChangeEvent, type StyleProp, type ViewStyle } from 'react-native';
-import { ContentSizeContext, contentSizeClass, useResponsive, useWindowLayout, type SizeClass } from '../lib/layout';
+import { ContentSizeContext, contentSizeClass, useContentSize, useResponsive, useWindowLayout, type SizeClass } from '../lib/layout';
 import { useTheme } from '../theme';
 import { Appear } from './motion/Appear';
 
@@ -137,7 +137,11 @@ export function Col({ span, children, style }: { span: Span; children: ReactNode
   const theme = useTheme();
   const { sizeClass, columns, gutter } = useContext(RowContext);
   const n = spanFor(span, sizeClass, columns, theme.layout.grid.compact.columns);
-  const [width, setWidth] = useState(0);
+  const [measured, setWidth] = useState(0);
+  // Until onLayout fires, estimate from the row's width (the Row's negative margins add a
+  // gutter), so Grids and KarneRows inside lay out right on the first frame.
+  const parent = useContentSize().width;
+  const width = measured || (parent > 0 ? Math.max(0, Math.floor((n / columns) * (parent + gutter) - gutter)) : 0);
   return (
     <View
       style={[{ width: `${(n / columns) * 100}%`, paddingHorizontal: gutter / 2, gap: theme.spacing.lg }, style]}
