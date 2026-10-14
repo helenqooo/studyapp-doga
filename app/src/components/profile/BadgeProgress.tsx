@@ -13,11 +13,6 @@ import { Grid } from '../Grid';
 import { Highlight } from '../Highlight';
 import { Section } from '../SectionHeader';
 
-// TOKEN-PENDING: layout.badge.seal = { compact: 52, tablet: 60 } (a profile seal, its progress arc included)
-const SEAL_SIZE = { compact: 52, tablet: 60 };
-// TOKEN-PENDING: layout.badge.threeUp = 620 (the measured width from which the seals sit three across;
-//   narrower, a three-across cell would break "30 günlük seri" onto two lines, so they sit two across)
-const THREE_UP = 620;
 
 /** Earned badges whose foil sheen has played, per account (the sheen plays once). */
 const foilKey = (userId: string) => `derece.badgeFoil.${userId}`;
@@ -93,7 +88,7 @@ function lockedProgress(id: string, streak: number | null, solved: number | null
 
 /**
  * "Rozetler", set on the paper: a heading with the earned count, then the seals in a grid of
- * rows (three across from `THREE_UP` of width, two across narrower and on a phone), each
+ * rows (three across from `layout.badge.threeUp` of width, two across narrower and on a phone), each
  * seal beside its name and what's left. Locked seals carry a progress arc; earned ones a
  * duotone glyph and, the first time they're seen on this device, a soft foil sheen.
  */
@@ -110,11 +105,11 @@ export function BadgeProgress() {
   const masters = earned.filter((b) => b.id.startsWith('topic-master:'));
   const solved = facets.data ? facets.data.total : null;
   const examCount = exams.data ? exams.data.items.length : null;
-  const seal = tablet ? SEAL_SIZE.tablet : SEAL_SIZE.compact;
+  const seal = tablet ? theme.layout.badge.seal.tablet : theme.layout.badge.seal.compact;
   // Three across only where every name keeps one line (a portrait iPad, a 1180 landscape column).
   const { width } = useContentSize();
   const byClass = useResponsive({ compact: 2, regular: 3 });
-  const across = width > 0 ? (width >= THREE_UP ? 3 : 2) : byClass;
+  const across = width > 0 ? (width >= theme.layout.badge.threeUp ? 3 : 2) : byClass;
   // Cells are top-aligned, and a title with one caption line is centered on the seal: every
   // title in a row sits on the same line, and a longer caption just wraps downward.
   const lineOf = (v: 'label' | 'caption') => {

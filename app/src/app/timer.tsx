@@ -25,8 +25,6 @@ import { formatClock, formatMinutes, useNow } from '../lib/useNow';
 import { remainingMs, useTimerStore } from '../store/timerStore';
 import { subjectColor, useTheme } from '../theme';
 
-// TOKEN-PENDING: layout.timer.numeralShare = 0.32 (the clock never grows past this share of the ring)
-const NUMERAL_SHARE = 0.32;
 
 const EXAMS: Exam[] = ['TYT', 'AYT'];
 const DEFAULT_SETTINGS = { focusMinutes: 25, breakMinutes: 5 };
@@ -254,7 +252,7 @@ export default function TimerScreen() {
   const level: FocusLevel = focus ? (paused ? 0.5 : 1) : 0;
   const ringSize = theme.layout.timer.ring[sizeClass];
   const numeral = theme.typography.numeral;
-  const clockSize = Math.min(tablet ? numeral.sizeTablet : numeral.size, Math.round(ringSize * NUMERAL_SHARE));
+  const clockSize = Math.min(tablet ? numeral.sizeTablet : numeral.size, Math.round(ringSize * theme.layout.timer.numeralShare));
 
   const saveSettings = (next: Partial<typeof settings>) => updateSettings.mutate({ ...settings, ...next });
 

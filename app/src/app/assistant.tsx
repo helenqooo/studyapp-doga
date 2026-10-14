@@ -27,14 +27,6 @@ import { haptics } from '../lib/haptics';
 import { useWindowLayout } from '../lib/layout';
 import { useTheme, type Theme } from '../theme';
 
-// TOKEN-PENDING: layout.chat.headerMascot = 32 (the live Lumi in the assistant's header, spec 7.6)
-const HEADER_MASCOT = 32;
-// TOKEN-PENDING: motion.duration.rmFade = 120 (the Reduce Motion cross-fade, spec 0.7 / 5.6)
-const RM_FADE_MS = 120;
-// TOKEN-PENDING: layout.chat.patchClear = 0.5 (share of the hero patch, from its center, where the graph paper is still unfaded)
-const PATCH_CLEAR = 0.5;
-// TOKEN-PENDING: layout.chat.heroShare = 0.18 (the intro Lumi is never taller than this share of the window, so a short landscape iPad keeps the starters above the composer)
-const HERO_SHARE = 0.18;
 
 /** The header caption: what Lumi is doing. */
 function statusOf(mood: MascotMood): string {
@@ -155,7 +147,7 @@ export default function AssistantScreen() {
 
   const context = contextItems(theme, profile.data?.streak, reviews.data?.items.length ?? 0, lastExam(exams.data?.items), overview.data?.topicLosses[0]?.topicId);
 
-  const hero = Math.min(theme.layout.mascot.hero, Math.round(win.height * HERO_SHARE));
+  const hero = Math.min(theme.layout.mascot.hero, Math.round(win.height * theme.layout.chat.heroShare));
   return (
     <>
       <Stack.Screen
@@ -229,7 +221,7 @@ function PatchVignette() {
     <Svg width="100%" height="100%" style={StyleSheet.absoluteFill} pointerEvents="none" aria-hidden>
       <Defs>
         <RadialGradient id={id} cx="50%" cy="50%" rx="50%" ry="50%">
-          <Stop offset={PATCH_CLEAR} stopColor={theme.colors.background} stopOpacity={0} />
+          <Stop offset={theme.layout.chat.patchClear} stopColor={theme.colors.background} stopOpacity={0} />
           <Stop offset={1} stopColor={theme.colors.background} stopOpacity={1} />
         </RadialGradient>
       </Defs>
@@ -248,8 +240,8 @@ function AssistantTitle({ mood }: { mood: MascotMood }) {
       accessibilityRole="header"
       accessibilityLabel={`${ASSISTANT_NAME}, ${statusOf(mood)}`}
     >
-      <View style={{ width: HEADER_MASCOT, height: HEADER_MASCOT }}>
-        <Mascot size={HEADER_MASCOT} mood={mood} interactive={false} />
+      <View style={{ width: theme.layout.chat.headerMascot, height: theme.layout.chat.headerMascot }}>
+        <Mascot size={theme.layout.chat.headerMascot} mood={mood} interactive={false} />
       </View>
       <View>
         <AppText variant="heading" numberOfLines={1} maxFontSizeMultiplier={1.2}>
@@ -284,7 +276,7 @@ function CaptionLayer({ text, from, to, outgoing = false }: { text: string; from
   useEffect(() => {
     if (from === to) return;
     o.value = withTiming(to, {
-      duration: reduceMotion ? RM_FADE_MS : theme.motion.duration.base,
+      duration: reduceMotion ? theme.motion.duration.rmFade : theme.motion.duration.base,
       easing: ease('standard'),
       reduceMotion: ReduceMotion.Never,
     });

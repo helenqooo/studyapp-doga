@@ -31,16 +31,6 @@ type Handle = 'tl' | 'tr' | 'bl' | 'br' | 'move';
 const WAIT_STEPS = ['Soruyu okuyorum', 'Konuyu buluyorum', 'Çözümü ve ipuçlarını yazıyorum'];
 const WAIT_STEP_MS = 5000;
 
-// TOKEN-PENDING: layout.scanBand = 56 (the fosfor band that sweeps the photo while it is read)
-const SCAN_BAND = 56;
-// TOKEN-PENDING: opacity.scanBand = 0.5 (the band's soft peak; it fades out to both edges)
-const SCAN_PEAK = 0.5;
-// TOKEN-PENDING: opacity.cameraCaption = 0.7 (secondary text on the dark camera screens)
-const CAPTION_OPACITY = 0.7;
-// TOKEN-PENDING: layout.cropStartInset = 0.04 (the first crop box sits this share inside the photo)
-const START_INSET = 0.04;
-// TOKEN-PENDING: motion.duration.rmFade = 120 (the Reduce Motion cross-fade, spec 0.7 / 5.6)
-const RM_FADE_MS = 120;
 // The step that is being worked on shows as a half-coded bubble; the band rests mid-photo under RM.
 const CURRENT_STEP_FILL = 0.5;
 const MID = 0.5;
@@ -53,7 +43,7 @@ function ScanBeam({ rect }: { rect: Rect }) {
   const theme = useTheme();
   const reduceMotion = useReducedMotion();
   const y = useSharedValue(MID);
-  const band = Math.min(SCAN_BAND, rect.h);
+  const band = Math.min(theme.layout.scanBand, rect.h);
   const travel = rect.h - band;
   useEffect(() => {
     if (reduceMotion) {
@@ -73,7 +63,7 @@ function ScanBeam({ rect }: { rect: Rect }) {
           <Defs>
             <LinearGradient id="scanband" x1="0" y1="0" x2="0" y2="1">
               <Stop offset="0" stopColor={hl} stopOpacity={0} />
-              <Stop offset="0.5" stopColor={hl} stopOpacity={SCAN_PEAK} />
+              <Stop offset="0.5" stopColor={hl} stopOpacity={theme.opacity.scanBand} />
               <Stop offset="1" stopColor={hl} stopOpacity={0} />
             </LinearGradient>
           </Defs>
@@ -92,7 +82,7 @@ function WaitStep({ step, done, current }: { step: string; done: boolean; curren
   const opacity = useSharedValue(lit);
   useEffect(() => {
     opacity.value = withTiming(lit, {
-      duration: reduceMotion ? RM_FADE_MS : theme.motion.duration.base,
+      duration: reduceMotion ? theme.motion.duration.rmFade : theme.motion.duration.base,
       easing: ease('standard'),
       reduceMotion: ReduceMotion.Never,
     });
@@ -162,7 +152,7 @@ export default function CropScreen() {
           h: current.h * s,
         };
       }
-      const inset = Math.min(bounds.w, bounds.h) * START_INSET;
+      const inset = Math.min(bounds.w, bounds.h) * theme.layout.cropStartInset;
       return { x: bounds.x + inset, y: bounds.y + inset, w: bounds.w - inset * 2, h: bounds.h - inset * 2 };
     });
   }, [bounds]);
@@ -280,7 +270,7 @@ export default function CropScreen() {
         <AppText variant="heading" tint={c.cameraForeground} align="center">
           {busy ? 'Çözülüyor' : 'Soruyu kırp'}
         </AppText>
-        <AppText variant="label" tint={c.cameraForeground} align="center" style={{ opacity: CAPTION_OPACITY }}>
+        <AppText variant="label" tint={c.cameraForeground} align="center" style={{ opacity: theme.opacity.cameraCaption }}>
           {busy ? 'Bu biraz sürebilir.' : 'Köşeleri sürükle, sadece soru kalsın.'}
         </AppText>
       </View>

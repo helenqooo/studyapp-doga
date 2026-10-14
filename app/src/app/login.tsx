@@ -22,12 +22,6 @@ import { haptics } from '../lib/haptics';
 import { useWindowLayout } from '../lib/layout';
 import { useTheme } from '../theme';
 
-// TOKEN-PENDING: layout.login = { form: 420, column: 480, hero: { wide: 180, compact: 120 }, patch: 460 } (spec 7.10)
-const LOGIN = { form: 420, column: 480, hero: { wide: 180, compact: 120 }, patch: 460 };
-// TOKEN-PENDING: layout.logo.stroke = 14 (the ring's stroke on the logo's 100-unit grid; same as Logo.tsx)
-const LOGO_STROKE = 14;
-// TOKEN-PENDING: layout.bubble.selectRing = 4 (gap from a chosen color bubble to its ring)
-const SELECT_RING = 4;
 
 type Mode = 'login' | 'register';
 const AVATARS: AvatarKey[] = ['clay', 'kraft', 'olive', 'sky', 'plum', 'sand', 'slate', 'rose'];
@@ -48,7 +42,7 @@ function TwoToneLogo({ size }: { size: number }) {
   const theme = useTheme();
   return (
     <Svg width={size} height={size} viewBox="13 13 74 74" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-      <Path d={LOGO_RING} fill="none" stroke={theme.colors.text} strokeWidth={LOGO_STROKE} strokeLinecap="round" />
+      <Path d={LOGO_RING} fill="none" stroke={theme.colors.text} strokeWidth={theme.layout.logo.stroke} strokeLinecap="round" />
       <Circle {...LOGO_DOT} fill={theme.colors.accent} />
     </Svg>
   );
@@ -60,8 +54,8 @@ function ColorDot({ color, selected, label, onPress }: { color: string; selected
   const reduceMotion = useReducedMotion();
   const { touch } = useWindowLayout();
   const { w, h } = theme.layout.bubble.dot;
-  const ringW = w + SELECT_RING * 2;
-  const ringH = h + SELECT_RING * 2;
+  const ringW = w + theme.layout.bubble.selectRing * 2;
+  const ringH = h + theme.layout.bubble.selectRing * 2;
   const on = useSharedValue(selected ? 1 : 0);
   useEffect(() => {
     on.value = withTiming(selected ? 1 : 0, {
@@ -113,7 +107,7 @@ function Hero({ size, patch }: { size: number; patch: boolean }) {
     <View
       style={{
         width: '100%',
-        minHeight: LOGIN.patch,
+        minHeight: theme.layout.login.patch,
         borderRadius: theme.radius.xl,
         borderCurve: 'continuous',
         overflow: 'hidden',
@@ -125,7 +119,7 @@ function Hero({ size, patch }: { size: number; patch: boolean }) {
       }}
     >
       <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-        <Kareli height={LOGIN.patch} fade={false} />
+        <Kareli height={theme.layout.login.patch} fade={false} />
       </View>
       {content}
     </View>
@@ -314,16 +308,16 @@ export default function LoginScreen() {
           // Landscape: the brand on the left half, the form sheet on the right half.
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.layout.grid.wide.gutter, width: '100%', maxWidth: theme.layout.dashboardWidth, alignSelf: 'center' }}>
             <View style={{ flex: 1 }}>
-              <Hero size={LOGIN.hero.wide} patch />
+              <Hero size={theme.layout.login.hero.wide} patch />
             </View>
             <View style={{ flex: 1, alignItems: 'center', gap: theme.spacing.md }}>
-              <View style={{ width: '100%', maxWidth: LOGIN.form }}>{form}</View>
+              <View style={{ width: '100%', maxWidth: theme.layout.login.form }}>{form}</View>
               {server}
             </View>
           </View>
         ) : (
-          <View style={{ width: '100%', maxWidth: LOGIN.column, alignSelf: 'center', gap: theme.spacing.xl }}>
-            <Hero size={sizeClass === 'compact' ? LOGIN.hero.compact : LOGIN.hero.wide} patch={false} />
+          <View style={{ width: '100%', maxWidth: theme.layout.login.column, alignSelf: 'center', gap: theme.spacing.xl }}>
+            <Hero size={sizeClass === 'compact' ? theme.layout.login.hero.compact : theme.layout.login.hero.wide} patch={false} />
             {form}
             {server}
           </View>

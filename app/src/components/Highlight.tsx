@@ -1,5 +1,5 @@
 import { cloneElement, useEffect, useRef, useState, type ReactElement } from 'react';
-import { StyleSheet, View, useWindowDimensions, type LayoutChangeEvent, type StyleProp, type ViewStyle } from 'react-native';
+import { Platform, StyleSheet, View, useWindowDimensions, type LayoutChangeEvent, type StyleProp, type ViewStyle } from 'react-native';
 import Animated, {
   ReduceMotion,
   useAnimatedStyle,
@@ -10,21 +10,15 @@ import Animated, {
 } from 'react-native-reanimated';
 import Svg, { G, Path } from 'react-native-svg';
 import { useCompanionStore } from '../store/companionStore';
-import { useTheme } from '../theme';
+import { layout, useTheme } from '../theme';
 import { ease } from './motion/presets';
 
-// TOKEN-PENDING: motion.duration.rmFade = 120 (the Reduce Motion fade for the strike, spec 5.6)
-const RM_FADE_MS = 120;
-// TOKEN-PENDING: layout.highlight.passShift = 1.5 (how far the second ink pass sits from the first, pt)
-const PASS_SHIFT = 1.5;
-// TOKEN-PENDING: opacity.highlightPass = 0.85 (each light-mode ink pass, spec 3 Highlight)
-const PASS_OPACITY = 0.85;
 
 /** The band's height and its top edge inside a line box of this height (pt). */
 function bandRows(lineHeight: number, heightRatio: number) {
   const height = Math.round(lineHeight * heightRatio);
   // Sits slightly below the middle of the line, like a hand-drawn swipe.
-  return { height, top: (lineHeight - height) / 2 + PASS_SHIFT };
+  return { height, top: (lineHeight - height) / 2 + layout.highlight.passShift };
 }
 
 /** A rounded rect with a different radius per corner (tl, tr, br, bl): the uneven marker ends. */
@@ -64,7 +58,7 @@ export function HighlightBand({ width, lineHeight, progress, opacity, tone }: Ba
   const bandW = width + hl.leadIn + hl.tail;
   const { height: bandH, top: bandTop } = bandRows(lineHeight, hl.heightRatio);
   // Room for the slant and the turn so nothing is clipped at the ends.
-  const pad = Math.ceil(bandH * Math.tan((Math.abs(hl.skewDeg) * Math.PI) / 180) + PASS_SHIFT * 2);
+  const pad = Math.ceil(bandH * Math.tan((Math.abs(hl.skewDeg) * Math.PI) / 180) + theme.layout.highlight.passShift * 2);
   const boxW = bandW + pad * 2;
   const boxH = bandH + pad * 2;
   const top = bandTop - pad;
@@ -86,9 +80,9 @@ export function HighlightBand({ width, lineHeight, progress, opacity, tone }: Ba
           {Array.from({ length: passes }, (_, i) => (
             <Path
               key={i}
-              d={bandPath(i * PASS_SHIFT + (bandH / 2) * Math.tan((-hl.skewDeg * Math.PI) / 180), i ? -PASS_SHIFT / 2 : 0, bandW - i * PASS_SHIFT * 2, bandH, i ? [...hl.radii].reverse() : hl.radii)}
+              d={bandPath(i * theme.layout.highlight.passShift + (bandH / 2) * Math.tan((-hl.skewDeg * Math.PI) / 180), i ? -theme.layout.highlight.passShift / 2 : 0, bandW - i * theme.layout.highlight.passShift * 2, bandH, i ? [...hl.radii].reverse() : hl.radii)}
               fill={color}
-              fillOpacity={dark ? 1 : PASS_OPACITY}
+              fillOpacity={dark ? 1 : theme.opacity.highlightPass}
             />
           ))}
         </G>
@@ -160,9 +154,9 @@ export function Highlight({ id, drawn = false, tone, ink, persistKey, done = fal
   useEffect(() => {
     strike.value = done
       ? reduceMotion
-        ? withTiming(1, { duration: RM_FADE_MS, reduceMotion: ReduceMotion.Never })
+        ? withTiming(1, { duration: theme.motion.duration.rmFade, reduceMotion: ReduceMotion.Never })
         : withTiming(1, { duration: theme.motion.highlight.strike, easing: ease('pencil') })
-      : withTiming(0, { duration: RM_FADE_MS, reduceMotion: ReduceMotion.Never });
+      : withTiming(0, { duration: theme.motion.duration.rmFade, reduceMotion: ReduceMotion.Never });
     if (done && persistKey) useCompanionStore.getState().markDone(persistKey);
   }, [done, persistKey, reduceMotion, strike, theme.motion.highlight.strike]);
 
@@ -201,9 +195,12 @@ export function Highlight({ id, drawn = false, tone, ink, persistKey, done = fal
     reduceMotion ? { width: box.w, opacity: strike.value } : { width: box.w * strike.value, opacity: 1 },
   );
 
+  // Rounded up, never down: the ink copy is held to this width, and a copy narrower than the
+  // text ends in an ellipsis drawn over the real glyphs.
   const onLayout = (e: LayoutChangeEvent) => {
-    const { width: w, height: h } = e.nativeEvent.layout;
-    if (Math.round(w) !== box.w || Math.round(h) !== box.h) setBox({ w: Math.round(w), h: Math.round(h) });
+    const w = Math.ceil(e.nativeEvent.layout.width);
+    const h = Math.ceil(e.nativeEvent.layout.height);
+    if (w !== box.w || h !== box.h) setBox({ w, h });
   };
 
   const single = { numberOfLines: children.props.numberOfLines ?? 1 };
@@ -214,7 +211,7 @@ export function Highlight({ id, drawn = false, tone, ink, persistKey, done = fal
       {/* The same text in highlightInk, revealed with the ink. */}
       {/* Clipped to the band's rows too: glyph parts outside the ink keep their own color. */}
       <Animated.View pointerEvents="none" aria-hidden style={[styles.ink, { left: -leadIn, top: rows.top, height: rows.height }, inkClip]}>
-        <View style={{ width: box.w, height: box.h, marginLeft: leadIn, marginTop: -rows.top }}>
+        <View style={{ width: box.w + theme.layout.highlight.copySlack[Platform.OS === 'web' ? 'web' : 'native'], height: box.h, marginLeft: leadIn, marginTop: -rows.top }}>
           {cloneElement(children, { ...single, tint: ink ?? theme.colors.highlightInk })}
         </View>
       </Animated.View>

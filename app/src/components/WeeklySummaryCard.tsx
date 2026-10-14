@@ -13,10 +13,12 @@ import { ThinkingSpark } from './motion/ThinkingSpark';
 
 /** Lines of the summary shown before "Devamını oku". */
 const COLLAPSED_LINES = 3;
+/** Lumi's words are set in Lora, as on Home (proportional figures: Lora's tabular ones widen spaces). */
+const VOICE = { family: 'serif', weight: 'regular', tabular: false } as const;
 
 /**
  * "Lumi'nin haftalık notu": the AI's weekly read and its 3 priority topics with reasons, on
- * note paper (all text in `noteInk`). Collapsed to the first three lines of the summary;
+ * note paper (all text in `noteInk`, Lumi's words in Lora). Collapsed to the first three lines of the summary;
  * "Devamını oku" opens the whole note with the priorities.
  */
 export function WeeklySummaryCard() {
@@ -32,7 +34,7 @@ export function WeeklySummaryCard() {
       {busy ? (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm }}>
           <ThinkingSpark size={theme.layout.iconSize.lg} />
-          <AppText variant="note" tint={ink} style={{ flexShrink: 1 }}>
+          <AppText variant="note" {...VOICE} tint={ink} style={{ flexShrink: 1 }}>
             Haftalık notun hazırlanıyor, biraz sürebilir.
           </AppText>
         </View>
@@ -51,12 +53,12 @@ export function WeeklySummaryCard() {
           />
         </View>
       ) : summary.data?.status === 'insufficient' ? (
-        <AppText variant="note" tint={ink}>
+        <AppText variant="note" {...VOICE} tint={ink}>
           Not için en az bir deneme gir ya da birkaç soru çöz.
         </AppText>
       ) : summary.data?.status === 'ok' ? (
         <View style={{ gap: theme.spacing.md }}>
-          <AppText variant="note" tint={ink} numberOfLines={open ? undefined : COLLAPSED_LINES}>
+          <AppText variant="note" {...VOICE} tint={ink} numberOfLines={open ? undefined : COLLAPSED_LINES}>
             {summary.data.summary}
           </AppText>
           {open ? (
@@ -89,7 +91,7 @@ export function WeeklySummaryCard() {
                       {topic ? (
                         <Badge label={`${topic.exam} ${topic.subject}`} dot={subjectColor(theme, topic.subject)} background={theme.colors.surface} />
                       ) : null}
-                      <AppText variant="caption" tint={ink}>
+                      <AppText variant="caption" {...VOICE} tint={ink}>
                         {p.reason}
                       </AppText>
                     </View>

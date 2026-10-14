@@ -12,12 +12,6 @@ import Animated, {
 import { useTheme } from '../theme';
 import { ease } from './motion/presets';
 
-// TOKEN-PENDING: opacity.shine = 0.25 (the soft white level-wrap sweep, spec 2.0 rule 4)
-const SHINE_OPACITY = 0.25;
-// TOKEN-PENDING: layout.progress.shineShare = 0.4 (the sweep's width as a share of the bar)
-const SHINE_SHARE = 0.4;
-// TOKEN-PENDING: motion.progress.rmFlash = 160 (the Reduce Motion level-wrap flash, spec 5.6)
-const RM_FLASH_MS = 160;
 
 interface Props {
   /** 0..1 */
@@ -64,8 +58,8 @@ export function ProgressBar({ progress, color, trackColor, height, from, variant
       fill.value = target;
       if (wrap) {
         flash.value = withSequence(
-          withTiming(1, { duration: RM_FLASH_MS / 2, reduceMotion: ReduceMotion.Never }),
-          withTiming(0, { duration: RM_FLASH_MS / 2, reduceMotion: ReduceMotion.Never }),
+          withTiming(1, { duration: theme.motion.progress.rmFlash / 2, reduceMotion: ReduceMotion.Never }),
+          withTiming(0, { duration: theme.motion.progress.rmFlash / 2, reduceMotion: ReduceMotion.Never }),
         );
       }
       return;
@@ -86,12 +80,12 @@ export function ProgressBar({ progress, color, trackColor, height, from, variant
     // The translate sandwich: scale around the left edge.
     transform: [{ translateX: -half }, { scaleX: fill.value }, { translateX: half }],
   }));
-  const bandW = width * SHINE_SHARE;
+  const bandW = width * theme.layout.progress.shineShare;
   const shineStyle = useAnimatedStyle(() => ({
-    opacity: shine.value > 0 && shine.value < 1 ? SHINE_OPACITY : 0,
+    opacity: shine.value > 0 && shine.value < 1 ? theme.opacity.shine : 0,
     transform: [{ translateX: -bandW + (width + bandW) * shine.value }],
   }));
-  const flashStyle = useAnimatedStyle(() => ({ opacity: flash.value * SHINE_OPACITY }));
+  const flashStyle = useAnimatedStyle(() => ({ opacity: flash.value * theme.opacity.shine }));
 
   const onLayout = (e: LayoutChangeEvent) => {
     const w = Math.round(e.nativeEvent.layout.width);

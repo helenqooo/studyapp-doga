@@ -11,17 +11,6 @@ import { Highlight } from '../Highlight';
 import { Icon } from '../Icon';
 import { spring } from '../motion/presets';
 
-// TOKEN-PENDING: opacity.podiumTint = { first: { light: 0.3, dark: 0.36 }, other: { light: 0.2, dark: 0.18 } }
-//   (a step's tier tint over the sheet: the winner's gold reads first; second and third stay quieter
-//   but keep a body on the light paper, together with their hairline edge)
-const TINT = { first: { light: 0.3, dark: 0.36 }, other: { light: 0.2, dark: 0.18 } };
-// TOKEN-PENDING: layout.podium.firstFlex = 1.3 (the winner's step is wider than the other two)
-const FIRST_FLEX = 1.3;
-// TOKEN-PENDING: layout.podium.tall = { step: [176, 136, 104], avatar: { first: 80, other: 64 } }
-//   (a portrait iPad has the height to spare: the podium, the screen's primary, takes it)
-const TALL = { step: [176, 136, 104], avatar: { first: 80, other: 64 } };
-// TOKEN-PENDING: motion.podium = { stagger: 80, drop: 28 } (steps rise 3, 2, 1; avatars drop from 28 pt)
-const PODIUM = { stagger: 80, drop: 28 };
 
 /** First, second and third place: gold, silver, bronze. */
 const TIER: BadgeTier[] = ['gold', 'silver', 'bronze'];
@@ -44,7 +33,7 @@ function Step({ entry, place, height, avatar }: { entry: LeaderboardEntry; place
   const drop = useSharedValue(reduceMotion ? 1 : 0);
   useEffect(() => {
     if (reduceMotion) return;
-    const wait = order * PODIUM.stagger;
+    const wait = order * theme.motion.podium.stagger;
     rise.value = withDelay(wait, withSpring(1, spring('settle')));
     drop.value = withDelay(wait + theme.motion.duration.fast, withSpring(1, spring('land')));
   }, [reduceMotion, order, rise, drop, theme.motion.duration.fast]);
@@ -55,7 +44,7 @@ function Step({ entry, place, height, avatar }: { entry: LeaderboardEntry; place
   const numeralStyle = useAnimatedStyle(() => ({ opacity: Math.min(1, Math.max(0, rise.value)) }));
   const dropStyle = useAnimatedStyle(() => ({
     opacity: Math.min(1, Math.max(0, drop.value * 2)),
-    transform: [{ translateY: (1 - drop.value) * -PODIUM.drop }],
+    transform: [{ translateY: (1 - drop.value) * -theme.motion.podium.drop }],
   }));
 
   const name = (
@@ -68,7 +57,7 @@ function Step({ entry, place, height, avatar }: { entry: LeaderboardEntry; place
     <View
       accessible
       accessibilityLabel={`${entry.rank}. ${entryName(entry)}, ${entry.xp} XP`}
-      style={{ flex: first ? FIRST_FLEX : 1, minWidth: 0, alignItems: 'center', gap: theme.spacing.xs }}
+      style={{ flex: first ? theme.layout.podium.firstFlex : 1, minWidth: 0, alignItems: 'center', gap: theme.spacing.xs }}
     >
       <Animated.View style={[{ alignItems: 'center', gap: theme.spacing.xs }, dropStyle]}>
         {first ? <Icon name="crown" size={theme.layout.iconSize.lg} color={theme.colors.xp} filled /> : null}
@@ -105,13 +94,14 @@ function Step({ entry, place, height, avatar }: { entry: LeaderboardEntry; place
                 },
               ]}
             >
-              <View style={[StyleSheet.absoluteFill, { backgroundColor: ink, opacity: (first ? TINT.first : TINT.other)[theme.scheme] }]} />
+              <View style={[StyleSheet.absoluteFill, { backgroundColor: ink, opacity: theme.opacity.podiumTint[first ? 'first' : 'other'][theme.scheme] }]} />
             </View>
           </Animated.View>
         </View>
         <Animated.View style={[{ alignItems: 'center', paddingTop: theme.spacing.xs }, numeralStyle]}>
-          {/* The winner's numeral in the readable XP ink; the others in their medal ink. */}
-          <AppText variant={first ? 'title' : 'stat'} tint={first ? theme.colors.xpText : ink}>
+          {/* The winner's numeral in the readable XP ink; the others in muted ink (the raw silver and bronze
+              read under 3:1 on their own tints), so the step's tint alone says the medal. */}
+          <AppText variant={first ? 'title' : 'stat'} tint={first ? theme.colors.xpText : theme.colors.textMuted}>
             {entry.rank}
           </AppText>
         </Animated.View>
@@ -130,10 +120,11 @@ function Step({ entry, place, height, avatar }: { entry: LeaderboardEntry; place
  */
 export function Podium({ items }: { items: LeaderboardEntry[] }) {
   const theme = useTheme();
-  const { tablet, landscape } = useWindowLayout();
-  const tall = tablet && !landscape;
-  const steps = tall ? TALL.step : theme.layout.podium.step[tablet ? 'tablet' : 'compact'];
-  const avatars = tall ? TALL.avatar : theme.layout.podium.avatar;
+  const { tablet, landscape, sizeClass } = useWindowLayout();
+  // A phone on its side stays short; a landscape iPad has the podium in its own 7-column side.
+  const tall = tablet && (!landscape || sizeClass === 'wide');
+  const steps = tall ? theme.layout.podium.tall.step : theme.layout.podium.step[tablet ? 'tablet' : 'compact'];
+  const avatars = tall ? theme.layout.podium.tall.avatar : theme.layout.podium.avatar;
   // Second, first, third from left to right.
   const places = [1, 0, 2];
   return (

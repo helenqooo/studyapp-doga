@@ -10,22 +10,16 @@ import Animated, {
   withSequence,
   withTiming,
 } from 'react-native-reanimated';
-import { useTheme } from '../theme';
+import { layout, useTheme } from '../theme';
 import { Icon } from './Icon';
 import { ease } from './motion/presets';
 
-// TOKEN-PENDING: layout.streakFlame = { tiers: [1, 7, 30], size: [44, 52, 60], glowShare: 0.78 } (flame disc by streak tier, spec 7.1 Seri)
-const FLAME = { tiers: [1, 7, 30], size: [44, 52, 60], glowShare: 0.78 } as const;
-// TOKEN-PENDING: opacity.flameGlow = { low: 0.12, high: 0.3, scaleFrom: 0.8 } (the breathing glow behind a live flame)
-const GLOW = { low: 0.12, high: 0.3, scaleFrom: 0.8 } as const;
-// TOKEN-PENDING: motion.flame = { rise: 1.5, stretch: 0.08, swayDeg: 2 } (the live flame's breath: lift in pt, scaleY gain, sway each way)
-const BREATH = { rise: 1.5, stretch: 0.08, swayDeg: 2 } as const;
 
 /** The disc size for a streak: grows at a week and at a month. */
 export function flameSize(streak: number): number {
   let i = 0;
-  for (let t = 0; t < FLAME.tiers.length; t++) if (streak >= FLAME.tiers[t]!) i = t;
-  return FLAME.size[i]!;
+  for (let t = 0; t < layout.streakFlame.tiers.length; t++) if (streak >= layout.streakFlame.tiers[t]!) i = t;
+  return layout.streakFlame.size[i]!;
 }
 
 /**
@@ -38,7 +32,7 @@ export function StreakFlame({ active, streak = 0, size: sizeProp }: { active: bo
   const flicker = useSharedValue(0);
   const on = useSharedValue(active ? 1 : 0);
   const size = sizeProp ?? flameSize(streak);
-  const icon = Math.round(size * (theme.layout.system.iconSize.lg / FLAME.size[0]));
+  const icon = Math.round(size * (theme.layout.system.iconSize.lg / theme.layout.streakFlame.size[0]));
 
   useEffect(() => {
     on.value = withTiming(active ? 1 : 0, {
@@ -69,19 +63,19 @@ export function StreakFlame({ active, streak = 0, size: sizeProp }: { active: bo
     return {
       transform: [
         { translateY: base },
-        { translateY: -BREATH.rise * flicker.value },
-        { scaleY: 1 + BREATH.stretch * flicker.value },
-        { rotate: `${Math.sin(flicker.value * 2 * Math.PI) * BREATH.swayDeg}deg` },
+        { translateY: -theme.motion.flame.rise * flicker.value },
+        { scaleY: 1 + theme.motion.flame.stretch * flicker.value },
+        { rotate: `${Math.sin(flicker.value * 2 * Math.PI) * theme.motion.flame.swayDeg}deg` },
         { translateY: -base },
       ],
     };
   }, [icon]);
   const glowStyle = useAnimatedStyle(() => ({
-    opacity: on.value * (GLOW.low + (GLOW.high - GLOW.low) * flicker.value),
-    transform: [{ scale: GLOW.scaleFrom + (1 - GLOW.scaleFrom) * flicker.value }],
+    opacity: on.value * (theme.opacity.flameGlow.low + (theme.opacity.flameGlow.high - theme.opacity.flameGlow.low) * flicker.value),
+    transform: [{ scale: theme.opacity.flameGlow.scaleFrom + (1 - theme.opacity.flameGlow.scaleFrom) * flicker.value }],
   }));
   const filledStyle = useAnimatedStyle(() => ({ opacity: on.value }));
-  const glow = size * FLAME.glowShare;
+  const glow = size * theme.layout.streakFlame.glowShare;
 
   return (
     <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }} aria-hidden>

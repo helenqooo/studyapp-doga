@@ -13,8 +13,6 @@ import { Grid } from '../Grid';
 import { PressableScale } from '../motion/PressableScale';
 import { ease } from '../motion/presets';
 
-// TOKEN-PENDING: layout.chart.lossValueWidth = { compact: 72, tablet: 84 } (fits "88,88 net"; every track ends at the same x)
-const VALUE_WIDTH = { compact: 72, tablet: 84 };
 /** AppText's `numeric` stops growing at this Dynamic Type scale. */
 const NUMERIC_MAX_SCALE = 1.6;
 
@@ -77,7 +75,7 @@ export function TopicLossBars({ items }: { items: TopicLoss[] }) {
   const setSubject = useHistoryFilter((s) => s.setSubject);
   const setTopicId = useHistoryFilter((s) => s.setTopicId);
   const maxLost = Math.max(...items.map((t) => t.lostNet), 1);
-  const valueWidth = Math.ceil((tablet ? VALUE_WIDTH.tablet : VALUE_WIDTH.compact) * Math.min(Math.max(fontScale, 1), NUMERIC_MAX_SCALE));
+  const valueWidth = Math.ceil((tablet ? theme.layout.chart.lossValueWidth.tablet : theme.layout.chart.lossValueWidth.compact) * Math.min(Math.max(fontScale, 1), NUMERIC_MAX_SCALE));
 
   return (
     <Grid columns={{ compact: 1, wide: 2 }} gap={theme.spacing.xs} columnGap={theme.spacing.xxl}>

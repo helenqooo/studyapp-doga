@@ -11,8 +11,6 @@ import { ExamSection, examTitle, useLastExam } from './LastExamCard';
 import { LeagueSection } from './LeagueCard';
 import { StreakSection } from './StreakCard';
 
-// TOKEN-PENDING: home.progressGridMin = 680 (the content width from which Seri and Bu hafta sit side by side; the week's seven bubbles need it)
-const GRID_MIN = 680;
 
 /** Which corners of the sheet a part touches, so its press tint follows them. */
 interface Corners {
@@ -75,6 +73,7 @@ function ColumnRule() {
  * a deneme the sheet keeps its own height rather than holding empty bands.
  */
 export function ProgressPanel({ layout, fill = false, style }: { layout: 'column' | 'grid'; fill?: boolean; style?: StyleProp<ViewStyle> }) {
+  const theme = useTheme();
   const { width } = useContentSize();
   const exam = useLastExam();
   const board = useLeaderboard('week').data;
@@ -102,7 +101,7 @@ export function ProgressPanel({ layout, fill = false, style }: { layout: 'column
 
   const sheet = [{ padding: 0, gap: 0 }, style];
 
-  if (layout === 'grid' && width >= GRID_MIN) {
+  if (layout === 'grid' && width >= theme.home.progressGridMin) {
     // Seri beside Bu hafta, the deneme under both; with one of them missing, the other sits beside Seri.
     const second = league ?? examPart(false);
     const below = league ? examPart(true) : null;

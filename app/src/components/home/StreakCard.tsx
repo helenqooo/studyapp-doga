@@ -12,11 +12,8 @@ import { ease } from '../motion/presets';
 import { ProgressBar } from '../ProgressBar';
 import { StreakFlame } from '../StreakFlame';
 import { weekdayShort } from './dates';
-import { FIGURE_DROP } from './Countdown';
 import { Highlight } from '../Highlight';
 
-// TOKEN-PENDING: motion.duration.rmFade = 120 (the Reduce Motion cross-fade, spec 0.7 and 5.6)
-const RM_FADE_MS = 120;
 
 /** A dot bubble's streak-orange ring: today, until it counts (then it fades out). */
 function TodayRing({ shown }: { shown: boolean }) {
@@ -27,7 +24,7 @@ function TodayRing({ shown }: { shown: boolean }) {
   const opacity = useSharedValue(shown ? 1 : 0);
   useEffect(() => {
     opacity.value = withTiming(shown ? 1 : 0, {
-      duration: reduceMotion ? RM_FADE_MS : theme.motion.duration.base,
+      duration: reduceMotion ? theme.motion.duration.rmFade : theme.motion.duration.base,
       easing: ease('standard'),
       reduceMotion: ReduceMotion.Never,
     });
@@ -96,7 +93,7 @@ export function StreakSection() {
           <Highlight id="home.seri">
             <AppText variant="stat">{String(streak)}</AppText>
           </Highlight>
-          <AppText variant="label" color="textMuted" style={{ flexShrink: 1, marginBottom: Math.round(statSize * FIGURE_DROP) }}>
+          <AppText variant="label" color="textMuted" style={{ flexShrink: 1, marginBottom: Math.round(statSize * theme.typography.figureDrop) }}>
             günlük seri
           </AppText>
         </View>
@@ -105,9 +102,17 @@ export function StreakSection() {
       <View style={{ gap: theme.spacing.sm }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', gap: theme.spacing.sm }}>
           <AppText variant="heading">Seviye {p?.level ?? 1}</AppText>
-          <Highlight id="home.xp">
-            <AppText variant="numeric">{p ? `${p.levelXp} / ${p.levelXpRequired} XP` : '– XP'}</AppText>
-          </Highlight>
+          {/* Written as on Profile: the figures, then a small "XP". */}
+          <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: theme.spacing.xs }}>
+            <Highlight id="home.xp">
+              <AppText variant="numeric" color="textMuted">
+                {p ? `${p.levelXp}/${p.levelXpRequired}` : '—'}
+              </AppText>
+            </Highlight>
+            <AppText variant="caption" color="textMuted">
+              XP
+            </AppText>
+          </View>
         </View>
         <ProgressBar variant="groove" progress={p ? p.levelXp / p.levelXpRequired : 0} />
       </View>

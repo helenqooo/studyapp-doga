@@ -48,67 +48,6 @@ import { FACE_ITEMS, HEAD_ITEMS, POSES, type ArmMotion, type BodyMotion, type He
 
 export type { Held, MascotMood } from './poses';
 
-/**
- * The loops' shapes: amplitudes (grid units, degrees, scale) and timings (ms) per body and arm
- * motion, fidget and effect. `motion.mascot` holds the shared ones (pose spring, hop, blink,
- * flap, reaction, fidget gap, entrance, effect phase).
- */
-// TOKEN-PENDING: motion.mascot.loops = (the LOOPS table below)
-const LOOPS = {
-  hop: { height: -10, pause: 520 },
-  jump: { height: -22, pause: 220 },
-  hopLand: 260,
-  stretch: { sy: 1.06, sx: 0.96 },
-  squash: { sy: 0.9, sx: 1.08, ms: 110, settle: 150 },
-  droop: { sy: 0.985, syMs: 2200, rot: 2, rotMs: 2400 },
-  sway: { rot: 4, sy: 1.02, ms: 900 },
-  nod: { rot: 2.5, y: 1.5, ms: 480 },
-  wobble: { rot: 6, ms: 700 },
-  bob: { y: -5, sy: 1.02, ms: 650 },
-  breathe: { sy: 1.045, sx: 0.975, y: -3, ms: 1300 },
-  wave: { from: 14, to: -16, ms: 280 },
-  wiggle: { from: -10, to: 12, ms: 220 },
-  shake: { deg: 14, ms: 140 },
-  gesture: { deg: 20, ms: 760 },
-  tap: { deg: -6, ms: 160, rest: 700 },
-  scribble: { deg: 6, ms: 110 },
-  sip: { delay: 1800, deg: 14, ms: 420, hold: 700 },
-  pop: { deg: 16, ms: 90, rest: 1100 },
-  blink: { closed: 0.1, close: 70, open: 100, every: 3400 },
-  blink2: { close: 60, open: 80, reopen: 90 },
-  tipSway: { deg: 5, ms: 1500 },
-  glow: { rest: 1.12, restMs: 1500, pulse: 1.35, pulseMs: 420, dimMs: 500 },
-  talk: { from: 0.35, ms: 130 },
-  fxMs: 1500,
-  popSpring: { damping: 7, stiffness: 160 },
-  enterSpring: { damping: 9, stiffness: 150, mass: 0.7 },
-  bump: { up: 1.08, upMs: 110, down: 0.95, downMs: 120, spring: { damping: 8, stiffness: 200 } },
-  idleArm: { deg: 5, ms: 1300 },
-  fidgetSpring: { damping: 12, stiffness: 160 },
-  look: { x: 5, back: -3, y: -1, hold: 700, settle: 500, yHold: 1200 },
-  lookUp: { x: 4, y: -4, hold: 900 },
-  fidgetHop: { y: -14, up: 200, down: 190, stretch: 1.05, squash: 0.9, squashMs: 90 },
-  flick: { deg: -16, ms: 120, spring: { damping: 5, stiffness: 180 } },
-  tilt: { deg: 7, hold: 900 },
-  shiver: { deg: 5, ms: [90, 120, 120] },
-  hello: { up: -122, low: -104, high: -136, ms: 170, times: 3, settle: 150, face: -2, faceHold: 1300 },
-  /** How far the eyes shift toward `lookAt` (grid units). */
-  lookAtShift: 4,
-  /** Effect loops: travel (grid units), turn (degrees), scale and opacity ranges. */
-  fx: {
-    tear: { fall: 22 },
-    sweat: { fall: 8, fade: 0.7 },
-    zzz: { x: 8, rise: 14, from: 0.8, grow: 0.35 },
-    hearts: { rise: 18, from: 0.7, grow: 0.4 },
-    sparkles: { dim: 0.4, from: 0.5, grow: 0.7, turn: 90 },
-    question: { bob: 3, turn: 8 },
-    exclaim: { pulse: 0.06, bob: 1.5 },
-    confetti: { fall: 26, fade: 0.8, turn: 10 },
-    flame: { from: 0.9, flicker: 0.12, rate: 6, sway: 0.05 },
-    steam: { opacity: 0.9, rise: 8, drift: 1.5 },
-  },
-} as const;
-
 interface Props {
   mood?: MascotMood;
   size?: number;
@@ -267,7 +206,7 @@ export function StillMascot({
   // Only open eyes look around or blink; happy, closed or heart eyes keep their shape.
   const open = BLINKING_EYES.includes(pose.eyes);
   const eyes = open && blink ? 'closed' : open && gaze ? gaze : pose.eyes;
-  const look = open ? lookAt * LOOPS.lookAtShift : 0;
+  const look = open ? lookAt * MASCOT.loops.lookAtShift : 0;
   return (
     <Svg width={size} height={size} viewBox="0 0 200 200">
       <Shadow c={c} rx={46 - Math.abs(lift)} />
@@ -382,53 +321,53 @@ function startBody(motion: BodyMotion, y: SharedValue<number>, sx: SharedValue<n
   switch (motion) {
     case 'hop':
     case 'jump': {
-      const { height: h, pause } = motion === 'jump' ? LOOPS.jump : LOOPS.hop;
+      const { height: h, pause } = motion === 'jump' ? MASCOT.loops.jump : MASCOT.loops.hop;
       y.value = withRepeat(
         withSequence(
           withTiming(h, { duration: hopUp, easing: Easing.out(Easing.quad) }),
           withTiming(0, { duration: hopDown, easing: Easing.in(Easing.quad) }),
-          withTiming(0, { duration: LOOPS.hopLand + pause }),
+          withTiming(0, { duration: MASCOT.loops.hopLand + pause }),
         ),
         -1,
       );
       // Stretch in the air, squash on landing.
-      const q = LOOPS.squash;
+      const q = MASCOT.loops.squash;
       sy.value = withRepeat(
-        withSequence(squash(LOOPS.stretch.sy, hopUp), squash(1, hopDown), squash(q.sy, q.ms), squash(1, q.settle), withTiming(1, { duration: pause })),
+        withSequence(squash(MASCOT.loops.stretch.sy, hopUp), squash(1, hopDown), squash(q.sy, q.ms), squash(1, q.settle), withTiming(1, { duration: pause })),
         -1,
       );
       sx.value = withRepeat(
-        withSequence(squash(LOOPS.stretch.sx, hopUp), squash(1, hopDown), squash(q.sx, q.ms), squash(1, q.settle), withTiming(1, { duration: pause })),
+        withSequence(squash(MASCOT.loops.stretch.sx, hopUp), squash(1, hopDown), squash(q.sx, q.ms), squash(1, q.settle), withTiming(1, { duration: pause })),
         -1,
       );
       return;
     }
     case 'droop':
-      loop(sy, LOOPS.droop.sy, LOOPS.droop.syMs);
-      loop(rot, LOOPS.droop.rot, LOOPS.droop.rotMs);
+      loop(sy, MASCOT.loops.droop.sy, MASCOT.loops.droop.syMs);
+      loop(rot, MASCOT.loops.droop.rot, MASCOT.loops.droop.rotMs);
       return;
     case 'sway':
-      rot.value = -LOOPS.sway.rot;
-      loop(rot, LOOPS.sway.rot, LOOPS.sway.ms);
-      loop(sy, LOOPS.sway.sy, LOOPS.sway.ms);
+      rot.value = -MASCOT.loops.sway.rot;
+      loop(rot, MASCOT.loops.sway.rot, MASCOT.loops.sway.ms);
+      loop(sy, MASCOT.loops.sway.sy, MASCOT.loops.sway.ms);
       return;
     case 'nod':
-      loop(rot, LOOPS.nod.rot, LOOPS.nod.ms);
-      loop(y, LOOPS.nod.y, LOOPS.nod.ms);
+      loop(rot, MASCOT.loops.nod.rot, MASCOT.loops.nod.ms);
+      loop(y, MASCOT.loops.nod.y, MASCOT.loops.nod.ms);
       return;
     case 'wobble':
-      rot.value = -LOOPS.wobble.rot;
-      loop(rot, LOOPS.wobble.rot, LOOPS.wobble.ms);
+      rot.value = -MASCOT.loops.wobble.rot;
+      loop(rot, MASCOT.loops.wobble.rot, MASCOT.loops.wobble.ms);
       return;
     case 'bob':
-      loop(y, LOOPS.bob.y, LOOPS.bob.ms);
-      loop(sy, LOOPS.bob.sy, LOOPS.bob.ms);
+      loop(y, MASCOT.loops.bob.y, MASCOT.loops.bob.ms);
+      loop(sy, MASCOT.loops.bob.sy, MASCOT.loops.bob.ms);
       return;
     default:
       // Breathing: rise a little, stretch up, settle.
-      loop(sy, LOOPS.breathe.sy, LOOPS.breathe.ms);
-      loop(sx, LOOPS.breathe.sx, LOOPS.breathe.ms);
-      loop(y, LOOPS.breathe.y, LOOPS.breathe.ms);
+      loop(sy, MASCOT.loops.breathe.sy, MASCOT.loops.breathe.ms);
+      loop(sx, MASCOT.loops.breathe.sx, MASCOT.loops.breathe.ms);
+      loop(y, MASCOT.loops.breathe.y, MASCOT.loops.breathe.ms);
   }
 }
 
@@ -457,37 +396,37 @@ function startArm(motion: ArmMotion | undefined, osc: SharedValue<number>, side:
   const dir = side === 'l' ? 1 : -1;
   switch (motion) {
     case 'wave':
-      osc.value = LOOPS.wave.from * dir;
-      loop(osc, LOOPS.wave.to * dir, LOOPS.wave.ms);
+      osc.value = MASCOT.loops.wave.from * dir;
+      loop(osc, MASCOT.loops.wave.to * dir, MASCOT.loops.wave.ms);
       return;
     case 'wiggle':
-      osc.value = LOOPS.wiggle.from * dir;
-      loop(osc, LOOPS.wiggle.to * dir, LOOPS.wiggle.ms);
+      osc.value = MASCOT.loops.wiggle.from * dir;
+      loop(osc, MASCOT.loops.wiggle.to * dir, MASCOT.loops.wiggle.ms);
       return;
     case 'shake':
-      osc.value = -LOOPS.shake.deg;
-      loop(osc, LOOPS.shake.deg, LOOPS.shake.ms);
+      osc.value = -MASCOT.loops.shake.deg;
+      loop(osc, MASCOT.loops.shake.deg, MASCOT.loops.shake.ms);
       return;
     case 'gesture':
-      loop(osc, LOOPS.gesture.deg * -dir, LOOPS.gesture.ms);
+      loop(osc, MASCOT.loops.gesture.deg * -dir, MASCOT.loops.gesture.ms);
       return;
     case 'tap':
       osc.value = withRepeat(
-        withSequence(withTiming(LOOPS.tap.deg, { duration: LOOPS.tap.ms }), withTiming(0, { duration: LOOPS.tap.ms }), withTiming(0, { duration: LOOPS.tap.rest })),
+        withSequence(withTiming(MASCOT.loops.tap.deg, { duration: MASCOT.loops.tap.ms }), withTiming(0, { duration: MASCOT.loops.tap.ms }), withTiming(0, { duration: MASCOT.loops.tap.rest })),
         -1,
       );
       return;
     case 'scribble':
-      osc.value = -LOOPS.scribble.deg;
-      loop(osc, LOOPS.scribble.deg, LOOPS.scribble.ms);
+      osc.value = -MASCOT.loops.scribble.deg;
+      loop(osc, MASCOT.loops.scribble.deg, MASCOT.loops.scribble.ms);
       return;
     case 'sip':
       // Raise the cup now and then.
       osc.value = withRepeat(
         withSequence(
-          withDelay(LOOPS.sip.delay, withTiming(LOOPS.sip.deg, { duration: LOOPS.sip.ms })),
-          withTiming(LOOPS.sip.deg, { duration: LOOPS.sip.hold }),
-          withTiming(0, { duration: LOOPS.sip.ms }),
+          withDelay(MASCOT.loops.sip.delay, withTiming(MASCOT.loops.sip.deg, { duration: MASCOT.loops.sip.ms })),
+          withTiming(MASCOT.loops.sip.deg, { duration: MASCOT.loops.sip.hold }),
+          withTiming(0, { duration: MASCOT.loops.sip.ms }),
         ),
         -1,
       );
@@ -496,9 +435,9 @@ function startArm(motion: ArmMotion | undefined, osc: SharedValue<number>, side:
       // Startled: both arms jolt outward, spring back, then rest a beat.
       osc.value = withRepeat(
         withSequence(
-          withTiming(LOOPS.pop.deg * dir, { duration: LOOPS.pop.ms, easing: Easing.out(Easing.quad) }),
-          withSpring(0, LOOPS.popSpring),
-          withTiming(0, { duration: LOOPS.pop.rest }),
+          withTiming(MASCOT.loops.pop.deg * dir, { duration: MASCOT.loops.pop.ms, easing: Easing.out(Easing.quad) }),
+          withSpring(0, MASCOT.loops.popSpring),
+          withTiming(0, { duration: MASCOT.loops.pop.rest }),
         ),
         -1,
       );
@@ -554,7 +493,7 @@ function LiveMascot({
   // Fidgets and reactions, added on top of the pose and its loop.
   const faceX = useSharedValue(0);
   const faceY = useSharedValue(0);
-  const lookX = useSharedValue(lookAt * LOOPS.lookAtShift);
+  const lookX = useSharedValue(lookAt * MASCOT.loops.lookAtShift);
   const hopY = useSharedValue(0);
   const hopS = useSharedValue(1);
   const tiltX = useSharedValue(0);
@@ -567,11 +506,11 @@ function LiveMascot({
   const first = useRef(true);
 
   useEffect(() => {
-    if (popIn) enter.value = withSpring(1, LOOPS.enterSpring);
+    if (popIn) enter.value = withSpring(1, MASCOT.loops.enterSpring);
   }, [enter, popIn]);
 
   useEffect(() => {
-    lookX.value = withSpring(lookAt * LOOPS.lookAtShift, LOOPS.fidgetSpring);
+    lookX.value = withSpring(lookAt * MASCOT.loops.lookAtShift, MASCOT.loops.fidgetSpring);
   }, [lookAt, lookX]);
 
   // Fidget scheduler: every few seconds, one small action that suits the mood.
@@ -580,23 +519,23 @@ function LiveMascot({
     if (!list?.length) return;
     let alive = true;
     let t: ReturnType<typeof setTimeout>;
-    const spring = LOOPS.fidgetSpring;
+    const spring = MASCOT.loops.fidgetSpring;
     const act = (f: Fidget) => {
       switch (f) {
         case 'look': {
           const dir = Math.random() < 0.5 ? -1 : 1;
-          const L = LOOPS.look;
+          const L = MASCOT.loops.look;
           faceX.value = withSequence(withSpring(L.x * dir, spring), withDelay(L.hold, withSpring(L.back * dir, spring)), withDelay(L.settle, withSpring(0, spring)));
           faceY.value = withSequence(withSpring(L.y, spring), withDelay(L.yHold, withSpring(0, spring)));
           return;
         }
         case 'lookUp':
-          faceY.value = withSequence(withSpring(LOOPS.lookUp.y, spring), withDelay(LOOPS.lookUp.hold, withSpring(0, spring)));
-          faceX.value = withSequence(withSpring(LOOPS.lookUp.x, spring), withDelay(LOOPS.lookUp.hold, withSpring(0, spring)));
+          faceY.value = withSequence(withSpring(MASCOT.loops.lookUp.y, spring), withDelay(MASCOT.loops.lookUp.hold, withSpring(0, spring)));
+          faceX.value = withSequence(withSpring(MASCOT.loops.lookUp.x, spring), withDelay(MASCOT.loops.lookUp.hold, withSpring(0, spring)));
           return;
         case 'blink2': {
-          const b = LOOPS.blink;
-          const b2 = LOOPS.blink2;
+          const b = MASCOT.loops.blink;
+          const b2 = MASCOT.loops.blink2;
           blink.value = withSequence(
             withTiming(b.closed, { duration: b2.close }),
             withTiming(1, { duration: b2.open }),
@@ -607,27 +546,27 @@ function LiveMascot({
           return;
         }
         case 'hop': {
-          const h = LOOPS.fidgetHop;
+          const h = MASCOT.loops.fidgetHop;
           hopY.value = withSequence(withTiming(h.y, { duration: h.up, easing: Easing.out(Easing.quad) }), withTiming(0, { duration: h.down, easing: Easing.in(Easing.quad) }));
           hopS.value = withSequence(withTiming(h.stretch, { duration: h.up }), withTiming(1, { duration: h.down }), withTiming(h.squash, { duration: h.squashMs }), withSpring(1, spring));
           return;
         }
         case 'flick':
-          kickTip.value = withSequence(withTiming(LOOPS.flick.deg, { duration: LOOPS.flick.ms }), withSpring(0, LOOPS.flick.spring));
+          kickTip.value = withSequence(withTiming(MASCOT.loops.flick.deg, { duration: MASCOT.loops.flick.ms }), withSpring(0, MASCOT.loops.flick.spring));
           return;
         case 'tilt': {
           const dir = Math.random() < 0.5 ? -1 : 1;
-          tiltX.value = withSequence(withSpring(LOOPS.tilt.deg * dir, spring), withDelay(LOOPS.tilt.hold, withSpring(0, spring)));
+          tiltX.value = withSequence(withSpring(MASCOT.loops.tilt.deg * dir, spring), withDelay(MASCOT.loops.tilt.hold, withSpring(0, spring)));
           return;
         }
         case 'wiggle': {
-          const { deg, ms } = LOOPS.shiver;
+          const { deg, ms } = MASCOT.loops.shiver;
           tiltX.value = withSequence(withTiming(-deg, { duration: ms[0] }), withTiming(deg, { duration: ms[1] }), withTiming(-deg, { duration: ms[2] }), withSpring(0, spring));
           return;
         }
         case 'wave': {
           // A quick hello with the right arm (from its rest angle up to about -150°).
-          const w = LOOPS.hello;
+          const w = MASCOT.loops.hello;
           kickArmR.value = withSequence(
             withSpring(w.up, spring),
             withRepeat(withSequence(withTiming(w.low, { duration: w.ms }), withTiming(w.high, { duration: w.ms })), w.times, true),
@@ -660,7 +599,7 @@ function LiveMascot({
     tilt.value = withSpring(p.tilt ?? 0, spring);
     armL.value = withSpring(p.armL, spring);
     armR.value = withSpring(p.armR, spring);
-    glowDim.value = withTiming(p.glow ?? 1, { duration: LOOPS.glow.dimMs });
+    glowDim.value = withTiming(p.glow ?? 1, { duration: MASCOT.loops.glow.dimMs });
 
     for (const v of [bodyY, bodyRot, oscL, oscR, fxA, fxB, pop]) {
       cancelAnimation(v);
@@ -675,32 +614,32 @@ function LiveMascot({
     startArm(p.armMotionR, oscR, 'r');
 
     // A blink when the mood changes hides the swap of eyes and mouth; then every few seconds.
-    const b = LOOPS.blink;
+    const b = MASCOT.loops.blink;
     blink.value = withSequence(
       withTiming(b.closed, { duration: b.close }),
       withTiming(1, { duration: MASCOT.blinkMs }),
       withRepeat(withSequence(withDelay(b.every, withTiming(b.closed, { duration: b.close })), withTiming(1, { duration: b.open })), -1),
     );
-    sway.value = -LOOPS.tipSway.deg;
-    loop(sway, LOOPS.tipSway.deg, LOOPS.tipSway.ms);
-    loop(glow, p.pulse ? LOOPS.glow.pulse : LOOPS.glow.rest, p.pulse ? LOOPS.glow.pulseMs : LOOPS.glow.restMs);
+    sway.value = -MASCOT.loops.tipSway.deg;
+    loop(sway, MASCOT.loops.tipSway.deg, MASCOT.loops.tipSway.ms);
+    loop(glow, p.pulse ? MASCOT.loops.glow.pulse : MASCOT.loops.glow.rest, p.pulse ? MASCOT.loops.glow.pulseMs : MASCOT.loops.glow.restMs);
     if (p.talk) {
-      talk.value = LOOPS.talk.from;
-      loop(talk, 1, LOOPS.talk.ms, Easing.linear);
+      talk.value = MASCOT.loops.talk.from;
+      loop(talk, 1, MASCOT.loops.talk.ms, Easing.linear);
     }
-    fxA.value = withRepeat(withTiming(1, { duration: LOOPS.fxMs, easing: Easing.linear }), -1);
-    fxB.value = withDelay(MASCOT.fxPhaseMs, withRepeat(withTiming(1, { duration: LOOPS.fxMs, easing: Easing.linear }), -1));
-    pop.value = withSpring(1, LOOPS.popSpring);
+    fxA.value = withRepeat(withTiming(1, { duration: MASCOT.loops.fxMs, easing: Easing.linear }), -1);
+    fxB.value = withDelay(MASCOT.fxPhaseMs, withRepeat(withTiming(1, { duration: MASCOT.loops.fxMs, easing: Easing.linear }), -1));
+    pop.value = withSpring(1, MASCOT.loops.popSpring);
     // Arms swing gently with the breath when they have nothing else to do.
     cancelAnimation(idleArm);
     idleArm.value = 0;
-    if (!p.armMotionL && !p.armMotionR && p.body === 'breathe') loop(idleArm, LOOPS.idleArm.deg, LOOPS.idleArm.ms);
+    if (!p.armMotionL && !p.armMotionR && p.body === 'breathe') loop(idleArm, MASCOT.loops.idleArm.deg, MASCOT.loops.idleArm.ms);
     // Fidgets from the previous mood settle.
     for (const v of [faceX, faceY, hopY, tiltX, kickTip, kickArmR]) v.value = withSpring(0, spring);
     hopS.value = withSpring(1, spring);
     if (first.current) first.current = false;
     else {
-      const u = LOOPS.bump;
+      const u = MASCOT.loops.bump;
       bump.value = withSequence(withTiming(u.up, { duration: u.upMs }), withTiming(u.down, { duration: u.downMs }), withSpring(1, u.spring));
     }
   }, [
@@ -880,7 +819,7 @@ function effectStyle(kind: Effect, t: number, pop: number, k: number, piece: num
   'worklet';
   const wave = Math.sin(t * Math.PI * 2);
   const fadeInOut = Math.sin(t * Math.PI);
-  const f = LOOPS.fx;
+  const f = MASCOT.loops.fx;
   switch (kind) {
     case 'tear':
       return { opacity: 1 - t, transform: [{ translateY: t * f.tear.fall * k }] };

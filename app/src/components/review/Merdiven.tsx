@@ -9,10 +9,6 @@ import { Bubble } from '../Bubble';
 import { FadeText } from '../motion/FadeText';
 import { spring } from '../motion/presets';
 
-// TOKEN-PENDING: layout.ladder.rungMin = { compact: 50, tablet: 60 } (the narrowest a rung column gets before the ladder scrolls; "30 gün" at 15 pt needs 60)
-const RUNG_MIN = { compact: 50, tablet: 60 };
-// TOKEN-PENDING: layout.ladder.rail = 4 (the optikSoft rail between the rung bubbles)
-const RAIL = 4;
 
 /** Which rung (index into `layout.ladder.rungs`) an interval sits on; unknown intervals round down. */
 export function rungIndex(intervalDays: number, rungs: readonly number[]): number {
@@ -59,7 +55,7 @@ export function Merdiven({ counts, marker = null, markerFrom = null, style }: Pr
   const { tablet } = useWindowLayout();
   const reduceMotion = useReducedMotion();
   const rungs = theme.layout.ladder.rungs;
-  const rungMin = tablet ? RUNG_MIN.tablet : RUNG_MIN.compact;
+  const rungMin = tablet ? theme.layout.ladder.rungMin.tablet : theme.layout.ladder.rungMin.compact;
   const bubble = theme.layout.bubble.row;
   const dot = theme.layout.bubble.dot;
   const [width, setWidth] = useState(0);
@@ -143,10 +139,10 @@ export function Merdiven({ counts, marker = null, markerFrom = null, style }: Pr
                   pointerEvents="none"
                   style={{
                     position: 'absolute',
-                    top: (bubble.h - RAIL) / 2,
+                    top: (bubble.h - theme.layout.ladder.rail) / 2,
                     left: (i + 0.5) * slot + bubble.w / 2 + theme.spacing.xs,
                     width: Math.max(0, slot - bubble.w - theme.spacing.sm),
-                    height: RAIL,
+                    height: theme.layout.ladder.rail,
                     borderRadius: theme.radius.pill,
                     backgroundColor: theme.colors.optikSoft,
                   }}

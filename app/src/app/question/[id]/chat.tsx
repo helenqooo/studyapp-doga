@@ -10,8 +10,6 @@ import { QuestionImage } from '../../../components/QuestionImage';
 import { useWindowLayout } from '../../../lib/layout';
 import { useTheme } from '../../../theme';
 
-// TOKEN-PENDING: layout.chat.photoColumns = 5 (landscape: the question photo's share of the 12-column grid)
-const PHOTO_COLUMNS = 5;
 
 const SUGGESTIONS = [
   'Çözümün ilk adımını anlamadım',
@@ -61,7 +59,7 @@ export default function ChatScreen() {
 
   const grid = theme.layout.grid.wide;
   const contentWidth = Math.min(win.width - win.margin * 2, theme.layout.dashboardWidth);
-  const photoWidth = ((contentWidth + grid.gutter) * PHOTO_COLUMNS) / grid.columns - grid.gutter;
+  const photoWidth = ((contentWidth + grid.gutter) * theme.layout.chat.photoColumns) / grid.columns - grid.gutter;
   return (
     <View style={{ flex: 1, flexDirection: 'row', backgroundColor: theme.colors.background, paddingLeft: win.margin }}>
       <ScrollView style={{ width: photoWidth, flexGrow: 0 }} contentContainerStyle={{ paddingVertical: win.margin }}>

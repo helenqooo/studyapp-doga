@@ -149,7 +149,7 @@ export default function ExamDetailScreen() {
           <AppText variant="caption" color="textMuted" style={{ marginTop: -theme.spacing.sm }}>
             En çok net kaybettirenler önce. Her yanlış 1,25, her boş 1 net.
           </AppText>
-          <Grid columns={{ compact: 1, regular: 2 }} columnGap={theme.spacing.xxl} gap={theme.spacing.xs}>
+          <Grid columns={{ compact: 1, regular: 1, wide: 2 }} columnGap={theme.spacing.xxl} gap={theme.spacing.xs}>
             {topics.map((t) => {
               const topic = getTopic(t.topicId);
               return (

@@ -11,9 +11,6 @@ import { Appear } from '../motion/Appear';
 import { FadeText } from '../motion/FadeText';
 import { PressableScale } from '../motion/PressableScale';
 
-// TOKEN-PENDING: layout.wardrobe.itemWidth = { min: 72, max: 128 } (a swatch column: the bubble and its two-line caption;
-//   past `max` the swatches stay grouped beside the preview instead of spreading across a wide sheet)
-const ITEM_WIDTH = { min: 72, max: 128 };
 
 type ItemId = 'glasses' | 'party' | 'headphones' | 'crown';
 
@@ -61,9 +58,10 @@ export function Wardrobe({ level, streak30 }: Props) {
   const worn = (item: Item) => outfit[item.slot] === item.id;
   // Four swatches in a row when they fit, else two by two (never three and one).
   const [rowWidth, setRowWidth] = useState(0);
-  const gap = theme.spacing.xs;
-  const perRow = rowWidth >= ITEM_WIDTH.min * ITEMS.length + gap * (ITEMS.length - 1) ? ITEMS.length : 2;
-  const itemWidth = rowWidth ? Math.min(ITEM_WIDTH.max, Math.floor((rowWidth - gap * (perRow - 1)) / perRow)) : ITEM_WIDTH.min;
+  // A real column gap, so two centred lock lines never read as one sentence.
+  const gap = theme.spacing.md;
+  const perRow = rowWidth >= theme.layout.wardrobe.itemWidth.min * ITEMS.length + gap * (ITEMS.length - 1) ? ITEMS.length : 2;
+  const itemWidth = rowWidth ? Math.min(theme.layout.wardrobe.itemWidth.max, Math.floor((rowWidth - gap * (perRow - 1)) / perRow)) : theme.layout.wardrobe.itemWidth.min;
 
   const toggle = (item: Item) => {
     haptics.select();
@@ -89,7 +87,7 @@ export function Wardrobe({ level, streak30 }: Props) {
       </View>
       <View
         onLayout={(e: LayoutChangeEvent) => setRowWidth(Math.floor(e.nativeEvent.layout.width))}
-        style={{ flex: 1, flexDirection: 'row', flexWrap: 'wrap', gap }}
+        style={{ flex: 1, flexDirection: 'row', flexWrap: 'wrap', columnGap: gap, rowGap: theme.spacing.sm }}
       >
         {ITEMS.map((item) => {
           const unlocked = open(item);

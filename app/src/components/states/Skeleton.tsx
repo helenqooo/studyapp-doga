@@ -16,27 +16,6 @@ import { useTheme } from '../../theme';
 import { Card } from '../Card';
 import { ease } from '../motion/presets';
 
-// TOKEN-PENDING: layout.bone = { text: ['92%', '100%', '84%', '96%', '70%'], last: '55%', title: '60%', detail: '85%', heading: '70%', badges: [48, 72], choices: 5, shimmerBand: 120 }
-const BONE = {
-  /** A paragraph's line widths, in turn; the last line of a block is `last`. */
-  text: ['92%', '100%', '84%', '96%', '70%'] as DimensionValue[],
-  last: '55%' as DimensionValue,
-  /** A list row's title and its detail line. */
-  title: '60%' as DimensionValue,
-  detail: '85%' as DimensionValue,
-  /** A page heading. */
-  heading: '70%' as DimensionValue,
-  /** The exam and subject badges above a question (pt). */
-  badges: [48, 72],
-  /** Answer rows under a question photo. */
-  choices: 5,
-  /** Width of the shimmer band (pt). */
-  shimmerBand: 120,
-} as const;
-// TOKEN-PENDING: opacity.skeleton.shimmer = 0.7 (the shimmer band's peak, over surfaceAlt)
-const SHIMMER_PEAK = 0.7;
-// TOKEN-PENDING: opacity.skeleton.still = 0.5 (Reduce Motion: the bones rest halfway)
-const STILL = 0.5;
 
 interface SkeletonClock {
   pulse: SharedValue<number>;
@@ -70,7 +49,7 @@ export function Skeleton({ children, style, shimmer = false }: { children: React
 
   useEffect(() => {
     if (reduceMotion) {
-      pulse.value = STILL;
+      pulse.value = theme.opacity.skeleton.still;
       sweep.value = 0;
       return;
     }
@@ -119,7 +98,7 @@ function ShimmerBand({ height, clock }: { height: number; clock: SkeletonClock }
   const frame = useRef<View>(null);
   const offset = useSharedValue(0);
   const { sweep, travel, host } = clock;
-  const band = BONE.shimmerBand;
+  const band = theme.layout.bone.shimmerBand;
   // Lighter than the bone in both schemes: paper white in light, the hairline tone in dark.
   const glow = theme.scheme === 'dark' ? theme.colors.border : theme.colors.surface;
   const moving = useAnimatedStyle(() => ({ transform: [{ translateX: -band - offset.value + (travel.value + band) * sweep.value }] }));
@@ -140,7 +119,7 @@ function ShimmerBand({ height, clock }: { height: number; clock: SkeletonClock }
           <Defs>
             <LinearGradient id={gradientId} x1="0" y1="0" x2="1" y2="0">
               <Stop offset="0" stopColor={glow} stopOpacity={0} />
-              <Stop offset="0.5" stopColor={glow} stopOpacity={SHIMMER_PEAK} />
+              <Stop offset="0.5" stopColor={glow} stopOpacity={theme.opacity.skeleton.shimmer} />
               <Stop offset="1" stopColor={glow} stopOpacity={0} />
             </LinearGradient>
           </Defs>
@@ -186,7 +165,7 @@ export function BoneText({ lines = 3, size = 'md' }: { lines?: number; size?: 'm
   return (
     <View style={{ gap: theme.spacing.sm }}>
       {Array.from({ length: lines }, (_, i) => (
-        <Bone key={i} height={height} width={i === lines - 1 && lines > 1 ? BONE.last : BONE.text[i % BONE.text.length]} />
+        <Bone key={i} height={height} width={i === lines - 1 && lines > 1 ? theme.layout.bone.last : theme.layout.bone.text[i % theme.layout.bone.text.length]} />
       ))}
     </View>
   );
@@ -213,8 +192,8 @@ export function SkeletonRows({ count = 4 }: { count?: number }) {
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md }}>
             <Bone width={thumb} height={thumb} radius={theme.radius.sm} />
             <View style={{ flex: 1, gap: theme.spacing.sm }}>
-              <Bone height={theme.fontSize.md} width={BONE.title} />
-              <Bone height={theme.fontSize.sm} width={BONE.detail} />
+              <Bone height={theme.fontSize.md} width={theme.layout.bone.title} />
+              <Bone height={theme.fontSize.sm} width={theme.layout.bone.detail} />
             </View>
           </View>
         </Card>
@@ -230,14 +209,14 @@ export function SkeletonQuestion() {
   return (
     <>
       <View style={{ flexDirection: 'row', gap: theme.spacing.sm }}>
-        {BONE.badges.map((w) => (
+        {theme.layout.bone.badges.map((w) => (
           <Bone key={w} width={w} height={badge} radius={theme.radius.pill} />
         ))}
       </View>
-      <Bone height={theme.fontSize.xl} width={BONE.heading} />
+      <Bone height={theme.fontSize.xl} width={theme.layout.bone.heading} />
       <Card variant="sheet">
         <Bone height={theme.layout.questionImageCap.compact} radius={theme.radius.md} />
-        {Array.from({ length: BONE.choices }, (_, i) => (
+        {Array.from({ length: theme.layout.bone.choices }, (_, i) => (
           <Bone key={i} height={theme.layout.minTouch + theme.spacing.xs} radius={theme.radius.md} />
         ))}
       </Card>

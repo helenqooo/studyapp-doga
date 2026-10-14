@@ -4,19 +4,16 @@ import Svg, { Circle, Path } from 'react-native-svg';
 import { useExams } from '../../api/hooks';
 import type { ExamResult } from '../../api/types';
 import { formatDelta, formatNet } from '../../lib/format';
-import { useTheme } from '../../theme';
+import { home, useTheme } from '../../theme';
 import { AppText } from '../AppText';
 import { Badge } from '../Badge';
+import { isComplete } from '../exams/examMath';
 import { Icon } from '../Icon';
 
-// TOKEN-PENDING: home.lastExamPoints = 8 (exams shown in Son deneme's sparkline)
-const SPARK_POINTS = 8;
-// TOKEN-PENDING: layout.chart.sparkGrowMax = 3 (a growing sparkline stops at 3 × sparkHeight; past that the slack stays under it)
-const SPARK_GROW_MAX = 3;
 
 /**
  * A small trend: a graphite line over a fosfor wash, the latest point ringed. Static (no
- * draw-in). `grow` lets it take the height its parent gives it (up to SPARK_GROW_MAX × its own).
+ * draw-in). `grow` lets it take the height its parent gives it (up to `layout.chart.sparkGrowMax` × its own).
  */
 function TrendSpark({ values, max, grow = false }: { values: number[]; max: number; grow?: boolean }) {
   const theme = useTheme();
@@ -38,7 +35,7 @@ function TrendSpark({ values, max, grow = false }: { values: number[]; max: numb
   const area = first && last && pts.length > 1 ? `${line} L${last[0].toFixed(1)} ${height} L${first[0].toFixed(1)} ${height} Z` : '';
   return (
     <View
-      style={grow ? { flexGrow: 1, minHeight: dims.sparkHeight, maxHeight: dims.sparkHeight * SPARK_GROW_MAX } : { height }}
+      style={grow ? { flexGrow: 1, minHeight: dims.sparkHeight, maxHeight: dims.sparkHeight * theme.layout.chart.sparkGrowMax } : { height }}
       onLayout={(e: LayoutChangeEvent) => {
         const { width: w, height: h } = e.nativeEvent.layout;
         if (Math.round(w) !== box.w || Math.round(h) !== box.h) setBox({ w: Math.round(w), h: Math.round(h) });
@@ -57,12 +54,12 @@ function TrendSpark({ values, max, grow = false }: { values: number[]; max: numb
   );
 }
 
-/** The latest deneme and the ones of the same kind before it (oldest first). */
+/** The latest full deneme and the full ones of the same kind before it (oldest first); branş exams would skew the net and the trend, as in ExamSummary. */
 function latestRun(items: ExamResult[]) {
-  const byDate = [...items].sort((a, b) => (a.date === b.date ? a.createdAt.localeCompare(b.createdAt) : a.date.localeCompare(b.date)));
+  const byDate = items.filter(isComplete).sort((a, b) => (a.date === b.date ? a.createdAt.localeCompare(b.createdAt) : a.date.localeCompare(b.date)));
   const last = byDate[byDate.length - 1];
   if (!last) return null;
-  const same = byDate.filter((e) => e.exam === last.exam).slice(-SPARK_POINTS);
+  const same = byDate.filter((e) => e.exam === last.exam).slice(-home.lastExamPoints);
   return { last, prev: same.length > 1 ? same[same.length - 2]! : null, run: same };
 }
 

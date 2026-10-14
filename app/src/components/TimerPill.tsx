@@ -9,8 +9,6 @@ import { PressableScale } from './motion/PressableScale';
 import { enter, exit } from './motion/presets';
 import { TimerFace } from './TabBar';
 
-// TOKEN-PENDING: layout.timerPill.top = 52 (below the nav bar, so it never covers headerRight)
-const PILL_TOP = 52;
 
 /** Tab routes show the timer ear on the strip instead; these full-attention routes show nothing. */
 const HIDDEN = new Set(['/', '/solve', '/review', '/exams', '/profile', '/timer', '/camera', '/crop']);
@@ -20,11 +18,12 @@ const HIDDEN = new Set(['/', '/solve', '/review', '/exams', '/profile', '/timer'
  * route: a screen whose first lines start at the top right (a chat thread) keeps them below it.
  */
 export function useTimerPillBottom(): number {
+  const theme = useTheme();
   const insets = useSafeAreaInsets();
   const { touch } = useWindowLayout();
   const pathname = usePathname();
   const idle = useTimerStore((s) => s.phase === 'idle');
-  return idle || HIDDEN.has(pathname) ? 0 : insets.top + PILL_TOP + touch;
+  return idle || HIDDEN.has(pathname) ? 0 : insets.top + theme.layout.timerPill.top + touch;
 }
 
 /** Small floating countdown on stack screens while a pomodoro runs; tapping it opens the timer. */
@@ -44,7 +43,7 @@ export function TimerPill() {
     <Animated.View
       entering={enter({ duration: theme.motion.duration.base })}
       exiting={exit(theme.motion.duration.fast)}
-      style={{ position: 'absolute', top: insets.top + PILL_TOP, right: margin, zIndex: theme.layout.z.timerPill }}
+      style={{ position: 'absolute', top: insets.top + theme.layout.timerPill.top, right: margin, zIndex: theme.layout.z.timerPill }}
     >
       <PressableScale
         accessibilityRole="button"

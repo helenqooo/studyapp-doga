@@ -3,8 +3,6 @@ import type { AvatarKey } from '../api/types';
 import { useTheme } from '../theme';
 import { AppText } from './AppText';
 
-// TOKEN-PENDING: layout.avatarInitial = { size: 0.45, line: 0.6 } (the initial as a share of the disc)
-const INITIAL = { size: 0.45, line: 0.6 };
 
 interface Props {
   name: string;
@@ -33,7 +31,7 @@ export function Avatar({ name, color, size, ring }: Props) {
       }}
     >
       {/* Avatar fills are mid-tone inks: white reads on every one of them (not a primary fill). */}
-      <AppText family="display" weight="semibold" tint={theme.colors.textOnAccent} style={{ fontSize: s * INITIAL.size, lineHeight: s * INITIAL.line }}>
+      <AppText family="display" weight="semibold" tint={theme.colors.textOnAccent} style={{ fontSize: s * theme.layout.avatarInitial.size, lineHeight: s * theme.layout.avatarInitial.line }}>
         {initial}
       </AppText>
     </View>

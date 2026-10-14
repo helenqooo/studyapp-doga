@@ -13,25 +13,11 @@ import Animated, {
 } from 'react-native-reanimated';
 import Svg, { Circle, Path } from 'react-native-svg';
 import type { TimerPhase } from '../../store/timerStore';
-import { useTheme } from '../../theme';
+import { layout, useTheme } from '../../theme';
 import { CompanionPerch } from '../companion/Perch';
 import type { MascotMood } from '../mascot/Mascot';
 import { ease } from '../motion/presets';
 
-// TOKEN-PENDING: layout.timer.tickGap = 6 (space between the track's inner edge and the ticks)
-const TICK_GAP = 6;
-// TOKEN-PENDING: layout.timer.tickWidth = { major: 2, minor: 1.5 }
-const TICK_WIDTH = { major: 2, minor: 1.5 };
-// TOKEN-PENDING: layout.timer.majorEvery = 5 (a major tick every 5 minutes)
-const MAJOR_EVERY = 5;
-// TOKEN-PENDING: layout.timer.ticks = { min: 5, max: 60 } (one tick per planned minute, within these)
-const TICKS = { min: 5, max: 60 };
-// TOKEN-PENDING: motion.timer.headGlow = { ms: 1300, low: 0.35, high: 0.7, scale: 2.2 } (the fosfor head's breathing halo)
-const HEAD_GLOW = { ms: 1300, low: 0.35, high: 0.7, scale: 2.2 };
-// TOKEN-PENDING: motion.timer.tickMs = 1000 (the arc glides across each one-second tick)
-const TICK_MS = 1000;
-// TOKEN-PENDING: opacity.timerPaused = 0.55 (the arc while paused)
-const PAUSED_OPACITY = 0.55;
 
 const AnimatedPath = Animated.createAnimatedComponent(Path);
 
@@ -46,7 +32,7 @@ function tickPaths(count: number, c: number, outer: number, major: number, minor
   let min = '';
   for (let i = 0; i < count; i++) {
     const a = (i / count) * Math.PI * 2;
-    const isMajor = i % MAJOR_EVERY === 0;
+    const isMajor = i % layout.timer.majorEvery === 0;
     const len = isMajor ? major : minor;
     const sx = Math.sin(a);
     const cy = -Math.cos(a);
@@ -86,13 +72,13 @@ export function TimerRing({ size, phase, fraction, paused, minutes, mood, childr
   const r = (size - stroke) / 2;
   const length = 2 * Math.PI * r;
   const running = phase !== 'idle';
-  const count = Math.min(TICKS.max, Math.max(TICKS.min, Math.round(minutes)));
-  const ticks = useMemo(() => tickPaths(count, c, r - stroke / 2 - TICK_GAP, tick.major, tick.minor), [count, c, r, stroke, tick.major, tick.minor]);
+  const count = Math.min(theme.layout.timer.ticks.max, Math.max(theme.layout.timer.ticks.min, Math.round(minutes)));
+  const ticks = useMemo(() => tickPaths(count, c, r - stroke / 2 - theme.layout.timer.tickGap, tick.major, tick.minor), [count, c, r, stroke, tick.major, tick.minor]);
   const ring = useMemo(() => circlePath(c, r), [c, r]);
 
   const progress = useSharedValue(fraction);
   useEffect(() => {
-    progress.value = reduceMotion ? fraction : withTiming(fraction, { duration: TICK_MS, easing: Easing.linear });
+    progress.value = reduceMotion ? fraction : withTiming(fraction, { duration: theme.motion.timer.tickMs, easing: Easing.linear });
   }, [fraction, progress, reduceMotion]);
 
   // Color and visibility changes cross-fade (no hard cuts): focus arc, break arc, the whole arc layer.
@@ -101,19 +87,19 @@ export function TimerRing({ size, phase, fraction, paused, minutes, mood, childr
   const shown = useSharedValue(running ? 1 : 0);
   const focusOn = useSharedValue(phase === 'break' ? 0 : 1);
   useEffect(() => {
-    shown.value = fade(running ? (paused ? PAUSED_OPACITY : 1) : 0);
+    shown.value = fade(running ? (paused ? theme.opacity.timerPaused : 1) : 0);
     focusOn.value = fade(phase === 'break' ? 0 : 1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [running, paused, phase, fadeMs]);
 
-  const glow = useSharedValue(HEAD_GLOW.low);
+  const glow = useSharedValue<number>(theme.motion.timer.headGlow.low);
   useEffect(() => {
     if (reduceMotion || phase !== 'focus' || paused) {
       cancelAnimation(glow);
-      glow.value = HEAD_GLOW.low;
+      glow.value = theme.motion.timer.headGlow.low;
       return;
     }
-    glow.value = withRepeat(withTiming(HEAD_GLOW.high, { duration: HEAD_GLOW.ms, easing: ease('breath') }), -1, true);
+    glow.value = withRepeat(withTiming(theme.motion.timer.headGlow.high, { duration: theme.motion.timer.headGlow.ms, easing: ease('breath') }), -1, true);
     return () => cancelAnimation(glow);
   }, [reduceMotion, phase, paused, glow]);
 
@@ -154,8 +140,8 @@ export function TimerRing({ size, phase, fraction, paused, minutes, mood, childr
     <View style={{ width: size, height: size + lift, alignItems: 'center' }}>
       <View style={{ position: 'absolute', top: lift, width: size, height: size }}>
         <Svg width={size} height={size} style={StyleSheet.absoluteFill}>
-          <Path d={ticks.min} stroke={theme.colors.optik} strokeWidth={TICK_WIDTH.minor} strokeLinecap="round" />
-          <Path d={ticks.maj} stroke={theme.colors.optik} strokeWidth={TICK_WIDTH.major} strokeLinecap="round" />
+          <Path d={ticks.min} stroke={theme.colors.optik} strokeWidth={theme.layout.timer.tickWidth.minor} strokeLinecap="round" />
+          <Path d={ticks.maj} stroke={theme.colors.optik} strokeWidth={theme.layout.timer.tickWidth.major} strokeLinecap="round" />
         </Svg>
         <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, layerStyle]}>
           <Svg width={size} height={size} style={StyleSheet.absoluteFill}>
@@ -169,7 +155,7 @@ export function TimerRing({ size, phase, fraction, paused, minutes, mood, childr
               <Animated.View
                 style={[
                   StyleSheet.absoluteFill,
-                  { borderRadius: headDot, backgroundColor: theme.colors.accent, transform: [{ scale: HEAD_GLOW.scale }] },
+                  { borderRadius: headDot, backgroundColor: theme.colors.accent, transform: [{ scale: theme.motion.timer.headGlow.scale }] },
                   haloStyle,
                 ]}
               />

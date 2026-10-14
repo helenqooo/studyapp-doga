@@ -41,10 +41,6 @@ export interface MathViewProps {
   onVerdict?: (verdict: ChoiceVerdict) => void;
 }
 
-// TOKEN-PENDING: opacity.rowSweep = { light: 0.6, dark: 0.22 } (the fosfor sweep under a right row; soft, and dark text stays readable)
-const ROW_SWEEP = { light: 0.6, dark: 0.22 };
-// TOKEN-PENDING: motion.duration.rmFade = 120 (the Reduce Motion cross-fade, spec 0.7 / 5.6)
-const RM_FADE_MS = 120;
 
 const px = (n: number) => `${n}px`;
 const ms = (n: number) => `${n}ms`;
@@ -67,7 +63,7 @@ export function useSmoothHeight() {
         if (first.current) {
           // The page fades in once it has a height (a short fade under Reduce Motion, never a pop).
           opacity.value = withTiming(1, {
-            duration: reduceMotion ? RM_FADE_MS : theme.motion.duration.base,
+            duration: reduceMotion ? theme.motion.duration.rmFade : theme.motion.duration.base,
             easing: ease('standard'),
             reduceMotion: ReduceMotion.Never,
           });
@@ -113,7 +109,7 @@ export function useMathPayload({ markdown, fontSize, choices, choiceState, typin
         optik: c.optik,
         fosfor: c.accent,
         highlight: c.highlight,
-        'sweep-alpha': String(theme.scheme === 'dark' ? ROW_SWEEP.dark : ROW_SWEEP.light),
+        'sweep-alpha': String(theme.scheme === 'dark' ? theme.opacity.rowSweep.dark : theme.opacity.rowSweep.light),
         success: c.success,
         'success-strong': c.successStrong,
         'success-soft': c.successSoft,
@@ -128,7 +124,7 @@ export function useMathPayload({ markdown, fontSize, choices, choiceState, typin
         'bubble-h': px(theme.layout.bubble.row.h),
         'bubble-line': px(theme.layout.bubble.outline),
         // Color changes cross-fade at the standard pace, or the short Reduce Motion fade.
-        'fade-ms': ms(reduceMotion ? RM_FADE_MS : m.duration.base),
+        'fade-ms': ms(reduceMotion ? theme.motion.duration.rmFade : m.duration.base),
         'verdict-ms': ms(m.verdict.checkDraw),
         'pen-ms': ms(m.verdict.penCircle),
         'sweep-ms': ms(m.highlight.draw),

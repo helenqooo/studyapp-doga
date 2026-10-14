@@ -25,20 +25,6 @@ import { useHomeDay } from './homeDay';
 import type { TodayGoals } from './useTodayGoals';
 import { Highlight } from '../Highlight';
 
-// TOKEN-PENDING: layout.goalRow = { label: 84, figure: 136, action: 120, stacked: { compact: 112, tablet: 128 }, pillMin: 628, columnsMin: 728, maxShare: 1.6 }
-//   (spec 7.1 goal rows: the goal and its figure in their own columns, or the goal over its figure; the content
-//   width from which the rows end in an action pill (else a chevron), and from which goal and figure get columns;
-//   the figure columns are least widths, widened together to the widest figure; a stretched row grows to at most
-//   maxShare × layout.group.rowMinHeight.tablet)
-const GOAL_ROW = { label: 84, figure: 136, action: 120, stacked: { compact: 112, tablet: 128 }, pillMin: 628, columnsMin: 728, maxShare: 1.6 } as const;
-// TOKEN-PENDING: motion.duration.rmFade = 120 (the Reduce Motion cross-fade, spec 0.7 / 5.6)
-const RM_FADE_MS = 120;
-// TOKEN-PENDING: layout.bubbleTailTurn = '45deg' (the speech bubble's tail: a square of bubble paper turned into a diamond)
-const TAIL_TURN = '45deg';
-// TOKEN-PENDING: home.goalBubbles = { reviewCap: 10, focusSteps: 5 } (Tekrar: one per due question, Odak: 5 × 10 min)
-const GOAL_BUBBLES = { reviewCap: 10, focusSteps: 5 } as const;
-// TOKEN-PENDING: layout.goalCheck = { stroke: 3, points: [[0.06, 0.55], [0.2, 0.9], [0.94, 0.08]] } (the graphite check across the goals)
-const CHECK = { stroke: 3, points: [[0.06, 0.55], [0.2, 0.9], [0.94, 0.08]] as [number, number][] };
 
 const AnimatedPath = Animated.createAnimatedComponent(Path);
 
@@ -65,13 +51,13 @@ function ActionPill({ label, lead }: { label: string; lead: boolean }) {
   const { touch } = useWindowLayout();
   const c = theme.colors;
   const bg = lead ? c.primary : c.primarySoft;
-  const fade = { duration: reduceMotion ? RM_FADE_MS : theme.motion.duration.base, easing: ease('standard'), reduceMotion: ReduceMotion.Never };
+  const fade = { duration: reduceMotion ? theme.motion.duration.rmFade : theme.motion.duration.base, easing: ease('standard'), reduceMotion: ReduceMotion.Never };
   const fill = useAnimatedStyle(() => ({ backgroundColor: withTiming(bg, fade) }), [bg, reduceMotion]);
   return (
     <Animated.View
       style={[
         {
-          width: GOAL_ROW.action,
+          width: theme.layout.goalRow.action,
           minHeight: touch,
           paddingHorizontal: theme.spacing.md,
           borderRadius: theme.radius.button,
@@ -158,7 +144,7 @@ function GoalRow({ id, label, value, unit, verb, href, complete, strip, fit, fig
       style={{
         flexGrow: 1,
         // A stretched hero spreads its rows, but only so far (a 13" iPad would leave them sparse).
-        maxHeight: tablet && fit.columns ? Math.round(theme.layout.group.rowMinHeight.tablet * GOAL_ROW.maxShare) : undefined,
+        maxHeight: tablet && fit.columns ? Math.round(theme.layout.group.rowMinHeight.tablet * theme.layout.goalRow.maxShare) : undefined,
         flexDirection: 'row',
         alignItems: 'center',
         gap: fit.pill ? theme.spacing.lg : tablet ? theme.spacing.md : theme.spacing.sm,
@@ -167,7 +153,7 @@ function GoalRow({ id, label, value, unit, verb, href, complete, strip, fit, fig
     >
       {fit.columns ? (
         <>
-          <View style={{ width: GOAL_ROW.label }}>{name}</View>
+          <View style={{ width: theme.layout.goalRow.label }}>{name}</View>
           <View style={{ minWidth: figureWidth, flexShrink: 0 }}>{figure}</View>
         </>
       ) : (
@@ -195,7 +181,7 @@ function CheckStroke({ play }: { play: boolean }) {
   const reduceMotion = useReducedMotion();
   const [box, setBox] = useState({ w: 0, h: 0 });
   const draw = useSharedValue(play ? 0 : 1);
-  const pts = CHECK.points.map(([x, y]) => [x * box.w, y * box.h] as const);
+  const pts = theme.layout.goalCheck.points.map(([x, y]) => [x * box.w, y * box.h] as const);
   let length = 0;
   for (let i = 1; i < pts.length; i++) length += Math.hypot(pts[i]![0] - pts[i - 1]![0], pts[i]![1] - pts[i - 1]![1]);
 
@@ -223,7 +209,7 @@ function CheckStroke({ play }: { play: boolean }) {
           <AnimatedPath
             d={d}
             stroke={theme.colors.mark}
-            strokeWidth={CHECK.stroke}
+            strokeWidth={theme.layout.goalCheck.stroke}
             strokeLinecap="round"
             strokeLinejoin="round"
             fill="none"
@@ -294,7 +280,7 @@ function SpeechBubble({ words, wide }: { words: Words; wide: boolean }) {
           height: tail,
           borderRadius: theme.radius.xs / 2,
           backgroundColor: theme.colors.bubble,
-          transform: [{ rotate: TAIL_TURN }],
+          transform: [{ rotate: theme.layout.bubbleTailTurn }],
         }}
       />
       <View style={{ flex: wide ? 1 : undefined, gap: theme.spacing.xs }}>
@@ -393,7 +379,7 @@ export function TodayOptik({ goals, style }: { goals: TodayGoals; style?: StyleP
   const theme = useTheme();
   const { tablet } = useWindowLayout();
   const { width } = useContentSize();
-  const fit: HeroFit = { pill: tablet && width >= GOAL_ROW.pillMin, columns: tablet && width >= GOAL_ROW.columnsMin };
+  const fit: HeroFit = { pill: tablet && width >= theme.layout.goalRow.pillMin, columns: tablet && width >= theme.layout.goalRow.columnsMin };
   const memo = useHomeDay();
   const note = useHomeNote(goals);
   // With pills, the note's next step fills its row's pill instead of repeating as a button.
@@ -403,7 +389,7 @@ export function TodayOptik({ goals, style }: { goals: TodayGoals; style?: StyleP
   // The figure columns: their least width, widened together to the widest figure.
   const [figures, setFigures] = useState<Record<string, number>>({});
   const onFigureWidth = useCallback((id: string, w: number) => setFigures((f) => (f[id] === w ? f : { ...f, [id]: w })), []);
-  const least = fit.columns ? GOAL_ROW.figure : tablet ? GOAL_ROW.stacked.tablet : GOAL_ROW.stacked.compact;
+  const least = fit.columns ? theme.layout.goalRow.figure : tablet ? theme.layout.goalRow.stacked.tablet : theme.layout.goalRow.stacked.compact;
   const figureWidth = Math.max(least, ...Object.values(figures));
   const rowProps = { fit, figureWidth, onFigureWidth };
 
@@ -425,11 +411,11 @@ export function TodayOptik({ goals, style }: { goals: TodayGoals; style?: StyleP
   useEffect(() => () => clearTimeout(second.current), []);
   const showCheck = goals.allDone && (celebrate || (memo.ready && memo.allDone));
 
-  const reviewCount = Math.min(GOAL_BUBBLES.reviewCap, review.goal);
+  const reviewCount = Math.min(theme.home.goalBubbles.reviewCap, review.goal);
   const reviewFilled = review.goal ? Math.round((review.value / review.goal) * reviewCount) : 0;
-  const step = focus.goal / GOAL_BUBBLES.focusSteps;
-  const focusWhole = Math.min(GOAL_BUBBLES.focusSteps, Math.floor(focus.value / step));
-  const focusPart = focusWhole < GOAL_BUBBLES.focusSteps ? (focus.value - focusWhole * step) / step : 0;
+  const step = focus.goal / theme.home.goalBubbles.focusSteps;
+  const focusWhole = Math.min(theme.home.goalBubbles.focusSteps, Math.floor(focus.value / step));
+  const focusPart = focusWhole < theme.home.goalBubbles.focusSteps ? (focus.value - focusWhole * step) / step : 0;
   const dash = '–';
   // Odak past its goal shows the minutes alone ("125 dk"), not "125/50".
   const minutes = Math.floor(focus.value);
@@ -471,7 +457,7 @@ export function TodayOptik({ goals, style }: { goals: TodayGoals; style?: StyleP
           complete={focus.complete}
           lead={lead === 'home.odak'}
           {...rowProps}
-          strip={<BubbleStrip count={GOAL_BUBBLES.focusSteps} filled={focusWhole} partial={focusPart} />}
+          strip={<BubbleStrip count={theme.home.goalBubbles.focusSteps} filled={focusWhole} partial={focusPart} />}
         />
         <Rule />
         <GoalRow

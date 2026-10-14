@@ -204,6 +204,7 @@ export default function NewExamScreen() {
   return (
     <ExamForm
       title="Deneme ekle"
+      subtitle="Doğru ve yanlışlarını gir; neti Lumi hesaplar."
       intro={intro}
       initial={draft ? formFrom(draft) : emptyForm()}
       submitLabel="Kaydet"

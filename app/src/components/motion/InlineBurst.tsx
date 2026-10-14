@@ -14,8 +14,6 @@ import { useTheme } from '../../theme';
 import { AppText } from '../AppText';
 import { ease } from './presets';
 
-// TOKEN-PENDING: opacity.burstStroke = 0.9 (highlighter ink is translucent, never a solid flash)
-const STROKE_OPACITY = 0.9;
 
 /** A spot on screen, in window coordinates. */
 export interface BurstRect {
@@ -44,10 +42,11 @@ function Stroke({ index, count, progress, color, distance, w, h }: {
   const reach = distance * (0.62 + ((index * 53) % 7) / 16);
   const tilt = (angle * 180) / Math.PI + (((index * 29) % 5) - 2) * 4;
   const drift = (index % 2 ? 1 : -1) * (6 + ((index * 17) % 4) * 3);
+  const theme = useTheme();
   const style = useAnimatedStyle(() => {
     const t = progress.value;
     return {
-      opacity: STROKE_OPACITY * (t < 0.12 ? t / 0.12 : t < 0.6 ? 1 : Math.max(0, 1 - (t - 0.6) / 0.4)),
+      opacity: theme.opacity.burstStroke * (t < 0.12 ? t / 0.12 : t < 0.6 ? 1 : Math.max(0, 1 - (t - 0.6) / 0.4)),
       transform: [
         { translateX: Math.cos(angle) * reach * t },
         { translateY: Math.sin(angle) * reach * t + distance * 0.45 * t * t },

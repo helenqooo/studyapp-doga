@@ -14,9 +14,6 @@ import { NetStrip } from './exams/NetStrip';
 import { Icon } from './Icon';
 import { PressableScale } from './motion/PressableScale';
 
-// TOKEN-PENDING: layout.examRow = { inlineFrom: 680, netCol: { compact: 88, tablet: 96 }, deltaCol: 76, stripShare: '30%' }
-// netCol fits "102,75 /120"; one fixed width, so every row's strip track has the same length.
-const ROW = { inlineFrom: 680, netCol: { compact: 88, tablet: 96 }, deltaCol: 76, stripShare: '30%' } as const;
 /** AppText's `numeric` stops growing at this Dynamic Type scale. */
 const NUMERIC_MAX_SCALE = 1.6;
 
@@ -43,7 +40,7 @@ function ExamRow({ exam, previous, inline, first, last }: RowProps) {
   const theme = useTheme();
   const { tablet, sheetPadding } = useWindowLayout();
   const { fontScale } = useWindowDimensions();
-  const netCol = Math.ceil((tablet ? ROW.netCol.tablet : ROW.netCol.compact) * Math.min(Math.max(fontScale, 1), NUMERIC_MAX_SCALE));
+  const netCol = Math.ceil((tablet ? theme.layout.examRow.netCol.tablet : theme.layout.examRow.netCol.compact) * Math.min(Math.max(fontScale, 1), NUMERIC_MAX_SCALE));
   const g = theme.layout.group;
   const r = elevated(theme, 'sheet').borderRadius;
   const full = isComplete(exam);
@@ -94,9 +91,9 @@ function ExamRow({ exam, previous, inline, first, last }: RowProps) {
       {inline ? (
         <>
           <View style={{ flex: 1, minWidth: 0 }}>{name}</View>
-          <View style={{ width: ROW.stripShare }}>{strip}</View>
+          <View style={{ width: theme.layout.examRow.stripShare }}>{strip}</View>
           <View style={{ width: netCol }}>{net}</View>
-          <View style={{ width: ROW.deltaCol, alignItems: 'flex-end' }}>{change}</View>
+          <View style={{ width: theme.layout.examRow.deltaCol, alignItems: 'flex-end' }}>{change}</View>
         </>
       ) : (
         <>
@@ -138,10 +135,11 @@ export function SubjectLegend({ exam }: { exam: Exam }) {
  * line once the sheet is wide enough for the strip beside the name.
  */
 export function ExamRows({ items, all }: { items: readonly ExamResult[]; all: readonly ExamResult[] }) {
+  const theme = useTheme();
   const { width } = useContentSize();
   const { sizeClass } = useWindowLayout();
   // Not measured yet: decide by the window so the first frame doesn't jump.
-  const inline = width === 0 ? sizeClass === 'regular' : width >= ROW.inlineFrom;
+  const inline = width === 0 ? sizeClass === 'regular' : width >= theme.layout.examRow.inlineFrom;
   return (
     <Card style={{ padding: 0, gap: 0 }}>
       {items.map((e, i) => (

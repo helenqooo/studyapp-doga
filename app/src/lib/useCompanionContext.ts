@@ -9,6 +9,7 @@ import { YKS_DATE } from '../data/exam';
 import { getTopic } from '../data/topics';
 import { useAuthStore } from '../store/authStore';
 import { remainingMs, useTimerStore } from '../store/timerStore';
+import { companion } from '../theme';
 import { daysApart, minuteOfDay } from './companionRules';
 import type { LineContext } from './lumiLines';
 
@@ -19,8 +20,6 @@ export interface ContextMemory {
   firstRun: boolean;
 }
 
-// TOKEN-PENDING: companion.minutesPerReview = 1.2 (rough minutes per due review, for "hepsi yaklaşık N dakika")
-const MINUTES_PER_REVIEW = 1.2;
 const DAY_MS = 86_400_000;
 const STREAK_BADGES = [
   { id: 'streak-7', days: 7 },
@@ -124,7 +123,7 @@ export function useCompanionContext(): (now: number, mem: ContextMemory) => Line
       pathname: path,
       name,
       due,
-      dueMinutes: Math.max(1, Math.round((due ?? 0) * MINUTES_PER_REVIEW)),
+      dueMinutes: Math.max(1, Math.round((due ?? 0) * companion.minutesPerReview)),
       oldest,
       reviewsDoneToday: r?.completedToday ?? 0,
       streak: p?.streak ?? 0,

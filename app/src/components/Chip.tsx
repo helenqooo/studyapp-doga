@@ -8,8 +8,6 @@ import { FadeText } from './motion/FadeText';
 import { PressableScale } from './motion/PressableScale';
 import { ease } from './motion/presets';
 
-// TOKEN-PENDING: motion.duration.rmFade = 120 (the Reduce Motion cross-fade, spec 0.7 / 5.6)
-const RM_FADE_MS = 120;
 
 interface Props {
   label: string;
@@ -43,7 +41,7 @@ export function Chip({ label, selected = false, onPress, color, icon, style }: P
   const bg = neutralFill ? c.mark : selected ? (softFor(theme, color!) ?? c.surfaceAlt) : c.surface;
   const border = selected ? (color ?? c.mark) : c.border;
 
-  const fade = { duration: reduceMotion ? RM_FADE_MS : theme.motion.duration.base, easing: ease('standard'), reduceMotion: ReduceMotion.Never };
+  const fade = { duration: reduceMotion ? theme.motion.duration.rmFade : theme.motion.duration.base, easing: ease('standard'), reduceMotion: ReduceMotion.Never };
   const colorStyle = useAnimatedStyle(
     () => ({ backgroundColor: withTiming(bg, fade), borderColor: withTiming(border, fade) }),
     [bg, border, reduceMotion],

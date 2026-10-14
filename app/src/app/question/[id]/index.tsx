@@ -26,27 +26,27 @@ import { TextToggle } from '../../../components/TextToggle';
 import { LOW_CONFIDENCE_THRESHOLD } from '../../../config';
 import { getTopic } from '../../../data/topics';
 import { useVerdict } from '../../../lib/celebrate';
-import { reviewDueLabel, shortDate } from '../../../lib/format';
+import { localToday, reviewDueLabel, shortDate } from '../../../lib/format';
 import { haptics } from '../../../lib/haptics';
 import { useWindowLayout } from '../../../lib/layout';
 import { gradingKey, isGradedChoice, RESULT_SHORT, solutionMarkdown } from '../../../lib/question';
 import { subjectColor, subjectSoftColor, useTheme } from '../../../theme';
 
-// TOKEN-PENDING: question.historyFoldMin = 3 (this many reviews with one result fold into one Geçmiş row)
-const HISTORY_FOLD_MIN = 3;
 
 function ReviewStatus({ q }: { q: Question }) {
   const theme = useTheme();
   const review = q.review;
   if (!review) return null;
   const graduated = review.status === 'graduated';
+  // An overdue review is in today's queue: just "bugün", without its past date beside it.
+  const due = review.dueDate > localToday() ? `${reviewDueLabel(review.dueDate)} (${shortDate(review.dueDate)})` : reviewDueLabel(review.dueDate);
   return (
     <Card background={graduated ? theme.colors.successSoft : theme.colors.primarySoft}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md }}>
         <Icon name={graduated ? 'badge-check' : 'repeat'} color={graduated ? theme.colors.success : theme.colors.primaryText} />
         <View style={{ flex: 1, gap: theme.spacing.xxs }}>
           <AppText weight="semibold" tint={graduated ? theme.colors.success : theme.colors.primaryText}>
-            {graduated ? 'Öğrenildi' : `Tekrar: ${reviewDueLabel(review.dueDate)} (${shortDate(review.dueDate)})`}
+            {graduated ? 'Öğrenildi' : `Tekrar: ${due}`}
           </AppText>
           <AppText variant="label" color="textMuted">
             {graduated
@@ -65,11 +65,12 @@ function ReviewStatus({ q }: { q: Question }) {
  * single row ("5 tekrar", "Hepsi doğru") above the first solve.
  */
 function AttemptHistory({ q }: { q: Question }) {
+  const theme = useTheme();
   if (q.attempts.length < 2) return null;
   const newest = [...q.attempts].reverse();
   const reviews = newest.filter((a) => a.source !== 'solve');
   const first = newest.filter((a) => a.source === 'solve');
-  const same = reviews.length >= HISTORY_FOLD_MIN && reviews.every((a) => a.result === reviews[0]!.result);
+  const same = reviews.length >= theme.question.historyFoldMin && reviews.every((a) => a.result === reviews[0]!.result);
   const row = (a: Question['attempts'][number]) => {
     const detail = a.source === 'solve' ? 'İlk çözüm' : undefined;
     const date = shortDate(a.createdAt);

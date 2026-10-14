@@ -6,8 +6,6 @@ import { MascotNote } from '../mascot/MascotNote';
 import type { MascotMood } from '../mascot/Mascot';
 import { enter } from '../motion/presets';
 
-// TOKEN-PENDING: motion.duration.rmFade = 120 (the Reduce Motion cross-fade, spec 0.7 / 5.6)
-const RM_FADE_MS = 120;
 
 /**
  * The cross-fade a state card arrives with (it usually replaces a skeleton): 220 ms, or a
@@ -16,7 +14,7 @@ const RM_FADE_MS = 120;
 export function useStateFade() {
   const theme = useTheme();
   const reduceMotion = useReducedMotion();
-  return enter({ still: true, duration: reduceMotion ? RM_FADE_MS : theme.motion.duration.base }).reduceMotion(ReduceMotion.Never);
+  return enter({ still: true, duration: reduceMotion ? theme.motion.duration.rmFade : theme.motion.duration.base }).reduceMotion(ReduceMotion.Never);
 }
 
 /** Nothing here yet: Lumi says what this place is for and points to the first step. */

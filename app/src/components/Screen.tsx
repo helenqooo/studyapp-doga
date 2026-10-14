@@ -1,6 +1,6 @@
 import { useFocusEffect, useNavigation, useScrollToTop } from 'expo-router';
 import { BottomTabBarHeightContext } from 'expo-router/js-tabs';
-import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
+import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { ScrollView, StyleSheet, View, type LayoutChangeEvent, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
 import Animated, {
   Extrapolation,
@@ -26,22 +26,6 @@ import { Kareli } from './Kareli';
 import { LogoMark } from './Logo';
 import { PressableScale } from './motion/PressableScale';
 
-// TOKEN-PENDING: motion.scroll = { titleRate: 0.5, titleFadeEnd: 64, barFrom: 48, barTo: 72, rmSwitch: 56,
-//   stackTitleFrom: 40, stackTitleTo: 72, bandRate: 0.35, bandFadeEnd: 160, rmFade: 120 } (design spec 5.2)
-const SCROLL = {
-  titleRate: 0.5,
-  titleFadeEnd: 64,
-  barFrom: 48,
-  barTo: 72,
-  rmSwitch: 56,
-  stackTitleFrom: 40,
-  stackTitleTo: 72,
-  bandRate: 0.35,
-  bandFadeEnd: 160,
-  rmFade: 120,
-};
-// TOKEN-PENDING: opacity.headerBar = 0.96 (the compact header bar's paper)
-const BAR_OPACITY = 0.96;
 
 interface Props {
   title?: string;
@@ -68,8 +52,18 @@ interface Props {
   band?: 'kareli' | 'none';
 }
 
+interface RevealOptions {
+  /** Bring in all of it (as much as fits above the dock), not just its top. */
+  whole?: boolean;
+}
+type Reveal = (target: View | null, options?: RevealOptions) => void;
+
 /** Scrolls a part of the page into view if it is (mostly) below the visible area. */
-const RevealContext = createContext<(target: View | null) => void>(() => {});
+const RevealContext = createContext<{ reveal: Reveal; offset: () => number; drags: () => number }>({
+  reveal: () => {},
+  offset: () => 0,
+  drags: () => 0,
+});
 
 /** The focused Screen's scroll offset (UI thread). */
 const ScreenScrollContext = createContext<SharedValue<number> | null>(null);
@@ -101,7 +95,7 @@ export function HeaderAction({ icon, label, onPress }: { icon: IconName; label: 
 
 /** Returns `reveal(view)`, for guiding the eye to something that just appeared. */
 export function useReveal() {
-  return useContext(RevealContext);
+  return useContext(RevealContext).reveal;
 }
 
 /** The enclosing Screen's vertical scroll offset, for scroll-driven effects. */
@@ -110,20 +104,52 @@ export function useScreenScroll(): SharedValue<number> {
   return useContext(ScreenScrollContext) ?? fallback;
 }
 
-/** Its children scroll into view when they first appear (a new hint, the solution, a verdict). */
+/**
+ * Its children scroll into view when they first appear (a new hint, the solution, a verdict).
+ * While it grows in its first moments (math typesetting, a verdict card easing in) the page
+ * follows so all of it shows, until the student scrolls herself.
+ */
 export function RevealOnMount({ children, delay = 0 }: { children: ReactNode; delay?: number }) {
-  const reveal = useReveal();
+  const theme = useTheme();
+  const { reveal, offset, drags } = useContext(RevealContext);
   const ref = useRef<View>(null);
-  const done = useRef(false);
+  const st = useRef({ started: false, at: 0, height: 0, seen: 0, drags: 0, timer: null as ReturnType<typeof setTimeout> | null });
+  useEffect(() => {
+    const s = st.current;
+    return () => {
+      if (s.timer) clearTimeout(s.timer);
+    };
+  }, []);
+  const run = () => {
+    const s = st.current;
+    s.timer = null;
+    const y = offset();
+    if (s.at) {
+      // Reveals only scroll down: a drag, or the page further up than it was, is the student.
+      if (drags() !== s.drags || y < s.seen - theme.motion.reveal.slop) return;
+    } else {
+      s.at = Date.now();
+      s.drags = drags();
+    }
+    s.seen = Math.max(s.seen, y);
+    reveal(ref.current, { whole: true });
+  };
+  const onLayout = (e: LayoutChangeEvent) => {
+    const s = st.current;
+    const h = e.nativeEvent.layout.height;
+    const grew = h > s.height + 1;
+    s.height = Math.max(s.height, h);
+    if (!s.started) {
+      s.started = true;
+      s.timer = setTimeout(run, delay);
+      return;
+    }
+    // Follow its growth for a moment after the first reveal, a frame batch at a time.
+    if (!grew || !s.at || s.timer || Date.now() - s.at > theme.motion.reveal.followMs) return;
+    s.timer = setTimeout(run, theme.motion.duration.fast);
+  };
   return (
-    <View
-      ref={ref}
-      onLayout={() => {
-        if (done.current) return;
-        done.current = true;
-        setTimeout(() => reveal(ref.current), delay);
-      }}
-    >
+    <View ref={ref} onLayout={onLayout}>
       {children}
     </View>
   );
@@ -146,8 +172,9 @@ function useRevealer(
   offset.current = getOffset;
   const scroll = useRef(scrollTo);
   scroll.current = scrollTo;
-  const reveal = useCallback(
-    (target: View | null) => {
+  const dragCount = useRef(0);
+  const reveal = useCallback<Reveal>(
+    (target, options) => {
       const content = contentRef.current;
       if (!target || !content) return;
       try {
@@ -155,10 +182,15 @@ function useRevealer(
           content,
           (_x, y, _w, h) => {
             const top = y + topPad;
-            const visibleBottom = offset.current() + viewport.current - cover.current;
+            const from = offset.current();
+            const visible = viewport.current - cover.current;
+            // Where a revealed block's top lands.
+            const landing = top - viewport.current * theme.layout.revealAt;
             // Enough of it already shows: leave the page where the student put it.
-            if (top + Math.min(h, theme.layout.revealPeek) <= visibleBottom) return;
-            scroll.current(Math.max(0, top - viewport.current * theme.layout.revealAt), !reduceMotion);
+            let to = top + Math.min(h, theme.layout.revealPeek) <= from + visible ? from : landing;
+            // All of it: its bottom clears the dock, its top stays at the landing line at most.
+            if (options?.whole) to = Math.max(to, Math.min(landing, top + h + theme.spacing.lg - visible));
+            if (to > from + 1) scroll.current(to, !reduceMotion);
           },
           () => {},
         );
@@ -166,12 +198,17 @@ function useRevealer(
         // Not measurable (unmounted): nothing to do.
       }
     },
-    [contentRef, topPad, reduceMotion, theme.layout.revealPeek, theme.layout.revealAt],
+    [contentRef, topPad, reduceMotion, theme.layout.revealPeek, theme.layout.revealAt, theme.spacing.lg],
   );
   const onViewport = useCallback((h: number) => {
     viewport.current = h;
   }, []);
-  return { reveal, onViewport };
+  // The student's own drags (native; the web has no drag events, the offset span covers it there).
+  const onScrollBeginDrag = useCallback(() => {
+    dragCount.current += 1;
+  }, []);
+  const revealer = useMemo(() => ({ reveal, offset: () => offset.current(), drags: () => dragCount.current }), [reveal]);
+  return { revealer, onViewport, onScrollBeginDrag };
 }
 
 /** The dock's slot: pinned to the bottom (above the strip on tab screens), centered, reporting its height. */
@@ -202,12 +239,13 @@ function DockSlot({ children, maxWidth, onHeight, tabInset = 0 }: { children: Re
 
 /** Threshold switch for Reduce Motion: 0 → 1 once the scroll passes `at`, with a short fade. */
 function useSwitch(scrollY: SharedValue<number>, at: number, active: boolean) {
+  const theme = useTheme();
   const v = useSharedValue(0);
   useAnimatedReaction(
     () => active && scrollY.value > at,
     (on, prev) => {
       if (on === prev) return;
-      v.value = withTiming(on ? 1 : 0, { duration: SCROLL.rmFade, reduceMotion: ReduceMotion.Never });
+      v.value = withTiming(on ? 1 : 0, { duration: theme.motion.scroll.rmFade, reduceMotion: ReduceMotion.Never });
     },
     [active, at],
   );
@@ -216,10 +254,11 @@ function useSwitch(scrollY: SharedValue<number>, at: number, active: boolean) {
 
 /** Opacity of the native header's title and actions on a stack screen: in once the large title scrolls away. */
 function useStackHeaderFade(scrollY: SharedValue<number>) {
+  const theme = useTheme();
   const reduceMotion = useReducedMotion();
-  const rm = useSwitch(scrollY, SCROLL.rmSwitch, reduceMotion);
+  const rm = useSwitch(scrollY, theme.motion.scroll.rmSwitch, reduceMotion);
   return useAnimatedStyle(() => ({
-    opacity: reduceMotion ? rm.value : interpolate(scrollY.value, [SCROLL.stackTitleFrom, SCROLL.stackTitleTo], [0, 1], Extrapolation.CLAMP),
+    opacity: reduceMotion ? rm.value : interpolate(scrollY.value, [theme.motion.scroll.stackTitleFrom, theme.motion.scroll.stackTitleTo], [0, 1], Extrapolation.CLAMP),
   }));
 }
 
@@ -237,10 +276,11 @@ function FadingHeaderTitle({ title, scrollY }: { title: string; scrollY: SharedV
 
 /** The header actions repeated at icon size in a stack screen's native header, with the title. */
 function FadingHeaderRight({ children, scrollY }: { children: ReactNode; scrollY: SharedValue<number> }) {
+  const theme = useTheme();
   const style = useStackHeaderFade(scrollY);
   const [on, setOn] = useState(false);
   useAnimatedReaction(
-    () => scrollY.value > (SCROLL.stackTitleFrom + SCROLL.stackTitleTo) / 2,
+    () => scrollY.value > (theme.motion.scroll.stackTitleFrom + theme.motion.scroll.stackTitleTo) / 2,
     (next, prev) => {
       if (next !== prev) runOnJS(setOn)(next);
     },
@@ -309,7 +349,7 @@ export function Screen({ title, subtitle, children, safeTop = true, width = 'das
     },
     [scrollRef],
   );
-  const { reveal, onViewport } = useRevealer(scrollTo, contentRef, topPad, dockHeight + tabInset, () => scrollY.value);
+  const { revealer, onViewport, onScrollBeginDrag } = useRevealer(scrollTo, contentRef, topPad, dockHeight + tabInset, () => scrollY.value);
 
   // Re-tapping the focused tab scrolls back to the top.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -343,10 +383,10 @@ export function Screen({ title, subtitle, children, safeTop = true, width = 'das
 
   // Tab screens: the large title drifts and fades; a compact bar fades in over it.
   const collapse = isTab && !!title;
-  const rmBar = useSwitch(scrollY, SCROLL.rmSwitch, collapse && reduceMotion);
+  const rmBar = useSwitch(scrollY, theme.motion.scroll.rmSwitch, collapse && reduceMotion);
   const [barOn, setBarOn] = useState(false);
   useAnimatedReaction(
-    () => collapse && scrollY.value > (SCROLL.barFrom + SCROLL.barTo) / 2,
+    () => collapse && scrollY.value > (theme.motion.scroll.barFrom + theme.motion.scroll.barTo) / 2,
     (on, prev) => {
       if (on !== prev) runOnJS(setBarOn)(on);
     },
@@ -357,19 +397,19 @@ export function Screen({ title, subtitle, children, safeTop = true, width = 'das
     if (reduceMotion) return { opacity: 1 - rmBar.value };
     const y = Math.max(0, scrollY.value);
     return {
-      opacity: interpolate(y, [0, SCROLL.titleFadeEnd], [1, 0], Extrapolation.CLAMP),
-      transform: [{ translateY: y * SCROLL.titleRate }],
+      opacity: interpolate(y, [0, theme.motion.scroll.titleFadeEnd], [1, 0], Extrapolation.CLAMP),
+      transform: [{ translateY: y * theme.motion.scroll.titleRate }],
     };
   });
   const barStyle = useAnimatedStyle(() => ({
-    opacity: reduceMotion ? rmBar.value : interpolate(scrollY.value, [SCROLL.barFrom, SCROLL.barTo], [0, 1], Extrapolation.CLAMP),
+    opacity: reduceMotion ? rmBar.value : interpolate(scrollY.value, [theme.motion.scroll.barFrom, theme.motion.scroll.barTo], [0, 1], Extrapolation.CLAMP),
   }));
   const bandStyle = useAnimatedStyle(() => {
     if (reduceMotion) return {};
     const y = Math.max(0, scrollY.value);
     return {
-      opacity: interpolate(y, [0, SCROLL.bandFadeEnd], [1, 0], Extrapolation.CLAMP),
-      transform: [{ translateY: y * SCROLL.bandRate }],
+      opacity: interpolate(y, [0, theme.motion.scroll.bandFadeEnd], [1, 0], Extrapolation.CLAMP),
+      transform: [{ translateY: y * theme.motion.scroll.bandRate }],
     };
   });
 
@@ -411,6 +451,7 @@ export function Screen({ title, subtitle, children, safeTop = true, width = 'das
           onViewport(e.nativeEvent.layout.height);
         }}
         onScroll={onScroll}
+        onScrollBeginDrag={onScrollBeginDrag}
         scrollEventThrottle={16}
         // Tab screens pad by the safe area themselves; screens under a native header let iOS adjust.
         contentInsetAdjustmentBehavior={safeTop ? 'never' : 'automatic'}
@@ -423,7 +464,7 @@ export function Screen({ title, subtitle, children, safeTop = true, width = 'das
           </Animated.View>
         ) : null}
         <ScreenScrollContext.Provider value={scrollY}>
-          <RevealContext.Provider value={reveal}>
+          <RevealContext.Provider value={revealer}>
             <ContentSizeContext.Provider value={{ width: contentWidth, size: contentSizeClass(theme, contentWidth) }}>
               <View ref={contentRef} style={{ width: '100%', maxWidth, alignSelf: 'center', gap: blockGap }}>
                 {titleRow}
@@ -446,7 +487,7 @@ export function Screen({ title, subtitle, children, safeTop = true, width = 'das
               StyleSheet.absoluteFill,
               {
                 backgroundColor: theme.colors.background,
-                opacity: BAR_OPACITY,
+                opacity: theme.opacity.headerBar,
                 borderBottomWidth: theme.layout.borderWidth,
                 borderBottomColor: theme.colors.border,
               },
@@ -494,7 +535,7 @@ function Pane({ children, flex, dock }: { children: ReactNode; flex: number; doc
   const contentRef = useRef<View>(null);
   const offset = useRef(0);
   const scrollTo = useCallback((y: number, animated: boolean) => scrollRef.current?.scrollTo({ y, animated }), []);
-  const { reveal, onViewport } = useRevealer(scrollTo, contentRef, theme.spacing.lg, dockHeight, () => offset.current);
+  const { revealer, onViewport, onScrollBeginDrag } = useRevealer(scrollTo, contentRef, theme.spacing.lg, dockHeight, () => offset.current);
   return (
     <View style={{ flex }}>
       <ScrollView
@@ -507,13 +548,14 @@ function Pane({ children, flex, dock }: { children: ReactNode; flex: number; doc
         onScroll={(e: NativeSyntheticEvent<NativeScrollEvent>) => {
           offset.current = e.nativeEvent.contentOffset.y;
         }}
+        onScrollBeginDrag={onScrollBeginDrag}
         scrollEventThrottle={32}
         onLayout={(e: LayoutChangeEvent) => {
           setWidth(e.nativeEvent.layout.width);
           onViewport(e.nativeEvent.layout.height);
         }}
       >
-        <RevealContext.Provider value={reveal}>
+        <RevealContext.Provider value={revealer}>
           <ContentSizeContext.Provider value={{ width, size: contentSizeClass(theme, width) }}>
             <View ref={contentRef} style={{ gap: win.tablet ? sl.gap.tablet : sl.gap.compact }}>
               {children}

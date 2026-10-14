@@ -27,16 +27,6 @@ import { PressableScale } from './motion/PressableScale';
 import { Odometer } from './motion/Odometer';
 import { ease, enter, exit, spring } from './motion/presets';
 
-// TOKEN-PENDING: layout.tabBar.ear.ringStroke = 3 (the ear / TimerPill ring's stroke; its head dot has this radius)
-const EAR_RING_STROKE = 3;
-// TOKEN-PENDING: layout.tabBar.badgeOffset = { x: 10, y: 6 } (badge disc: left = bubbleW - x, top = -y)
-const BADGE_OFFSET = { x: 10, y: 6 };
-// TOKEN-PENDING: motion.tabs.badgeFrom = 0.6 (the badge pops from this scale)
-const BADGE_POP_FROM = 0.6;
-// TOKEN-PENDING: opacity.stripFade = { midAt: 0.45, mid: 0.75, end: 0.92 } (the paper fade behind the strip)
-const STRIP_FADE = { midAt: 0.45, mid: 0.75, end: 0.92 };
-// TOKEN-PENDING: layout.tabBar.compactAfter = 24 (scrolling down past this offset compacts the phone strip)
-const COMPACT_AFTER = 24;
 
 /** The strip's geometry for this window (design spec 4.2). */
 export function stripGeometry(theme: Theme, windowWidth: number, insetBottom: number) {
@@ -59,11 +49,14 @@ export function stripGeometry(theme: Theme, windowWidth: number, insetBottom: nu
     left = tb.sideInset.tablet;
     width = Math.min(tb.maxWidth, windowWidth - 2 * tb.sideInset.tablet - nest);
   } else {
-    // Left-aligned; Lumi's nest slot is on the right.
-    left = tb.sideInset.compact;
-    width = windowWidth - 2 * tb.sideInset.compact - (lumi.compact + tb.nestGap.compact);
+    // Left-aligned; Lumi's nest slot is on the right. The strip reaches `xs` past its slot on
+    // both sides to pay for its inner padding (`padX`), which keeps the outer labels clear of
+    // the rounded ends without narrowing the tabs.
+    left = tb.sideInset.compact - theme.spacing.xs;
+    width = windowWidth - 2 * tb.sideInset.compact - (lumi.compact + tb.nestGap.compact) + theme.spacing.xs * 2;
   }
-  return { tablet, height, bottom, left, width };
+  const padX = tablet ? 0 : theme.spacing.sm;
+  return { tablet, height, bottom, left, width, padX };
 }
 
 /** What the strip occupies at the bottom of a tab scene: Screen pads its content by this. */
@@ -82,7 +75,7 @@ export function TimerFace() {
   const left = remainingMs(timer, now);
   const done = timer.plannedMs > 0 ? Math.min(1, Math.max(0, 1 - left / timer.plannedMs)) : 0;
   const size = theme.layout.tabBar.ear.ring;
-  const r = (size - EAR_RING_STROKE * 2) / 2;
+  const r = (size - theme.layout.tabBar.ear.ringStroke * 2) / 2;
   const c = size / 2;
   const circumference = 2 * Math.PI * r;
   const angle = 2 * Math.PI * done;
@@ -90,20 +83,20 @@ export function TimerFace() {
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm }}>
       <Svg width={size} height={size}>
-        <Circle cx={c} cy={c} r={r} stroke={theme.colors.border} strokeWidth={EAR_RING_STROKE} fill="none" />
+        <Circle cx={c} cy={c} r={r} stroke={theme.colors.border} strokeWidth={theme.layout.tabBar.ear.ringStroke} fill="none" />
         <Circle
           cx={c}
           cy={c}
           r={r}
           stroke={arc}
-          strokeWidth={EAR_RING_STROKE}
+          strokeWidth={theme.layout.tabBar.ear.ringStroke}
           strokeLinecap="round"
           fill="none"
           strokeDasharray={`${circumference} ${circumference}`}
           strokeDashoffset={circumference * (1 - done)}
           transform={`rotate(-90 ${c} ${c})`}
         />
-        <Circle cx={c + r * Math.sin(angle)} cy={c - r * Math.cos(angle)} r={EAR_RING_STROKE} fill={theme.colors.accent} />
+        <Circle cx={c + r * Math.sin(angle)} cy={c - r * Math.cos(angle)} r={theme.layout.tabBar.ear.ringStroke} fill={theme.colors.accent} />
       </Svg>
       <AppText variant="numeric" color="text">
         {formatClock(left)}
@@ -164,7 +157,7 @@ function TabBadge({ value, bubbleW, tablet }: { value: number | string | undefin
     } else if (reduceMotion) {
       scale.value = withTiming(1, { duration: theme.motion.duration.instant, ...never });
     } else {
-      scale.value = withSequence(withTiming(BADGE_POP_FROM, { duration: 0 }), withSpring(1, spring('bouncy')));
+      scale.value = withSequence(withTiming(theme.motion.tabs.badgeFrom, { duration: 0 }), withSpring(1, spring('bouncy')));
     }
   }, [count, reduceMotion, scale, theme]);
 
@@ -176,8 +169,8 @@ function TabBadge({ value, bubbleW, tablet }: { value: number | string | undefin
       style={[
         {
           position: 'absolute',
-          left: bubbleW - BADGE_OFFSET.x,
-          top: -BADGE_OFFSET.y,
+          left: bubbleW - theme.layout.tabBar.badgeOffset.x,
+          top: -theme.layout.tabBar.badgeOffset.y,
           minWidth: size + tb.badgeRing * 2,
           height: size + tb.badgeRing * 2,
           paddingHorizontal: theme.spacing.xxs,
@@ -291,8 +284,10 @@ function TabItem({ label, a11yLabel, a11yHint, focused, badge, icon, tablet, min
         </Bubble>
         {badge !== undefined ? <TabBadge value={badge} bubbleW={bubble.w} tablet={tablet} /> : null}
       </Animated.View>
-      {/* The box spans the whole tab, so neither label is squeezed to the other's measured width. */}
-      <Animated.View style={[{ alignSelf: 'stretch' }, labelBox]}>
+      {/* The box spans the whole tab, so neither label is squeezed to the other's measured width.
+          On a phone it reaches into the strip's padding and the neighbours' spare room, so a long
+          label ("Ana sayfa" at 375 pt) stays centered and whole instead of ending in "…". */}
+      <Animated.View style={[{ alignSelf: 'stretch', marginHorizontal: tablet ? 0 : -theme.spacing.sm }, labelBox]}>
         {/* The wider semibold label holds the height; the regular one sits over it, centered. */}
         <Animated.View style={activeLabel}>
           <AppText variant="micro" weight="semibold" color="text" align="center" numberOfLines={1} maxFontSizeMultiplier={1.2}>
@@ -382,7 +377,7 @@ export function OptikStrip({ state, descriptors, navigation, insets }: BottomTab
       if (!canCompact || prev === null) return;
       let next = target.value;
       if (y <= 0) next = 0;
-      else if (y > prev && y > COMPACT_AFTER) next = 1;
+      else if (y > prev && y > theme.layout.tabBar.compactAfter) next = 1;
       else if (y < prev) next = 0;
       if (next === target.value) return;
       target.value = next;
@@ -401,7 +396,7 @@ export function OptikStrip({ state, descriptors, navigation, insets }: BottomTab
   });
   // A narrow tablet window (split view, ~560-640 pt) gives the strip less than five full tabs:
   // never ask for more than each tab's share, or the last one is cut off.
-  const itemMin = Math.min(g.tablet ? tb.itemMinWidth.tablet : tb.itemMinWidth.compact, Math.floor(g.width / Math.max(1, routes.length)));
+  const itemMin = Math.min(g.tablet ? tb.itemMinWidth.tablet : tb.itemMinWidth.compact, Math.floor((g.width - g.padX * 2) / Math.max(1, routes.length)));
 
   return (
     <Animated.View
@@ -413,8 +408,8 @@ export function OptikStrip({ state, descriptors, navigation, insets }: BottomTab
         <Defs>
           <LinearGradient id={fadeId} x1="0" y1="0" x2="0" y2="1">
             <Stop offset="0" stopColor={theme.colors.background} stopOpacity={0} />
-            <Stop offset={STRIP_FADE.midAt} stopColor={theme.colors.background} stopOpacity={STRIP_FADE.mid} />
-            <Stop offset="1" stopColor={theme.colors.background} stopOpacity={STRIP_FADE.end} />
+            <Stop offset={theme.opacity.stripFade.midAt} stopColor={theme.colors.background} stopOpacity={theme.opacity.stripFade.mid} />
+            <Stop offset="1" stopColor={theme.colors.background} stopOpacity={theme.opacity.stripFade.end} />
           </LinearGradient>
         </Defs>
         <Rect x={0} y={0} width={W} height={g.bottom + g.height + tb.fadeAbove} fill={`url(#${fadeId})`} />
@@ -434,6 +429,7 @@ export function OptikStrip({ state, descriptors, navigation, insets }: BottomTab
             width: g.width,
             bottom: g.bottom,
             backgroundColor: theme.colors.tabBar,
+            paddingHorizontal: g.padX,
             flexDirection: 'row',
             alignItems: 'flex-start',
             overflow: 'hidden',

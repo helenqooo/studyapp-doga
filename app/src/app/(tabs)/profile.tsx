@@ -23,8 +23,6 @@ import { useWindowLayout } from '../../lib/layout';
 import { useAuthStore } from '../../store/authStore';
 import { useTheme } from '../../theme';
 
-// TOKEN-PENDING: layout.avatarProfile = { compact: 56, tablet: 72 } (the identity sheet's avatar, spec 7.5)
-const AVATAR_SIZE = { compact: 56, tablet: 72 };
 
 type CheckState = { status: 'idle' } | { status: 'running' } | { status: 'ok' } | { status: 'error'; message: string };
 
@@ -46,7 +44,7 @@ function Hero() {
     <Card variant="hero" style={{ paddingHorizontal: 0, paddingBottom: sheetPadding - cellPadY, gap: 0 }}>
       <View style={{ paddingHorizontal: sheetPadding, gap: theme.spacing.sm }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.lg }}>
-          {user ? <Avatar name={user.displayName} color={user.avatar} size={tablet ? AVATAR_SIZE.tablet : AVATAR_SIZE.compact} /> : null}
+          {user ? <Avatar name={user.displayName} color={user.avatar} size={tablet ? theme.layout.avatarProfile.tablet : theme.layout.avatarProfile.compact} /> : null}
           <View style={{ flex: 1, minWidth: 0, gap: theme.spacing.xxs }}>
             <AppText variant="heading" numberOfLines={1}>
               {user?.displayName ?? '—'}

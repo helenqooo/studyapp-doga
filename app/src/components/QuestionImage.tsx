@@ -24,14 +24,6 @@ import { Icon } from './Icon';
 import { PressableScale } from './motion/PressableScale';
 import { ease } from './motion/presets';
 
-// TOKEN-PENDING: motion.duration.rmFade = 120 (the Reduce Motion cross-fade, spec 0.7 / 5.6)
-const RM_FADE_MS = 120;
-// TOKEN-PENDING: opacity.imageFade = 0.96 (the paper fade over a clipped photo's bottom edge)
-const FADE_OPACITY = 0.96;
-// TOKEN-PENDING: colors.photoPaper = { light: surface, dark: '#FFFFFF' } (the scan's own white, which a clipped photo
-//   fades into: fading into the dark sheet left a grey smear). Until it lands, dark uses textOnAccent (#FFFFFF).
-// TOKEN-PENDING: layout.photoViewer.maxZoom = 4 (pinch zoom in the full-screen photo, iOS)
-const VIEWER_MAX_ZOOM = 4;
 
 interface Props {
   questionId: string;
@@ -102,7 +94,7 @@ export function QuestionImage({ questionId, size = 'regular', cap: capProp, pill
   const target = expanded || !clipped ? natural : cap;
   const fade = theme.layout.questionImageFade;
   // The fade ends in the photo's own paper, so a clipped scan ends in a soft white edge.
-  const paper = theme.scheme === 'dark' ? theme.colors.textOnAccent : theme.colors.surface;
+  const paper = theme.colors.photoPaper;
 
   // The frame's height glides between the cap and the whole photo when she taps; sizing on
   // load (width, then the photo's real shape) is set at once, so nothing moves on open.
@@ -121,7 +113,7 @@ export function QuestionImage({ questionId, size = 'regular', cap: capProp, pill
   }, [target, reduceMotion, height, theme.motion.duration.base]);
   useEffect(() => {
     veil.value = withTiming(clipped && !expanded ? 1 : 0, {
-      duration: reduceMotion ? RM_FADE_MS : theme.motion.duration.base,
+      duration: reduceMotion ? theme.motion.duration.rmFade : theme.motion.duration.base,
       easing: ease('standard'),
       reduceMotion: ReduceMotion.Never,
     });
@@ -205,7 +197,7 @@ export function QuestionImage({ questionId, size = 'regular', cap: capProp, pill
                 <Defs>
                   <LinearGradient id="qfade" x1="0" y1="0" x2="0" y2="1">
                     <Stop offset="0" stopColor={paper} stopOpacity={0} />
-                    <Stop offset="1" stopColor={paper} stopOpacity={FADE_OPACITY} />
+                    <Stop offset="1" stopColor={paper} stopOpacity={theme.opacity.imageFade} />
                   </LinearGradient>
                 </Defs>
                 <Rect x="0" y="0" width="100%" height={fade} fill="url(#qfade)" />
@@ -256,7 +248,7 @@ function PhotoViewer({ source, ratio, visible, onClose }: { source: ImageSourceP
         <ScrollView
           style={{ flex: 1 }}
           contentContainerStyle={{ flexGrow: 1, alignItems: 'center', justifyContent: 'center', paddingTop: insets.top + band, paddingBottom: insets.bottom + band }}
-          maximumZoomScale={VIEWER_MAX_ZOOM}
+          maximumZoomScale={theme.layout.photoViewer.maxZoom}
           minimumZoomScale={1}
           bouncesZoom
           centerContent

@@ -7,10 +7,6 @@ import { subjectColor, useTheme } from '../../theme';
 import { PressableScale } from '../motion/PressableScale';
 import { QuestionImage } from '../QuestionImage';
 
-// TOKEN-PENDING: layout.thumb.accentEdge = 4 (the subject-ink edge on a recent thumbnail)
-const ACCENT_EDGE = 4;
-// TOKEN-PENDING: home.recentCount = 3
-export const RECENT_COUNT = 3;
 
 /** The most recent questions (first page of the history). */
 export function useRecentQuestions(count: number): Question[] {
@@ -39,7 +35,7 @@ function Thumb({ question, side }: { question: Question; side: number }) {
       }}
     >
       <QuestionImage questionId={question.id} size="thumb" style={{ width: '100%', height: '100%' }} />
-      <View pointerEvents="none" style={[StyleSheet.absoluteFill, { right: undefined, width: ACCENT_EDGE, backgroundColor: subjectColor(theme, question.subject) }]} />
+      <View pointerEvents="none" style={[StyleSheet.absoluteFill, { right: undefined, width: theme.layout.thumb.accentEdge, backgroundColor: subjectColor(theme, question.subject) }]} />
     </PressableScale>
   );
 }
@@ -50,7 +46,7 @@ function Thumb({ question, side }: { question: Question; side: number }) {
  */
 export function RecentThumbs({ size, style }: { size?: number; style?: StyleProp<ViewStyle> }) {
   const theme = useTheme();
-  const recent = useRecentQuestions(RECENT_COUNT);
+  const recent = useRecentQuestions(theme.home.recentCount);
   if (!recent.length) return null;
   const side = size ?? theme.layout.thumb.recent;
   return (

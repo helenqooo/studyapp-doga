@@ -8,10 +8,6 @@ import { AppText } from '../AppText';
 import { Bubble, type BubbleTone } from '../Bubble';
 import { ease } from '../motion/presets';
 
-// TOKEN-PENDING: motion.duration.rmFade = 120 (the Reduce Motion cross-fade, spec 0.7 / 5.6)
-const RM_FADE_MS = 120;
-// TOKEN-PENDING: layout.bubble.ringGap = 2 (space between a bubble and the ring that marks "now")
-const RING_GAP = 2;
 
 export type PipResult = AttemptResult | null;
 
@@ -25,7 +21,7 @@ function Pip({ result, current }: { result: PipResult; current: boolean }) {
   const ring = useSharedValue(current ? 1 : 0);
   useEffect(() => {
     ring.value = withTiming(current ? 1 : 0, {
-      duration: reduceMotion ? RM_FADE_MS : theme.motion.duration.base,
+      duration: reduceMotion ? theme.motion.duration.rmFade : theme.motion.duration.base,
       easing: ease('standard'),
       reduceMotion: ReduceMotion.Never,
     });
@@ -34,7 +30,7 @@ function Pip({ result, current }: { result: PipResult; current: boolean }) {
   const sel = theme.layout.system.selectedBorder;
 
   return (
-    <View style={{ padding: RING_GAP + sel }}>
+    <View style={{ padding: theme.layout.bubble.ringGap + sel }}>
       <Animated.View
         pointerEvents="none"
         style={[

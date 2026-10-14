@@ -32,6 +32,7 @@ export default function EditExamScreen() {
   return (
     <ExamForm
       title="Denemeyi düzenle"
+      subtitle="Değerleri düzelt; neti Lumi yeniden hesaplar."
       initial={formFrom(query.data)}
       submitLabel="Değişiklikleri kaydet"
       submitting={update.isPending}

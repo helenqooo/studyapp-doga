@@ -10,8 +10,6 @@ import { useHomeDay } from './homeDay';
 import { Highlight } from '../Highlight';
 import { useCompactHeader } from '../Screen';
 
-// TOKEN-PENDING: typography.figureDrop = 0.12 (how far Lora figures sit above their line box bottom, as a share of the size; aligns labels beside a big number)
-export const FIGURE_DROP = 0.12;
 
 /** Days left to YKS (0 once it has passed). */
 export function daysToYks(): number {
@@ -57,7 +55,7 @@ function HeaderCountdown({ days, tablet, short }: { days: number; tablet: boolea
   // The number is set in `title`, one title line tall, so the title row (which centres its
   // actions) puts it on the title's baseline; the labels drop to the figure's baseline.
   const size = tablet ? theme.typography.title.sizeTablet : theme.typography.title.size;
-  const drop = Math.round(size * FIGURE_DROP);
+  const drop = Math.round(size * theme.typography.figureDrop);
 
   return (
     <View

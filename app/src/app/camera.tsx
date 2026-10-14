@@ -18,14 +18,6 @@ import { usePickImage } from '../lib/usePickImage';
 import { useSolveStore } from '../store/solveStore';
 import { useTheme } from '../theme';
 
-// TOKEN-PENDING: motion.duration.rmFade = 120 (the Reduce Motion cross-fade, spec 0.7 / 5.6)
-const RM_FADE_MS = 120;
-// TOKEN-PENDING: layout.viewfinder.stroke = 3 (spec 3 Viewfinder corners; the same const lives in Viewfinder.tsx)
-const CORNER_STROKE = 3;
-// TOKEN-PENDING: layout.viewfinder.cameraArm = 36 (the corner arms on the full-screen camera guide)
-const CAMERA_ARM = 36;
-// TOKEN-PENDING: layout.cameraGuideRatio = 0.75 (the guide is a 3:4 page, width over height)
-const GUIDE_RATIO = 3 / 4;
 
 /**
  * A round control on the camera: a scrim disc, lit white while on. The fill and the icon
@@ -49,7 +41,7 @@ function RoundButton({
   const c = theme.colors;
   const on = !!active;
   const bg = on ? c.cameraForeground : c.cameraScrim;
-  const fade = { duration: reduceMotion ? RM_FADE_MS : theme.motion.duration.base, easing: ease('standard'), reduceMotion: ReduceMotion.Never };
+  const fade = { duration: reduceMotion ? theme.motion.duration.rmFade : theme.motion.duration.base, easing: ease('standard'), reduceMotion: ReduceMotion.Never };
   const fillStyle = useAnimatedStyle(() => ({ backgroundColor: withTiming(bg, fade) }), [bg, reduceMotion]);
   const offStyle = useAnimatedStyle(() => ({ opacity: withTiming(on ? 0 : 1, fade) }), [on, reduceMotion]);
   const onStyle = useAnimatedStyle(() => ({ opacity: withTiming(on ? 1 : 0, fade) }), [on, reduceMotion]);
@@ -96,7 +88,7 @@ function RoundButton({
 /** The framing guide: the Viewfinder's four L-corners, in camera white at the guide opacity. */
 function GuideCorners({ width }: { width: number }) {
   const theme = useTheme();
-  const stroke = CORNER_STROKE;
+  const stroke = theme.layout.viewfinder.stroke;
   const r = theme.radius.sm;
   const corner = (v: 'top' | 'bottom', hz: 'left' | 'right') => (
     <View
@@ -105,8 +97,8 @@ function GuideCorners({ width }: { width: number }) {
         position: 'absolute',
         [v]: 0,
         [hz]: 0,
-        width: CAMERA_ARM,
-        height: CAMERA_ARM,
+        width: theme.layout.viewfinder.cameraArm,
+        height: theme.layout.viewfinder.cameraArm,
         borderColor: theme.colors.cameraForeground,
         [v === 'top' ? 'borderTopWidth' : 'borderBottomWidth']: stroke,
         [hz === 'left' ? 'borderLeftWidth' : 'borderRightWidth']: stroke,
@@ -115,7 +107,7 @@ function GuideCorners({ width }: { width: number }) {
     />
   );
   return (
-    <View style={{ width, aspectRatio: GUIDE_RATIO, opacity: theme.opacity.cameraGuide }}>
+    <View style={{ width, aspectRatio: theme.layout.cameraGuideRatio, opacity: theme.opacity.cameraGuide }}>
       {corner('top', 'left')}
       {corner('top', 'right')}
       {corner('bottom', 'left')}
@@ -131,7 +123,7 @@ export default function CameraScreen() {
   const { touch } = useWindowLayout();
   // 3:4 guide that fits the space between the top buttons and the shutter row, in any orientation.
   const chrome = insets.top + insets.bottom + theme.layout.shutterSize + touch * 3;
-  const frameWidth = Math.min(window.width * theme.layout.cameraFrameShare, (window.height - chrome) * GUIDE_RATIO);
+  const frameWidth = Math.min(window.width * theme.layout.cameraFrameShare, (window.height - chrome) * theme.layout.cameraGuideRatio);
   const [permission, requestPermission] = useCameraPermissions();
   const cameraRef = useRef<CameraView>(null);
   const [torch, setTorch] = useState(false);

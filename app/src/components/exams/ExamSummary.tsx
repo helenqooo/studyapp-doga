@@ -12,8 +12,6 @@ import { examTitle } from '../ExamCard';
 import { DeltaChip } from './DeltaChip';
 import { examMax, isComplete, newestFirst } from './examMath';
 
-// TOKEN-PENDING: layout.chart.summaryHeight = { compact: 96, tablet: 136 } (the trend under a hero net)
-const SUMMARY_CHART = { compact: 96, tablet: 136 };
 
 /** The companion's highlight target on a summary's delta (lumiLines `exam.up`). */
 export const summaryTarget = (exam: Exam) => `exams.summary.${exam}`;
@@ -72,7 +70,7 @@ export function ExamSummary({ exam, items }: { exam: Exam; items: readonly ExamR
       <NetTrendChart
         mode="summary"
         max={max}
-        height={tablet ? SUMMARY_CHART.tablet : SUMMARY_CHART.compact}
+        height={tablet ? theme.layout.chart.summaryHeight.tablet : theme.layout.chart.summaryHeight.compact}
         data={trend.map((t) => ({ key: t.id, date: t.date, label: examTitle(t), value: t.totalNet }))}
       />
     ) : null;

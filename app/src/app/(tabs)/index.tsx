@@ -20,14 +20,10 @@ import { useTheme } from '../../theme';
 
 const grow = { flexGrow: 1 } as const;
 
-// TOKEN-PENDING: home.stretchMax = 96 (how far an iPad dashboard may stretch past its own height toward the strip)
-const STRETCH_MAX = 96;
-// TOKEN-PENDING: home.titleNameMin = 760 (the window width from which the first name joins the greeting in the title)
-const TITLE_NAME_MIN = 760;
 
 /**
  * How tall an iPad dashboard should be: down to where the page's padding above the strip
- * starts, but at most `STRETCH_MAX` past its own height, so a tall window (a 13" iPad) gets
+ * starts, but at most `home.stretchMax` past its own height, so a tall window (a 13" iPad) gets
  * a little air rather than sparse rows. The room mirrors Screen's tab padding: the safe area
  * and `spacing.lg` on top, the strip's reported height and `spacing.xxl` at the bottom.
  * The block's own height is measured unstretched, again whenever the window or `shape` (what
@@ -47,7 +43,7 @@ function useRoomToStrip(shape: string) {
     setNatural(null);
   }
   const room = top === null ? undefined : Math.max(0, height - insets.top - theme.spacing.lg - top - theme.spacing.xxl - strip);
-  const minHeight = room === undefined || natural === null ? undefined : Math.min(room, natural + STRETCH_MAX);
+  const minHeight = room === undefined || natural === null ? undefined : Math.min(room, natural + theme.home.stretchMax);
   const onLayout = (e: LayoutChangeEvent) => {
     const { y, height: h } = e.nativeEvent.layout;
     if (Math.round(y) !== top) setTop(Math.round(y));
@@ -121,6 +117,7 @@ function caption(goals: TodayGoals, name: string) {
 }
 
 export default function HomeScreen() {
+  const theme = useTheme();
   const name = useAuthStore((s) => s.user?.displayName);
   const goals = useTodayGoals();
   const { width, tablet } = useWindowLayout();
@@ -129,7 +126,7 @@ export default function HomeScreen() {
   // in a narrower tablet window and stays out on a phone (one-line subtitle); a phone also
   // drops "YKS'ye".
   const first = name && name !== 'Sen' ? name.split(' ')[0]! : '';
-  const nameInTitle = !!first && width >= TITLE_NAME_MIN;
+  const nameInTitle = !!first && width >= theme.home.titleNameMin;
   const hello = greeting(new Date().getHours());
   return (
     <Screen

@@ -11,10 +11,6 @@ import { Loader } from './motion/Loader';
 import { PressableScale } from './motion/PressableScale';
 import { ease } from './motion/presets';
 
-// TOKEN-PENDING: motion.duration.rmFade = 120 (the Reduce Motion cross-fade, spec 0.7 / 5.6)
-const RM_FADE_MS = 120;
-// TOKEN-PENDING: opacity.ghostSwipeRm = 0.6 (the ghost press swipe under Reduce Motion, spec 5.1)
-const GHOST_SWIPE_RM_OPACITY = 0.6;
 
 export type ButtonVariant = 'primary' | 'secondary' | 'success' | 'danger' | 'neutral' | 'ghost';
 export type ButtonSize = 'sm' | 'md' | 'lg';
@@ -98,7 +94,7 @@ export function Button({
   const height = size === 'lg' ? touch + theme.spacing.lg : size === 'md' ? touch + theme.spacing.sm : touch;
   const outlined = look.border !== c.transparent;
 
-  const fade = { duration: reduceMotion ? RM_FADE_MS : theme.motion.duration.base, easing: ease('standard'), reduceMotion: ReduceMotion.Never };
+  const fade = { duration: reduceMotion ? theme.motion.duration.rmFade : theme.motion.duration.base, easing: ease('standard'), reduceMotion: ReduceMotion.Never };
   const colorStyle = useAnimatedStyle(
     () => ({ backgroundColor: withTiming(look.bg, fade), borderColor: withTiming(look.border, fade) }),
     [look.bg, look.border, reduceMotion],
@@ -118,7 +114,7 @@ export function Button({
   const pressSwipe = (on: boolean) => {
     if (!ghost) return;
     if (reduceMotion) {
-      swipeOpacity.value = withTiming(on ? GHOST_SWIPE_RM_OPACITY : 0, { duration: theme.motion.duration.instant, reduceMotion: ReduceMotion.Never });
+      swipeOpacity.value = withTiming(on ? theme.opacity.ghostSwipeRm : 0, { duration: theme.motion.duration.instant, reduceMotion: ReduceMotion.Never });
       return;
     }
     swipe.value = on

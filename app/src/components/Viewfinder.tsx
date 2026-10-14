@@ -6,8 +6,6 @@ import { Icon, type IconName } from './Icon';
 import { Kareli } from './Kareli';
 import { PressableScale } from './motion/PressableScale';
 
-// TOKEN-PENDING: layout.viewfinder = { stroke: 3, arm: 22, inset: 12 } (spec 3 Viewfinder: 3 pt L-corners, 22 pt arms)
-const VIEWFINDER = { stroke: 3, arm: 22, inset: 12 } as const;
 
 // `3:4` is an upright frame, the shape of a question sheet (Solve's capture panel on a tablet).
 const RATIO = { '4:3': 4 / 3, '16:10': 16 / 10, '3:4': 3 / 4 } as const;
@@ -28,7 +26,7 @@ interface Props {
 export function Viewfinder({ aspect, label, icon = 'camera', onPress, children, style }: Props) {
   const theme = useTheme();
   const [height, setHeight] = useState(0);
-  const { stroke, arm, inset } = VIEWFINDER;
+  const { stroke, arm, inset } = theme.layout.viewfinder;
   const color = theme.colors.optik;
   const r = theme.radius.xs;
 

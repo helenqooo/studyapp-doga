@@ -6,12 +6,6 @@ import { arcPoint } from './flight';
 
 /** Lumi's drawing grid (parts.tsx viewBox); the dots sit on the light in its tip (LIGHT). */
 const GRID = 200;
-// TOKEN-PENDING: layout.companion.trailStep = 0.04 (progress between trail dots)
-const TRAIL_STEP = 0.04;
-// TOKEN-PENDING: opacity.trailDot = 0.8 (the nearest dot; later ones fade by k/5)
-const TRAIL_OPACITY = 0.8;
-// TOKEN-PENDING: layout.companion.trailHalo = 2 (halo radius as a multiple of the core)
-const HALO_SCALE = 2;
 
 export interface FlightValues {
   p: SharedValue<number>;
@@ -46,14 +40,14 @@ function TrailDot({ k, n, f, size }: { k: number; n: number; f: FlightValues; si
   const theme = useTheme();
   const { max, min } = theme.layout.companion.trailDot;
   const r = max - ((max - min) * (k - 1)) / Math.max(1, n - 1);
-  const halo = r * HALO_SCALE;
+  const halo = r * theme.layout.companion.trailHalo;
   const lx = (LIGHT.x / GRID) * size;
   const ly = (LIGHT.y / GRID) * size;
   const style = useAnimatedStyle(() => {
-    const q = f.p.value - k * TRAIL_STEP;
+    const q = f.p.value - k * theme.layout.companion.trailStep;
     const pt = arcPoint(q, f.fx.value, f.fy.value, f.tx.value, f.ty.value, f.lift.value);
     const ax = f.flip.value ? size - lx : lx;
-    const fade = q <= 0 ? 0 : (1 - (k - 1) / n) * TRAIL_OPACITY;
+    const fade = q <= 0 ? 0 : (1 - (k - 1) / n) * theme.opacity.trailDot;
     return {
       opacity: fade * f.trail.value,
       transform: [{ translateX: pt.x + ax - halo }, { translateY: pt.y + ly - halo }],

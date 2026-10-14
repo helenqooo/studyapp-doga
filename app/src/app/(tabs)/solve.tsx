@@ -24,19 +24,6 @@ import { useContentSize, useWindowLayout } from '../../lib/layout';
 import { usePickImage } from '../../lib/usePickImage';
 import { subjectColor, useTheme } from '../../theme';
 
-// TOKEN-PENDING: layout.solveSketch = { compactMaxWidth: 240, lines: ['100%', '88%', '56%'], choices: ['58%', '44%', '64%', '50%', '38%'] }
-//   (the sample question drawn in the viewfinder: stem lines, and in the upright frame one line per choice;
-//   the phone's wide frame gives the slip the frame's inner width, up to compactMaxWidth, so the A–E row fits)
-const SKETCH = { compactMaxWidth: 240, lines: ['100%', '88%', '56%'], choices: ['58%', '44%', '64%', '50%', '38%'] } as const;
-// TOKEN-PENDING: layout.solveCapture.frameShare = { regular: 0.44, wide: 0.5 } (the upright viewfinder's share of the
-//   capture sheet's inner width on a tablet: portrait, and at most this much in landscape, where its height sets it)
-const FRAME_SHARE = { regular: 0.44, wide: 0.5 } as const;
-// TOKEN-PENDING: layout.solveCapture.onTopGain = 1.15 (a landscape sheet puts the frame on top once that makes it this much wider)
-const FRAME_ON_TOP_GAIN = 1.15;
-// TOKEN-PENDING: layout.thumb.accentEdge = 4 (the subject-ink edge on a recent thumbnail; same as RecentThumbs)
-const ACCENT_EDGE = 4;
-// TOKEN-PENDING: solve.recentCount = { compact: 4, wideMin: 3, wideMax: 8 } (landscape fits as many rows as reach the strip)
-const RECENT_COUNT = { compact: 4, wideMin: 3, wideMax: 8 } as const;
 
 const TIPS: { icon: IconName; text: string }[] = [
   { icon: 'scan', text: 'Tek soru, şıklar görünsün' },
@@ -69,9 +56,9 @@ function QuestionSketch({ upright }: { upright: boolean }) {
   const slip = useSlip();
   const line = (w: string) => <View key={w} style={{ width: w as `${number}%`, height: theme.spacing.sm, borderRadius: theme.radius.pill, backgroundColor: theme.colors.optikSoft }} />;
   return (
-    <View style={{ width: '100%', maxWidth: upright ? undefined : SKETCH.compactMaxWidth, alignItems: 'center', gap: theme.spacing.md }} aria-hidden>
+    <View style={{ width: '100%', maxWidth: upright ? undefined : theme.layout.solveSketch.compactMaxWidth, alignItems: 'center', gap: theme.spacing.md }} aria-hidden>
       <View style={[slip, { gap: theme.spacing.sm }]}>
-        {SKETCH.lines.map(line)}
+        {theme.layout.solveSketch.lines.map(line)}
         {upright ? (
           <View style={{ gap: theme.spacing.sm, paddingTop: theme.spacing.sm }}>
             {LETTERS.map((l, i) => (
@@ -79,7 +66,7 @@ function QuestionSketch({ upright }: { upright: boolean }) {
                 <Bubble size="dot" animate={false}>
                   {l}
                 </Bubble>
-                {line(SKETCH.choices[i]!)}
+                {line(theme.layout.solveSketch.choices[i]!)}
               </View>
             ))}
           </View>
@@ -196,11 +183,11 @@ function CaptureCard({ minHeight }: { minHeight?: number }) {
   const gap = theme.spacing.xl;
   const innerWidth = Math.max(0, width - sheetPadding * 2);
   const innerHeight = innerMeasured || (fill ? Math.max(0, minHeight - sheetPadding * 2) : 0);
-  const besideWidth = Math.min(innerWidth * FRAME_SHARE.wide, (innerHeight * 3) / 4);
+  const besideWidth = Math.min(innerWidth * theme.layout.solveCapture.frameShare.wide, (innerHeight * 3) / 4);
   const under = Math.max(blocks.tips, blocks.actions);
   const onTopWidth = Math.min(innerWidth, ((innerHeight - gap - under) * 3) / 4);
-  const onTop = fill && under > 0 && onTopWidth > besideWidth * FRAME_ON_TOP_GAIN;
-  const frameWidth = Math.round(onTop ? onTopWidth : fill ? besideWidth : innerWidth * FRAME_SHARE.regular);
+  const onTop = fill && under > 0 && onTopWidth > besideWidth * theme.layout.solveCapture.onTopGain;
+  const frameWidth = Math.round(onTop ? onTopWidth : fill ? besideWidth : innerWidth * theme.layout.solveCapture.frameShare.regular);
   const onInnerLayout = (e: LayoutChangeEvent) => {
     const h = Math.round(e.nativeEvent.layout.height);
     if (h !== innerMeasured) setInnerMeasured(h);
@@ -251,7 +238,7 @@ function RecentThumb({ question }: { question: Question }) {
       }}
     >
       <QuestionImage questionId={question.id} size="thumb" style={{ width: '100%', height: '100%', borderRadius: 0 }} />
-      <View pointerEvents="none" style={[StyleSheet.absoluteFill, { right: undefined, width: ACCENT_EDGE, backgroundColor: subjectColor(theme, question.subject) }]} />
+      <View pointerEvents="none" style={[StyleSheet.absoluteFill, { right: undefined, width: theme.layout.thumb.accentEdge, backgroundColor: subjectColor(theme, question.subject) }]} />
     </View>
   );
 }
@@ -326,8 +313,8 @@ function WideSolve() {
   // A row is its thumbnail and padding plus the hairline; above them the section's header.
   const rowHeight = thumb + g.rowPadY.tablet * 2 + theme.layout.system.borderWidth;
   const header = theme.layout.system.touch.tablet + theme.spacing.md;
-  const fits = room === undefined ? RECENT_COUNT.wideMin + 2 : Math.floor((room - header) / rowHeight);
-  const count = Math.min(RECENT_COUNT.wideMax, Math.max(RECENT_COUNT.wideMin, fits));
+  const fits = room === undefined ? theme.solve.recentCount.wideMin + 2 : Math.floor((room - header) / rowHeight);
+  const count = Math.min(theme.solve.recentCount.wideMax, Math.max(theme.solve.recentCount.wideMin, fits));
   return (
     <View onLayout={onLayout}>
       <Row>
@@ -343,6 +330,7 @@ function WideSolve() {
 }
 
 export default function SolveScreen() {
+  const theme = useTheme();
   const { sizeClass } = useWindowLayout();
   return (
     <Screen title="Soru çöz" subtitle="Fotoğrafını çek; ipucu al ya da çözümü gör.">
@@ -351,12 +339,12 @@ export default function SolveScreen() {
       ) : sizeClass === 'regular' ? (
         <>
           <CaptureCard />
-          <Recents count={RECENT_COUNT.compact} />
+          <Recents count={theme.solve.recentCount.compact} />
         </>
       ) : (
         <>
           <CaptureCard />
-          <Recents count={RECENT_COUNT.compact} />
+          <Recents count={theme.solve.recentCount.compact} />
           <Section title="İyi bir fotoğraf için">
             <TipLines />
           </Section>

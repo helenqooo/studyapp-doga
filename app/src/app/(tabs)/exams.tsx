@@ -26,10 +26,6 @@ import type { Exam } from '../../data/topics';
 import { useWindowLayout } from '../../lib/layout';
 import { useTheme } from '../../theme';
 
-// TOKEN-PENDING: motion.duration.rmFade = 120 (the Reduce Motion cross-fade, spec 0.7 / 5.6)
-const RM_FADE_MS = 120;
-// TOKEN-PENDING: layout.chart.trendHeight.wide = 380 (landscape: the trend fills the sheet beside the subjects)
-const TREND_WIDE = 380;
 
 type Tab = 'list' | 'analysis';
 
@@ -124,7 +120,8 @@ function TrendSheet({ overview, exam, onExam }: { overview: Overview; exam: Exam
   const complete = data.trend.filter((t) => t.complete);
   return (
     <Card style={{ flexGrow: 1 }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: theme.spacing.md, justifyContent: 'space-between' }}>
+      {/* Top-aligned, so the title shares a line with the subjects sheet's title beside it. */}
+      <View style={{ flexDirection: 'row', alignItems: 'flex-start', flexWrap: 'wrap', gap: theme.spacing.md, justifyContent: 'space-between' }}>
         <AppText variant="heading" accessibilityRole="header">
           Toplam net
         </AppText>
@@ -140,7 +137,7 @@ function TrendSheet({ overview, exam, onExam }: { overview: Overview; exam: Exam
         <>
           <NetTrendChart
             max={data.maxNet}
-            height={wide ? TREND_WIDE : undefined}
+            height={wide ? theme.layout.chart.trendHeight.wide : undefined}
             data={complete.map((t) => ({ key: t.id, date: t.date, label: examTitle({ name: t.name, exam }), value: t.totalNet }))}
           />
           {complete.length === 1 ? (
@@ -173,7 +170,7 @@ function Analysis() {
 
   // Hold the previous render (dimmed) while refetching; the dim cross-fades, never cuts.
   const dim = overview.isFetching && !overview.isPending ? theme.opacity.analysisRefetch : 1;
-  const fade = { duration: reduceMotion ? RM_FADE_MS : theme.motion.duration.base, easing: ease('standard'), reduceMotion: ReduceMotion.Never };
+  const fade = { duration: reduceMotion ? theme.motion.duration.rmFade : theme.motion.duration.base, easing: ease('standard'), reduceMotion: ReduceMotion.Never };
   const dimStyle = useAnimatedStyle(() => ({ opacity: withTiming(dim, fade) }), [dim, reduceMotion]);
 
   if (overview.isPending) {
@@ -234,7 +231,7 @@ export default function ExamsScreen() {
   const [tab, setTab] = useState<Tab>('list');
   const { tablet } = useWindowLayout();
   return (
-    <Screen title="Deneme" headerRight={tablet ? <AddActions size="sm" /> : undefined}>
+    <Screen title="Deneme" subtitle="Netlerini gir, gidişatını izle." headerRight={tablet ? <AddActions size="sm" /> : undefined}>
       <SegmentedControl
         options={[
           { value: 'list', label: 'Denemeler' },

@@ -8,8 +8,6 @@ import { Icon, type IconName } from './Icon';
 import { Kareli } from './Kareli';
 import { PressableScale } from './motion/PressableScale';
 
-// TOKEN-PENDING: layout.sheet.accentEdge = 4 (the subject-ink left edge of a card, spec 3 Card)
-const ACCENT_EDGE = 4;
 
 /** `elevated` is the deprecated name of `sheet`. */
 export type CardVariant = 'sheet' | 'hero' | 'flat' | 'note' | 'elevated';
@@ -74,7 +72,8 @@ export function Card({ children, title, action, background, variant = 'sheet', d
   const base = elevated(theme, LEVEL[variant]);
   const tinted = !!background;
   const hero = variant === 'hero';
-  const padding = variant === 'note' ? theme.layout.note.padding : sheetPadding;
+  // The note pads like a sheet (plus the edge it lacks), so its text lines up with the sheets around it.
+  const padding = variant === 'note' ? sheetPadding + theme.layout.borderWidth : sheetPadding;
 
   const onLayout = (e: LayoutChangeEvent) => {
     const h = Math.round(e.nativeEvent.layout.height);
@@ -87,7 +86,7 @@ export function Card({ children, title, action, background, variant = 'sheet', d
     padding: divided ? 0 : padding,
     // Only the accent edge sets a longhand: a paddingLeft here would beat a caller's
     // `paddingHorizontal` (or, on iOS, even `padding`) and leave the sheet lopsided.
-    ...(accent ? { paddingLeft: padding + ACCENT_EDGE } : null),
+    ...(accent ? { paddingLeft: padding + theme.layout.sheet.accentEdge } : null),
     gap: divided ? 0 : theme.spacing.md,
   };
 
@@ -101,7 +100,7 @@ export function Card({ children, title, action, background, variant = 'sheet', d
     hero || accent ? (
       <View pointerEvents="none" aria-hidden style={[StyleSheet.absoluteFill, corners, { overflow: 'hidden' }]}>
         {hero && height > 0 ? <Kareli height={Math.round(height * theme.layout.kareli.heroShare)} /> : null}
-        {accent ? <View style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: ACCENT_EDGE, backgroundColor: accent }} /> : null}
+        {accent ? <View style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: theme.layout.sheet.accentEdge, backgroundColor: accent }} /> : null}
       </View>
     ) : null;
 

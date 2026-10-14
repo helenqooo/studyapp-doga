@@ -8,8 +8,6 @@ import { Icon } from './Icon';
 import { PressableScale } from './motion/PressableScale';
 import { ease } from './motion/presets';
 
-// TOKEN-PENDING: motion.duration.rmFade = 120 (the Reduce Motion cross-fade, spec 0.7 / 5.6)
-const RM_FADE_MS = 120;
 
 interface Props extends Omit<TextInputProps, 'style'> {
   label: string;
@@ -31,7 +29,7 @@ export function TextField({ label, hint, error = false, secret = false, ref, ...
   const { borderWidth, selectedBorder } = theme.layout.system;
   // Paper field with a soft edge; focus darkens the edge to graphite, an error to red pen.
   const edge = error ? theme.colors.danger : focused ? theme.colors.mark : theme.colors.border;
-  const fade = { duration: reduceMotion ? RM_FADE_MS : theme.motion.duration.base, easing: ease('standard'), reduceMotion: ReduceMotion.Never };
+  const fade = { duration: reduceMotion ? theme.motion.duration.rmFade : theme.motion.duration.base, easing: ease('standard'), reduceMotion: ReduceMotion.Never };
   const edgeStyle = useAnimatedStyle(() => ({ borderColor: withTiming(edge, fade) }), [edge, reduceMotion]);
   // The thicker focus edge is drawn inward (the padding shrinks) so the text holds still.
   const thick = focused || error;

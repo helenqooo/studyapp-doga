@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { router, Stack } from 'expo-router';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { View } from 'react-native';
 import Animated from 'react-native-reanimated';
@@ -26,7 +26,7 @@ import { TextToggle } from '../components/TextToggle';
 import { ErrorState } from '../components/states/ErrorState';
 import { BoneText, Skeleton, SkeletonQuestion } from '../components/states/Skeleton';
 import { DEMO_MODE, LOW_CONFIDENCE_THRESHOLD } from '../config';
-import { getTopic, topicLabel } from '../data/topics';
+import { getTopic } from '../data/topics';
 import { useVerdict } from '../lib/celebrate';
 import { haptics } from '../lib/haptics';
 import { useWindowLayout } from '../lib/layout';
@@ -34,8 +34,6 @@ import { answerMarkdown, gradingKey, isGradedChoice, solutionMarkdown } from '..
 import { useCompanionStore } from '../store/companionStore';
 import { subjectColor, useTheme } from '../theme';
 
-// TOKEN-PENDING: layout.cta.minWidth = 240 (an auto-width lg primary never gets narrower)
-const CTA_MIN_WIDTH = 240;
 /** From this many right answers in a row the streak counter gets its flame. */
 const STREAK_FLAME_AT = 3;
 
@@ -152,6 +150,24 @@ function SheetMath({ markdown }: { markdown: string }) {
   );
 }
 
+/**
+ * The title block in the split layout, where Screen doesn't draw it (as on the question
+ * screen): the topic in Lora and its unit under it. Reports its height so the answering
+ * side's first sheet starts level with the question sheet.
+ */
+function PaneTitle({ title, subtitle, onHeight }: { title: string; subtitle?: string; onHeight: (h: number) => void }) {
+  const theme = useTheme();
+  const sl = theme.layout.screen;
+  return (
+    <View onLayout={(e) => onHeight(Math.round(e.nativeEvent.layout.height))} style={{ gap: sl.titleGap.tablet, marginBottom: sl.afterTitle.tablet }}>
+      <AppText variant="title" accessibilityRole="header">
+        {title}
+      </AppText>
+      {subtitle ? <AppText color="textMuted">{subtitle}</AppText> : null}
+    </View>
+  );
+}
+
 function DoneScreen({ results, xp, remaining }: { results: PipResult[]; xp: number; remaining: number | null }) {
   const theme = useTheme();
   useCompanionYield();
@@ -169,6 +185,8 @@ function DoneScreen({ results, xp, remaining }: { results: PipResult[]; xp: numb
 
   return (
     <Screen safeTop={false} width="readable">
+      {/* The questions put their topic in the native header; the summary has the session's name back. */}
+      <Stack.Screen options={{ headerTitle: 'Tekrar' }} />
       <Card variant="hero">
         <View style={{ alignItems: 'center', gap: theme.spacing.md, paddingVertical: theme.spacing.lg }}>
           <Mascot size={theme.layout.mascot.hero} mood={!total ? 'wink' : wrong === 0 ? 'celebrate' : 'cheer'} />
@@ -214,7 +232,7 @@ function DoneScreen({ results, xp, remaining }: { results: PipResult[]; xp: numb
           )}
         </View>
       </Card>
-      <Button label="Tamam" size="lg" onPress={() => router.back()} style={{ alignSelf: 'center', minWidth: CTA_MIN_WIDTH }} />
+      <Button label="Tamam" size="lg" onPress={() => router.back()} style={{ alignSelf: 'center', minWidth: theme.layout.cta.minWidth }} />
     </Screen>
   );
 }
@@ -241,6 +259,8 @@ export default function ReviewSessionScreen() {
   const [results, setResults] = useState<PipResult[]>([]);
   const [streak, setStreak] = useState(0);
   const [xp, setXp] = useState(0);
+  // Split layout: the title block's height, so the answering side's band matches it.
+  const [titleHeight, setTitleHeight] = useState(0);
 
   useEffect(() => {
     if (!queue && today.data && !today.isFetching) {
@@ -274,6 +294,10 @@ export default function ReviewSessionScreen() {
   const graded = isGradedChoice(q);
   const key = gradingKey(q);
   const fromRung = rungOf(q.review, rungs);
+  // As on the question screen: the topic is the large title, its unit the line under it (the
+  // sheet's badges carry the exam and the subject).
+  const heading = topic ? (topic.subtopic ?? topic.topic) : q.subject;
+  const subheading = topic?.subtopic ? topic.topic : undefined;
 
   // The dock is the optik form; the typed choices stay folded unless the photo may not carry
   // them (no photo, or a low-confidence reading) or she opens them. Side by side they also
@@ -350,12 +374,9 @@ export default function ReviewSessionScreen() {
   const questionSheet = (
     <Appear still>
       <Card accessibilityLabel="Soru kâğıdı">
-        <View style={{ gap: theme.spacing.xs }}>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.sm }}>
-            <Badge label={q.exam} color={theme.colors.exam[q.exam].fg} background={theme.colors.exam[q.exam].bg} />
-            <Badge label={q.subject} dot={subjectColor(theme, q.subject)} />
-          </View>
-          {topic ? <AppText variant="heading">{topicLabel(topic)}</AppText> : null}
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.sm }}>
+          <Badge label={q.exam} color={theme.colors.exam[q.exam].fg} background={theme.colors.exam[q.exam].bg} />
+          <Badge label={q.subject} dot={subjectColor(theme, q.subject)} />
         </View>
         <QuestionImage questionId={q.id} size="large" />
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.sm }}>
@@ -485,28 +506,38 @@ export default function ReviewSessionScreen() {
   }
 
   // Keyed by question so scroll positions start at the top for each one. Side by side, the
-  // question sheet has its pane to itself and the progress heads the answering side. The
-  // photo is what she solves from, so it gets the wider pane, as on the question screen (the
-  // share holds after the verdict, so nothing reflows under her).
+  // question's title block heads its pane and the progress sits in a band as tall beside it,
+  // so both sheets start on one line. The photo is what she solves from, so it gets the wider
+  // pane, as on the question screen (the share holds after the verdict, so nothing reflows
+  // under her). The large title replaces the native one there, as on the question screen.
   if (split) {
+    const sl = theme.layout.screen;
     return (
-      <SplitScreen
-        key={q.id}
-        leftFlex={theme.layout.splitQuestion}
-        left={questionSheet}
-        right={
-          <>
-            {progress}
-            {answerPane}
-          </>
-        }
-        dock={dock}
-      />
+      <>
+        <Stack.Screen options={{ headerTitle: () => null }} />
+        <SplitScreen
+          key={q.id}
+          leftFlex={theme.layout.splitQuestion}
+          left={
+            <>
+              <PaneTitle title={heading} subtitle={subheading} onHeight={setTitleHeight} />
+              {questionSheet}
+            </>
+          }
+          right={
+            <>
+              <View style={{ minHeight: titleHeight + sl.afterTitle.tablet, justifyContent: 'flex-end' }}>{progress}</View>
+              {answerPane}
+            </>
+          }
+          dock={dock}
+        />
+      </>
     );
   }
 
   return (
-    <Screen key={q.id} safeTop={false} width="readable" dock={dock}>
+    <Screen key={q.id} safeTop={false} width="readable" dock={dock} title={heading} subtitle={subheading}>
       {progress}
       {questionSheet}
       {answerPane}

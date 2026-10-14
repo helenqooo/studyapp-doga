@@ -100,6 +100,8 @@ export interface ColorTokens {
   cameraScrim: string;
   /** Fosfor crop handles. */
   cropFrame: string;
+  /** The scan's own white, which a clipped question photo fades into (the dark sheet left a grey smear). */
+  photoPaper: string;
 
   /** Celebration pieces, drawn as highlighter strokes. */
   confetti: string[];
@@ -117,8 +119,6 @@ export interface ColorTokens {
    * and a lamp glow around the fosfor CTA.
    */
   shadow: { card: string; raised: string; floating: string; accent: string; note: string; none: string };
-  /** @deprecated Home's old goal rings; removed with TodayRings. */
-  rings: { review: string; focus: string; solve: string };
   /** Exam pills: TYT in fosfor ink, AYT in violet, so the exam is clear at a glance. */
   exam: Record<'TYT' | 'AYT', { fg: string; bg: string }>;
 
@@ -282,6 +282,7 @@ const light: ColorTokens = {
   cameraForeground: '#FFFFFF',
   cameraScrim: 'rgba(0, 0, 0, 0.55)',
   cropFrame: '#FFFFFF',
+  photoPaper: '#FFFEFB',
 
   confetti: ['#D97757', '#C9954C', '#788C5D', '#6A9BCC', '#E4B9A3'],
   badge: { gold: '#B8862F', silver: '#7D8794', bronze: '#B87A45', ink: '#FFFFFF', locked: '#E4E1D8', lockedInk: '#8F8C84', foil: '#F6E3D6' },
@@ -294,7 +295,6 @@ const light: ColorTokens = {
     note: '0px 2px 6px rgba(48, 36, 24, 0.06), 0px 12px 24px -12px rgba(48, 36, 24, 0.16)',
     none: '0px 0px 0px rgba(0, 0, 0, 0)',
   },
-  rings: { review: '#B5573A', focus: '#6F8A4E', solve: '#4F79A8' },
   exam: { TYT: { fg: '#A84F33', bg: '#F6E8E1' }, AYT: { fg: '#3F6D9C', bg: '#E5EDF6' } },
   avatar: AVATAR_BASE,
 
@@ -391,6 +391,7 @@ const dark: ColorTokens = {
   cameraForeground: '#FFFFFF',
   cameraScrim: 'rgba(0, 0, 0, 0.55)',
   cropFrame: '#FFFFFF',
+  photoPaper: '#FFFFFF',
 
   confetti: ['#E08B6D', '#D4A27F', '#A3B886', '#8DB4DE', '#F0C6B3'],
   badge: { gold: '#B8862F', silver: '#7D8794', bronze: '#B87A45', ink: '#FFFFFF', locked: '#3B3A36', lockedInk: '#85827A', foil: '#F0C6B3' },
@@ -403,7 +404,6 @@ const dark: ColorTokens = {
     note: '0px 16px 30px -14px rgba(0, 0, 0, 0.50)',
     none: '0px 0px 0px rgba(0, 0, 0, 0)',
   },
-  rings: { review: '#E08B6D', focus: '#A3B886', solve: '#8DB4DE' },
   exam: { TYT: { fg: '#E08B6D', bg: '#3B2A22' }, AYT: { fg: '#8DB4DE', bg: '#22303D' } },
   avatar: AVATAR_BASE,
 
@@ -569,7 +569,10 @@ export interface TypeStyle {
  * Poppins. Units after a number are a separate label/caption, never inside the numeral
  * string. Lora needs real line height: never below 1.1 or ascenders clip (İ, Ş).
  */
-export const typography: Record<TypeVariant, TypeStyle> = {
+export const typography: Record<TypeVariant, TypeStyle> & {
+  /** How far Lora figures sit above their line box bottom, as a share of the size; aligns labels beside a big number. */
+  figureDrop: number;
+} = {
   /** YKS countdown, deneme net hero, review count. */
   hero: { kind: 'display', weight: 'semibold', size: fontSize.hero, sizeTablet: fontSizeTablet.hero, lineRatio: 1.15, tracking: -0.5, trackingTablet: -1.0, tabular: true, maxScale: 1.2 },
   /** The timer clock. */
@@ -592,26 +595,8 @@ export const typography: Record<TypeVariant, TypeStyle> = {
   caption: { kind: 'sans', weight: 'regular', size: fontSize.xs, sizeTablet: fontSizeTablet.xs, lineRatio: 1.38, tracking: 0, trackingTablet: 0, tabular: false, maxScale: 1.6 },
   /** Tab labels and badge text only. */
   micro: { kind: 'sans', weight: 'semibold', size: fontSize.xxs, sizeTablet: fontSizeTablet.xxs, lineRatio: 1.27, tracking: 0.1, trackingTablet: 0.1, tabular: false, maxScale: 1.6 },
+  figureDrop: 0.12,
 };
-
-/** @deprecated Read `typography[variant].lineRatio`. */
-export const lineRatio = {
-  display: typography.stat.lineRatio,
-  title: typography.title.lineRatio,
-  heading: typography.heading.lineRatio,
-  body: typography.body.lineRatio,
-  label: typography.label.lineRatio,
-  caption: typography.caption.lineRatio,
-  eyebrow: typography.label.lineRatio,
-} as const;
-
-/** @deprecated Read `typography[variant].tracking`. Eyebrows are sentence case now (no tracking). */
-export const letterSpacing = {
-  display: typography.stat.tracking,
-  title: typography.title.tracking,
-  normal: 0,
-  eyebrow: 0,
-} as const;
 
 /** Bezier control points [x1, y1, x2, y2]. */
 type Bezier = readonly [number, number, number, number];
@@ -642,6 +627,10 @@ const verdict = {
   penStartDeg: -30,
   shakeDistance: 6,
   shakeMs: 300,
+  /** The picked bubble breathing while the answer is graded. */
+  sealScale: 1.06,
+  /** How long after the dock leaves its pick rect still launches a burst (ms). */
+  burstRectTtl: 5000,
 } as const;
 
 /** Bezier easings by role; `presets.ease(name)` turns one into Easing.bezier(...). */
@@ -663,19 +652,12 @@ const press = { button: 0.96, card: 0.985, bubble: 0.9, row: 1, nudgeY: 1, fade:
 
 /** Durations (ms), easings and springs for every animation. Reduced-motion users get fades only. */
 export const motion = {
-  duration: { instant: 90, fast: 140, base: 220, slow: 360, page: 420, celebrate: 1400 },
+  /** `rmFade`: the Reduce Motion cross-fade (spec 0.7 / 5.6). */
+  duration: { instant: 90, fast: 140, base: 220, slow: 360, page: 420, celebrate: 1400, rmFade: 120 },
   easing,
   springs,
-  /** @deprecated alias of `springs.settle`. */
-  spring: springs.settle,
-  /** @deprecated alias of `springs.bouncy`. */
-  springBouncy: springs.bouncy,
   /** Press feedback per PressableScale kind: scale, the button's sink (pt), the card fade and the reduced-motion opacity. */
   press,
-  /** @deprecated alias of `press.button`. */
-  pressScale: press.button,
-  /** @deprecated alias of `press.fade`. */
-  pressFade: press.fade,
   /** Delay between items appearing one after another, and the most items that stagger. */
   stagger: 40,
   staggerMax: 6,
@@ -686,18 +668,14 @@ export const motion = {
   /** A bubble filling: zigzag strokes, then the solid fill; and its erase. */
   scribble: { ms: 200, fillFade: 90, eraseMs: 140, eraseScale: 0.82, strokes: 6 },
   verdict,
-  /** @deprecated alias of `verdict.dwell`. */
-  verdictDwell: verdict.dwell,
-  /** @deprecated alias of `verdict.drumroll`. */
-  drumroll: verdict.drumroll,
-  /** @deprecated Sideways shake of the "wrong" badge; replaced by the red-pen loop (verdict). */
-  shake: { distance: verdict.shakeDistance, steps: [50, 70, 60, 60] },
   highlight: { draw: 420, retract: 220, pressGrow: 140, strike: 260 },
   /** "Netleşme": two ghost copies converge on the real text. */
   focusPull: { ms: 420, ghostOffset: 4, ghostOpacity: 0.35, startScale: 1.06, startOpacity: 0.5 },
   odometer: { digitStagger: 30 },
-  progress: { fill: 720, shine: 600 },
-  tabs: { fade: 140, compact: 220, labelDrop: 6, wiggleDeg: 4, wiggleMs: 180, longPress: 450, keyboard: 200, compactVelocity: 900 },
+  /** `rmFlash`: the Reduce Motion level-wrap flash (spec 5.6). */
+  progress: { fill: 720, shine: 600, rmFlash: 160 },
+  /** `badgeFrom`: the badge pops from this scale. */
+  tabs: { fade: 140, compact: 220, labelDrop: 6, wiggleDeg: 4, wiggleMs: 180, longPress: 450, keyboard: 200, compactVelocity: 900, badgeFrom: 0.6 },
   companion: {
     takeoffScale: 0.86,
     takeoffMs: 90,
@@ -727,6 +705,22 @@ export const motion = {
     nestBlink: [4000, 7000],
     /** A perch shows its own still Lumi when the companion hasn't landed on it by then. */
     perchFallbackMs: 600,
+    /** Perches register before Lumi hops after a route change. */
+    routeSettleMs: 220,
+    /** LiveMascot swaps back to Still this long after landing at the nest. */
+    liveLingerMs: 2000,
+    /** Eyes back to open after scrolling stops. */
+    gazeResetMs: 600,
+    /** Long-press Lumi: snooze.ask. */
+    longPressMs: 400,
+    /** How often the unsolicited-line scheduler looks. */
+    tickMs: 500,
+    /** The nest's breathing halo round the tip light. */
+    haloBreathMs: 2400,
+    /** Dragged away: Lumi slides off. */
+    slideOutMs: 220,
+    /** A scroll this far closes the note (pt). */
+    scrollDismiss: 24,
   },
   mascot: {
     poseSpring: { damping: 13, stiffness: 140, mass: 0.8 },
@@ -740,6 +734,64 @@ export const motion = {
     flapDeg: 18,
     flapPeriodMs: 140,
     fxPhaseMs: 750,
+    /**
+     * The loops' shapes: amplitudes (grid units, degrees, scale) and timings (ms) per body and
+     * arm motion, fidget and effect.
+     */
+    loops: {
+      hop: { height: -10, pause: 520 },
+      jump: { height: -22, pause: 220 },
+      hopLand: 260,
+      stretch: { sy: 1.06, sx: 0.96 },
+      squash: { sy: 0.9, sx: 1.08, ms: 110, settle: 150 },
+      droop: { sy: 0.985, syMs: 2200, rot: 2, rotMs: 2400 },
+      sway: { rot: 4, sy: 1.02, ms: 900 },
+      nod: { rot: 2.5, y: 1.5, ms: 480 },
+      wobble: { rot: 6, ms: 700 },
+      bob: { y: -5, sy: 1.02, ms: 650 },
+      breathe: { sy: 1.045, sx: 0.975, y: -3, ms: 1300 },
+      wave: { from: 14, to: -16, ms: 280 },
+      wiggle: { from: -10, to: 12, ms: 220 },
+      shake: { deg: 14, ms: 140 },
+      gesture: { deg: 20, ms: 760 },
+      tap: { deg: -6, ms: 160, rest: 700 },
+      scribble: { deg: 6, ms: 110 },
+      sip: { delay: 1800, deg: 14, ms: 420, hold: 700 },
+      pop: { deg: 16, ms: 90, rest: 1100 },
+      blink: { closed: 0.1, close: 70, open: 100, every: 3400 },
+      blink2: { close: 60, open: 80, reopen: 90 },
+      tipSway: { deg: 5, ms: 1500 },
+      glow: { rest: 1.12, restMs: 1500, pulse: 1.35, pulseMs: 420, dimMs: 500 },
+      talk: { from: 0.35, ms: 130 },
+      fxMs: 1500,
+      popSpring: { damping: 7, stiffness: 160 },
+      enterSpring: { damping: 9, stiffness: 150, mass: 0.7 },
+      bump: { up: 1.08, upMs: 110, down: 0.95, downMs: 120, spring: { damping: 8, stiffness: 200 } },
+      idleArm: { deg: 5, ms: 1300 },
+      fidgetSpring: { damping: 12, stiffness: 160 },
+      look: { x: 5, back: -3, y: -1, hold: 700, settle: 500, yHold: 1200 },
+      lookUp: { x: 4, y: -4, hold: 900 },
+      fidgetHop: { y: -14, up: 200, down: 190, stretch: 1.05, squash: 0.9, squashMs: 90 },
+      flick: { deg: -16, ms: 120, spring: { damping: 5, stiffness: 180 } },
+      tilt: { deg: 7, hold: 900 },
+      shiver: { deg: 5, ms: [90, 120, 120] },
+      hello: { up: -122, low: -104, high: -136, ms: 170, times: 3, settle: 150, face: -2, faceHold: 1300 },
+      /** How far the eyes shift toward `lookAt` (grid units). */
+      lookAtShift: 4,
+      /** Effect loops: travel (grid units), turn (degrees), scale and opacity ranges. */
+      fx: {
+        tear: { fall: 22 },
+        sweat: { fall: 8, fade: 0.7 },
+        zzz: { x: 8, rise: 14, from: 0.8, grow: 0.35 },
+        hearts: { rise: 18, from: 0.7, grow: 0.4 },
+        sparkles: { dim: 0.4, from: 0.5, grow: 0.7, turn: 90 },
+        question: { bob: 3, turn: 8 },
+        exclaim: { pulse: 0.06, bob: 1.5 },
+        confetti: { fall: 26, fade: 0.8, turn: 10 },
+        flame: { from: 0.9, flicker: 0.12, rate: 6, sway: 0.05 },
+        steam: { opacity: 0.9, rise: 8, drift: 1.5 },
+      },
+    },
   },
   /**
    * A right answer's local burst: pieces (highlighter strokes w × h), how far they fly (pt)
@@ -749,6 +801,20 @@ export const motion = {
   inlineBurst: { particles: 12, distance: 64, ms: 760, rise: 44, sway: 14, chipWidth: 96, letterInset: 24, stroke: { w: 10, h: 3 } },
   /** Timer focus mode: how fast and how far the rest of the screen dims. */
   timerFocus: { dimMs: 600, dim: 0.4 },
+  /** Screen scroll effects (design spec 5.2): the large title, the compact bar, the stack title, the band; `rmFade` is its Reduce Motion switch. */
+  scroll: { titleRate: 0.5, titleFadeEnd: 64, barFrom: 48, barTo: 72, rmSwitch: 56, stackTitleFrom: 40, stackTitleTo: 72, bandRate: 0.35, bandFadeEnd: 160, rmFade: 120 },
+  /** How long a revealed block that grows is kept in view (ms); how far up (pt) the page may drift before it counts as the student's own scroll. */
+  reveal: { followMs: 1500, slop: 8 },
+  /** The one-time foil sheen over a newly seen badge (spec 7.5). */
+  badge: { foilMs: 700 },
+  /** RewardBurst: the badge stamp coming down, ms from its rigid tap to the success haptic, how far the rays turn over the moment. */
+  reward: { stamp: { fromScale: 1.3, fromDeg: -8 }, successAfter: 120, raySpinDeg: 24 },
+  /** Podium steps rise 3, 2, 1 this far apart (ms); avatars drop from this height (pt). */
+  podium: { stagger: 80, drop: 28 },
+  /** The live streak flame's breath: lift in pt, scaleY gain, sway each way (deg). */
+  flame: { rise: 1.5, stretch: 0.08, swayDeg: 2 },
+  /** The timer ring: the fosfor head's breathing halo, and the arc's glide across each one-second tick. */
+  timer: { headGlow: { ms: 1300, low: 0.35, high: 0.7, scale: 2.2 }, tickMs: 1000 },
 } as const;
 
 export type EasingName = keyof typeof motion.easing;
@@ -757,8 +823,8 @@ export type SpringName = keyof typeof motion.springs;
 export const opacity = {
   /** Disabled controls. */
   disabled: 0.5,
-  /** Loading placeholders breathe between these. */
-  skeleton: { low: 0.45, high: 1 },
+  /** Loading placeholders breathe between these; the shimmer band's peak over surfaceAlt; Reduce Motion rests at `still`. */
+  skeleton: { low: 0.45, high: 1, shimmer: 0.7, still: 0.5 },
   /** The graph-paper band's lines, per scheme. */
   /** Graph-paper band; 0 = off (the warm Anthropic paper is plain). */
   kareli: { light: 0, dark: 0 },
@@ -768,6 +834,43 @@ export const opacity = {
   analysisRefetch: 0.6,
   /** The camera's framing guide. */
   cameraGuide: 0.7,
+  /** The fosfor band that sweeps a photo while it is read: its soft peak. */
+  scanBand: 0.5,
+  /** Secondary text on the dark camera screens. */
+  cameraCaption: 0.7,
+  /** The foil sheen's soft band, never a flash: on a newly seen badge seal, and over RewardBurst's hero. */
+  foil: { seal: 0.55, reward: 0.6 },
+  /** The ghost button's press swipe under Reduce Motion (spec 5.1). */
+  ghostSwipeRm: 0.6,
+  /** Each light-mode Highlight ink pass (spec 3 Highlight). */
+  highlightPass: 0.85,
+  /** The paper fade over a clipped photo's bottom edge. */
+  imageFade: 0.96,
+  /** Soft tier-colored rays behind RewardBurst's hero. */
+  rewardRay: 0.28,
+  /** InlineBurst strokes: highlighter ink is translucent, never a solid flash. */
+  burstStroke: 0.9,
+  /** The nearest flight-trail dot; later ones fade by k/5. */
+  trailDot: 0.8,
+  /** The breathing halo round Lumi's tip light. */
+  companionHalo: { low: 0.35, high: 1 },
+  /**
+   * A podium step's tier tint over the sheet: the winner's gold reads first; second and third
+   * stay quieter but keep a body on the light paper, together with their hairline edge.
+   */
+  podiumTint: { first: { light: 0.3, dark: 0.36 }, other: { light: 0.2, dark: 0.18 } },
+  /** The fosfor sweep under a right answer row; soft, and dark text stays readable. */
+  rowSweep: { light: 0.6, dark: 0.22 },
+  /** The soft white level-wrap sweep on a ProgressBar (spec 2.0 rule 4). */
+  shine: 0.25,
+  /** The paper fade behind the strip. */
+  stripFade: { midAt: 0.45, mid: 0.75, end: 0.92 },
+  /** The timer arc while paused. */
+  timerPaused: 0.55,
+  /** The breathing glow behind a live streak flame (and the scale it grows from). */
+  flameGlow: { low: 0.12, high: 0.3, scaleFrom: 0.8 },
+  /** The compact header bar's paper. */
+  headerBar: 0.96,
 } as const;
 
 /**
@@ -790,7 +893,8 @@ const iconStroke = 2.0;
 
 export const layout = {
   /** Interaction basics: the minimum touch target (Apple HIG), hairlines, icon sizes. */
-  system: { minTouch, touch, borderWidth, selectedBorder, hitSlop: 8, iconSize, iconStroke },
+  /** `iconStrokeBold`: Icon weight 'bold' (spec 3). */
+  system: { minTouch, touch, borderWidth, selectedBorder, hitSlop: 8, iconSize, iconStroke, iconStrokeBold: 2.4 },
   /** Window grid: 4 / 8 / 12 columns by window width (< 560, < 1000, ≥ 1000). */
   grid: {
     compact: { columns: 4, gutter: 12, margin: 16 },
@@ -840,9 +944,14 @@ export const layout = {
     nestGap: { compact: 8, tablet: 12 },
     badge: { compact: 20, tablet: 24 },
     badgeRing: 2,
-    ear: { height: 44, minWidth: 92, ring: 28, gap: 6 },
+    /** The timer ear; `ringStroke` is the ear / TimerPill ring's stroke, and its head dot's radius. */
+    ear: { height: 44, minWidth: 92, ring: 28, gap: 6, ringStroke: 3 },
     fadeAbove: 56,
     reserveExtra: 16,
+    /** Badge disc: left = bubble width - x, top = -y. */
+    badgeOffset: { x: 10, y: 6 },
+    /** Scrolling down past this offset compacts the phone strip. */
+    compactAfter: 24,
   },
   /** Lumi, the companion: size, hit area, its note, the flight trail and the landing. */
   companion: {
@@ -859,6 +968,26 @@ export const layout = {
     hop: 20,
     haloScale: 1.8,
     ember: 6,
+    /** Drag-away thresholds. */
+    drag: { slop: 6, awayVy: 0.8, awayVx: 0.8, edge: 32 },
+    /** Landing squash (a spring brings it back to 1). */
+    land: { y: 0.82, x: 1.1 },
+    /** Glide start and end, × size before the target. */
+    glideAt: { x: 0.3, y: 0.75 },
+    /** The note's corner tucks under Lumi's feet, × size. */
+    noteOverlap: 0.15,
+    /** Room a note needs below Lumi before it goes above. */
+    noteRoom: 160,
+    /** A landing farther than this flies instead of hopping. */
+    hopFar: 120,
+    /** Route hops and returns fly a flatter arc. */
+    routeHopLift: 0.5,
+    /** The breathing tip-light halo's radius, × size, and the scale it breathes to. */
+    haloDot: 0.2,
+    haloBreathScale: 1.25,
+    /** Progress between flight-trail dots; a dot's halo radius as a multiple of its core. */
+    trailStep: 0.04,
+    trailHalo: 2,
   },
   /** Optik bubbles (ellipses 1.6:1) by size, their printed outline and the scribble fill. */
   bubble: {
@@ -868,9 +997,26 @@ export const layout = {
     outline: 1.6,
     scribbleStroke: 3.2,
     scribbleMinWidth: 28,
+    /** Gap from a chosen color bubble to its ring. */
+    selectRing: 4,
+    /** Space between a bubble and the ring that marks "now". */
+    ringGap: 2,
   },
   /** The highlighter swipe behind a line of text, and the graphite strike through it. */
-  highlight: { heightRatio: 0.62, leadIn: 4, tail: 6, skewDeg: -8, rotateDeg: -1, passes: 2, radii: [3, 6, 4, 7], strikeWidth: 2 },
+  highlight: {
+    heightRatio: 0.62,
+    leadIn: 4,
+    tail: 6,
+    skewDeg: -8,
+    rotateDeg: -1,
+    passes: 2,
+    radii: [3, 6, 4, 7],
+    strikeWidth: 2,
+    /** How far the second ink pass sits from the first (pt). */
+    passShift: 1.5,
+    /** Extra width for the ink copy: web layout reports whole pixels, so 35.4 arrives as 35. */
+    copySlack: { web: 1, native: 0 },
+  },
   /** Lumi's sticky note: tilt, the lifted corner, padding, and the hint sheet's fosfor edge. */
   note: { tiltDeg: -1.2, liftCorner: 18, padding: 14, edge: 3 },
   /** The graph-paper band behind headers. */
@@ -881,15 +1027,40 @@ export const layout = {
     tick: { major: 10, minor: 5 },
     headDot: 14,
     roundControl: 68,
+    /** Space between the track's inner edge and the ticks. */
+    tickGap: 6,
+    tickWidth: { major: 2, minor: 1.5 },
+    /** A major tick every 5 minutes. */
+    majorEvery: 5,
+    /** One tick per planned minute, within these. */
+    ticks: { min: 5, max: 60 },
+    /** The clock never grows past this share of the ring. */
+    numeralShare: 0.32,
   },
-  podium: { step: { compact: [96, 72, 56], tablet: [120, 92, 72] }, avatar: { first: 64, other: 52 } },
-  /** Question photo thumbnails. */
-  thumb: { compact: 56, card: { w: 88, h: 66 }, recent: 72 },
-  /** The floating answer dock: its row height and its widest. */
-  dock: { height: 64, maxWidth: 560 },
+  podium: {
+    step: { compact: [96, 72, 56], tablet: [120, 92, 72] },
+    avatar: { first: 64, other: 52 },
+    /** The winner's step is wider than the other two. */
+    firstFlex: 1.3,
+    /** A full iPad has the height to spare: the podium, the screen's primary, takes it, also beside the list in landscape. */
+    tall: { step: [176, 136, 104], avatar: { first: 80, other: 64 } },
+  },
+  /** Question photo thumbnails; `accentEdge` is the subject-ink edge on a recent thumbnail. */
+  thumb: { compact: 56, card: { w: 88, h: 66 }, recent: 72, accentEdge: 4 },
+  /**
+   * The floating answer dock: its row height and its widest; `inlineMin` is the least inner width
+   * for the letters and the actions on one row (a wider measured row raises it).
+   */
+  dock: { height: 64, maxWidth: 560, inlineMin: 620 },
   question: { imageCap: { compact: 360, tablet: 420, split: 540 }, chatImageCap: 220 },
   /** Spaced-repetition intervals in days (mirrors the server). */
-  ladder: { rungs: [1, 3, 7, 14, 30] },
+  ladder: {
+    rungs: [1, 3, 7, 14, 30],
+    /** The narrowest a rung column gets before the ladder scrolls; "30 gün" at 15 pt needs 60. */
+    rungMin: { compact: 50, tablet: 60 },
+    /** The optikSoft rail between the rung bubbles. */
+    rail: 4,
+  },
   /**
    * Stacking, bottom to top: screen content (in-tree highlights and perches), the strip's
    * paper fade, the strip, the timer ear, the companion's note, the companion and its trail,
@@ -902,10 +1073,6 @@ export const layout = {
   cardPadding: 20,
   /** Side padding once the window is tablet-sized. */
   screenPaddingRegular: spacing.xl,
-  /** @deprecated use `dashboardWidth`. */
-  maxContentWidth: 1180,
-  /** @deprecated the sidebar is gone; the optik strip is used at every width. */
-  sidebarWidth: 220,
   /** Width of the left pane in split screens, as a fraction. */
   splitLeft: 0.46,
   /** Left pane of the question screen: the photo is what the student reads. */
@@ -955,8 +1122,6 @@ export const layout = {
   avatar: 40,
   /** Lumi, the assistant: in a note (home, empty states) and large (sign-in, celebrations). */
   mascot: { note: 84, hero: 150 },
-  /** @deprecated Home's three goal rings; removed with TodayRings. */
-  todayRings: { size: 132, stroke: 11, gap: 4, dot: 10 },
   /** The little diamond under Lumi's speech bubble. */
   bubbleTail: 14,
   /** The scanning light over a photo while the AI reads it: its height. */
@@ -970,13 +1135,163 @@ export const layout = {
     ringWidth: 2,
     barThickness: 12,
     barEndRadius: 4,
-    trendHeight: { compact: 180, tablet: 240 },
+    /** `wide`: landscape, where the trend fills the sheet beside the subjects. */
+    trendHeight: { compact: 180, tablet: 240, wide: 380 },
     sparkHeight: 44,
     axisWidth: 34,
     endLabelWidth: 44,
     /** The week's bars: bar width as a share of its slot, and the gap to the day label. */
     weekBar: { barShare: 0.5, labelGap: 6 },
+    /** The week's bar chart, labels included; an empty day still shows a `minBar` sliver. */
+    weekHeight: { compact: 148, tablet: 196 },
+    minBar: 2,
+    /** TopicLossBars' value column: fits "88,88 net", so every track ends at the same x. */
+    lossValueWidth: { compact: 72, tablet: 84 },
+    /** The trend under a hero net (ExamSummary). */
+    summaryHeight: { compact: 96, tablet: 136 },
+    /** A growing sparkline stops at this × sparkHeight; past that the slack stays under it. */
+    sparkGrowMax: 3,
   },
+  /** Viewfinder (spec 3): 3 pt L-corners, 22 pt arms; `cameraArm` on the full-screen camera guide. */
+  viewfinder: { stroke: 3, arm: 22, inset: 12, cameraArm: 36 },
+  /** The camera guide is a 3:4 page, width over height. */
+  cameraGuideRatio: 3 / 4,
+  /** The fosfor band that sweeps the photo while it is read (height). */
+  scanBand: 56,
+  /** The first crop box sits this share inside the photo. */
+  cropStartInset: 0.04,
+  /** Pinch zoom in the full-screen photo (iOS). */
+  photoViewer: { maxZoom: 4 },
+  /** Sign-in (spec 7.10): the form's and the column's widest, Lumi's size, the graph-paper patch. */
+  login: { form: 420, column: 480, hero: { wide: 180, compact: 120 }, patch: 460 },
+  /** The ring's stroke on the logo's 100-unit grid (same as Logo.tsx). */
+  logo: { stroke: 14 },
+  /** A leaderboard row's avatar, read at arm's length on an iPad. */
+  leaderboard: { rowAvatar: { compact: 40, tablet: 48 } },
+  /** The identity sheet's avatar on Profile (spec 7.5). */
+  avatarProfile: { compact: 56, tablet: 72 },
+  /** An avatar's initial as a share of the disc (font size, line height). */
+  avatarInitial: { size: 0.45, line: 0.6 },
+  /** An auto-width lg primary never gets narrower. */
+  cta: { minWidth: 240 },
+  /** The "TYT" / "AYT" label column before a chip row. */
+  chipRowLabel: 40,
+  /** The subject-ink left edge of a card (spec 3 Card). */
+  sheet: { accentEdge: 4 },
+  /** The timer pill sits below the nav bar, so it never covers headerRight. */
+  timerPill: { top: 52 },
+  /** The progress bar's level-wrap sweep: its width as a share of the bar. */
+  progress: { shineShare: 0.4 },
+  /** The speech bubble's tail: a square of bubble paper turned into a diamond. */
+  bubbleTailTurn: '45deg',
+  /**
+   * The chat (spec 7.6): the live Lumi in the assistant's header; the share of the hero patch, from
+   * its center, where the graph paper is still unfaded; the intro Lumi's tallest share of the window
+   * (so a short landscape iPad keeps the starters above the composer); landscape question chat: the
+   * photo's share of the 12-column grid; the composer well's single-line height (56 matches
+   * TextField on a tablet) and the most lines it grows to; starter sheets as tall as a two-line
+   * question on a tall tablet window, a window from `promptTallMin` tall stacks each starter's icon
+   * over its question (a shorter one lays them in a row), a row starter's least height; Lumi's Lora
+   * words on a tablet (Lora's small x-height reads a size under the student's 17 pt Poppins; a
+   * phone keeps body); the fade over the clipped end of the fact scroller; the student's bubble's
+   * widest, as a share of the thread.
+   */
+  chat: {
+    headerMascot: 32,
+    patchClear: 0.5,
+    heroShare: 0.18,
+    photoColumns: 5,
+    composerMin: { compact: 48, tablet: 56 },
+    composerLines: 4,
+    promptLines: 2,
+    promptTallMin: 900,
+    promptRow: 72,
+    replySizeTablet: 18,
+    edgeFade: 48,
+    userBubbleMax: '85%',
+  },
+  /** Exam form: from this width the subject table has one-line rows; the Girdim column. */
+  examForm: { tableFrom: 560, switchCol: 56 },
+  /** An exam row: inline from this width; the net column fits "102,75 /120" (one fixed width, so every row's strip track has the same length). */
+  examRow: { inlineFrom: 680, netCol: { compact: 88, tablet: 96 }, deltaCol: 76, stripShare: '30%' },
+  /**
+   * The sample question drawn in Solve's viewfinder: stem lines, and in the upright frame one line
+   * per choice; the phone's wide frame gives the slip the frame's inner width, up to
+   * compactMaxWidth, so the A–E row fits.
+   */
+  solveSketch: { compactMaxWidth: 240, lines: ['100%', '88%', '56%'], choices: ['58%', '44%', '64%', '50%', '38%'] },
+  /**
+   * Solve's capture sheet on a tablet: the upright viewfinder's share of its inner width (portrait,
+   * and at most this much in landscape, where its height sets it); a landscape sheet puts the frame
+   * on top once that makes it `onTopGain` times wider.
+   */
+  solveCapture: { frameShare: { regular: 0.44, wide: 0.5 }, onTopGain: 1.15 },
+  /**
+   * Badge seals: the foil sheen's band (share of the seal) and slant; the locked seal's progress arc
+   * on the 100-unit grid (6 so it still reads at a 52–60 pt seal); the glyph as a share of the seal;
+   * a profile seal, arc included; the measured width from which the seals sit three across
+   * (narrower, "30 günlük seri" would break onto two lines, so they sit two across).
+   */
+  badge: { foil: { band: 0.34, tiltDeg: 20 }, arc: { radius: 57, stroke: 6, inset: 12 }, glyphShare: 0.38, seal: { compact: 52, tablet: 60 }, threeUp: 620 },
+  /** RewardBurst: the sheen band's width as a share of the hero and its slant; the hero as a multiple of `resultBadge`. */
+  reward: { foilBand: 0.42, foilDeg: 20, heroScale: 1.4 },
+  /**
+   * A wardrobe swatch column (the bubble, its caption and a lock line that keeps to one or two
+   * clean lines); past `max` the swatches stay grouped beside the preview instead of spreading.
+   */
+  wardrobe: { itemWidth: { min: 96, max: 128 } },
+  /**
+   * Loading bones: a paragraph's line widths in turn (the last line of a block is `last`), a list
+   * row's title and detail line, a page heading, the exam and subject badges above a question (pt),
+   * the answer rows under a question photo, the shimmer band's width (pt).
+   */
+  bone: { text: ['92%', '100%', '84%', '96%', '70%'], last: '55%', title: '60%', detail: '85%', heading: '70%', badges: [48, 72], choices: 5, shimmerBand: 120 },
+  /**
+   * Home's goal rows (spec 7.1): the goal and its figure in their own columns, or the goal over its
+   * figure; the content width from which the rows end in an action pill (else a chevron), and from
+   * which goal and figure get columns; the figure columns are least widths, widened together to the
+   * widest figure; a stretched row grows to at most maxShare × group.rowMinHeight.tablet.
+   */
+  goalRow: { label: 84, figure: 136, action: 120, stacked: { compact: 112, tablet: 128 }, pillMin: 628, columnsMin: 728, maxShare: 1.6 },
+  /** The graphite check across the goals: its stroke and points (share of the box). */
+  goalCheck: { stroke: 3, points: [[0.06, 0.55], [0.2, 0.9], [0.94, 0.08]] },
+  /** Focus mode's vignette: where the edge shade starts, the gradient's reach, and the band over which its top edge fades in from nothing. */
+  focusVignette: { clear: 0.55, radius: '75%', topFade: 96 },
+  /** The streak flame's disc by streak tier (spec 7.1 Seri), and its glow as a share of the disc. */
+  streakFlame: { tiers: [1, 7, 30], size: [44, 52, 60], glowShare: 0.78 },
+} as const;
+
+/** Home's dashboard behavior. */
+export const home = {
+  /** How far an iPad dashboard may stretch past its own height toward the strip. */
+  stretchMax: 96,
+  /** The window width from which the first name joins the greeting in the title. */
+  titleNameMin: 760,
+  /** Goal bubbles: Tekrar shows one per due question up to `reviewCap`; Odak is focusSteps × 10 min. */
+  goalBubbles: { reviewCap: 10, focusSteps: 5 },
+  /** Recent questions on Home. */
+  recentCount: 3,
+  /** Exams shown in Son deneme's sparkline. */
+  lastExamPoints: 8,
+  /** The content width from which Seri and Bu hafta sit side by side; the week's seven bubbles need it. */
+  progressGridMin: 680,
+  /** The width left of the thumbnails' caption from which "Örnek soruyu çöz" sits beside the heading. */
+  solveHeadInline: 400,
+} as const;
+
+export const solve = {
+  /** Recent questions on Solve: a phone shows `compact`; landscape fits as many rows as reach the strip, within wideMin..wideMax. */
+  recentCount: { compact: 4, wideMin: 3, wideMax: 8 },
+} as const;
+
+export const question = {
+  /** This many reviews with one result fold into one Geçmiş row. */
+  historyFoldMin: 3,
+} as const;
+
+export const companion = {
+  /** Rough minutes per due review, for "hepsi yaklaşık N dakika". */
+  minutesPerReview: 1.2,
 } as const;
 
 export interface Theme {
@@ -988,15 +1303,17 @@ export interface Theme {
   fontSize: typeof fontSize;
   fontSizeTablet: typeof fontSizeTablet;
   typography: typeof typography;
-  letterSpacing: typeof letterSpacing;
-  lineRatio: typeof lineRatio;
   fonts: typeof fonts;
   motion: typeof motion;
   opacity: typeof opacity;
   layout: typeof layout;
+  home: typeof home;
+  solve: typeof solve;
+  question: typeof question;
+  companion: typeof companion;
 }
 
-const shared = { breakpoints, spacing, radius, fontSize, fontSizeTablet, typography, lineRatio, letterSpacing, fonts, motion, opacity, layout };
+const shared = { breakpoints, spacing, radius, fontSize, fontSizeTablet, typography, fonts, motion, opacity, layout, home, solve, question, companion };
 
 const themes: Record<ColorScheme, Theme> = {
   light: { scheme: 'light', colors: light, ...shared },

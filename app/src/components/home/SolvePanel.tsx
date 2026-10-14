@@ -10,7 +10,7 @@ import { Card } from '../Card';
 import { Icon } from '../Icon';
 import { PressableScale } from '../motion/PressableScale';
 import { Section } from '../SectionHeader';
-import { RECENT_COUNT, RecentThumbs, useRecentQuestions } from './RecentThumbs';
+import { RecentThumbs, useRecentQuestions } from './RecentThumbs';
 
 /** The square gallery button beside the camera button (phone): a secondary outline, as tall as it. */
 function GallerySquare({ onPress, busy }: { onPress: () => void; busy: boolean }) {
@@ -43,8 +43,6 @@ function GallerySquare({ onPress, busy }: { onPress: () => void; busy: boolean }
   );
 }
 
-// TOKEN-PENDING: home.solveHeadInline = 400 (the width left of the thumbnails' caption from which "Örnek soruyu çöz" sits beside the heading)
-const HEAD_INLINE_MIN = 400;
 
 /**
  * "Takıldığın soruyu çek", a compact, secondary action block: the Solve tab owns the camera,
@@ -64,7 +62,7 @@ export function SolvePanel({ layout, style }: { layout: 'bar' | 'phone'; style?:
   const [inner, setInner] = useState(0);
   const [buttons, setButtons] = useState(0);
   const [caption, setCaption] = useState(0);
-  const recent = useRecentQuestions(RECENT_COUNT).length;
+  const recent = useRecentQuestions(theme.home.recentCount).length;
 
   if (layout === 'phone') {
     return (
@@ -83,7 +81,7 @@ export function SolvePanel({ layout, style }: { layout: 'bar' | 'phone'; style?:
   const colGap = theme.spacing.lg;
   const thumbs = recent > 0 && inner > 0 && buttons > 0 && buttons + colGap + thumbsWidth <= inner;
   // Narrow: the sample action drops under the heading instead of squeezing it.
-  const inline = inner - (thumbs ? caption + colGap : 0) >= HEAD_INLINE_MIN;
+  const inline = inner - (thumbs ? caption + colGap : 0) >= theme.home.solveHeadInline;
   const measure = (set: (w: number) => void, at: number) => (e: LayoutChangeEvent) => {
     const w = Math.round(e.nativeEvent.layout.width);
     if (w !== at) set(w);

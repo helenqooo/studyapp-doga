@@ -26,10 +26,6 @@ import { useContentSize, useWindowLayout } from '../../lib/layout';
 import { useHistoryFilter } from '../../store/historyFilter';
 import { subjectColor, useTheme } from '../../theme';
 
-// TOKEN-PENDING: layout.cta.minWidth = 240 (an auto-width lg primary never gets narrower)
-const CTA_MIN_WIDTH = 240;
-// TOKEN-PENDING: layout.chipRowLabel = 40 (the "TYT" / "AYT" label column before a chip row)
-const CHIP_ROW_LABEL = 40;
 /** About how long one review question takes (minutes), for "Yaklaşık 6 dakika". */
 const MINUTES_PER_REVIEW = 1.2;
 
@@ -84,7 +80,7 @@ function SessionSheet({ items }: { items: Question[] }) {
       icon="play"
       size="lg"
       onPress={() => router.push('/review-session')}
-      style={sideways ? { minWidth: CTA_MIN_WIDTH } : { alignSelf: 'stretch' }}
+      style={sideways ? { minWidth: theme.layout.cta.minWidth } : { alignSelf: 'stretch' }}
     />
   );
 
@@ -254,7 +250,7 @@ function SubjectChips({ exam, counts, subject, onPick }: { exam: Exam; counts: M
   }
   return (
     <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: theme.spacing.sm }}>
-      <View style={{ width: CHIP_ROW_LABEL, minHeight: touch, justifyContent: 'center' }}>{label}</View>
+      <View style={{ width: theme.layout.chipRowLabel, minHeight: touch, justifyContent: 'center' }}>{label}</View>
       {tablet ? (
         <View style={{ flex: 1, flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.sm }}>{chips}</View>
       ) : (
@@ -393,8 +389,9 @@ function HistoryPanel() {
     <>
       {head ? (
         <Row gap={theme.spacing.xl}>
-          <Col span={{ compact: 4, regular: 8, wide: 4 }}>{head}</Col>
-          <Col span={{ compact: 4, regular: 8, wide: 8 }}>{filters}</Col>
+          {/* The same 5/7 split as Bugün, so the number's sheet keeps its width across the switch. */}
+          <Col span={{ compact: 4, regular: 8, wide: 5 }}>{head}</Col>
+          <Col span={{ compact: 4, regular: 8, wide: 7 }}>{filters}</Col>
         </Row>
       ) : (
         filters

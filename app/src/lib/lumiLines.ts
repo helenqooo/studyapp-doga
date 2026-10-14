@@ -240,6 +240,11 @@ export function lineDef(id: string): LineDef | undefined {
 /** The tips a tap rotates through, in order. */
 export const TAP_TIPS = ['tip.camera', 'tip.quiet', 'tip.ladder'] as const;
 
+/** The Highlight id a line flies to here, if any. */
+export function lineTarget(def: LineDef, c: LineContext): string | undefined {
+  return typeof def.target === 'function' ? def.target(c) : def.target;
+}
+
 /** Resolves a line definition against the context (text, action, target), ready for `say`. */
 export function resolveLine(
   def: LineDef,
@@ -249,7 +254,7 @@ export function resolveLine(
   text?: string,
 ): CompanionLine {
   const act = def.action?.(c);
-  const target = typeof def.target === 'function' ? def.target(c) : def.target;
+  const target = lineTarget(def, c);
   return {
     id: def.id,
     mood: def.mood,
@@ -264,12 +269,13 @@ export function resolveLine(
 
 /**
  * The first unsolicited line that applies here, by tier (time before route) and bank order,
- * skipping ids already shown today. `signatureOnly` asks only for the day's flight lines.
+ * skipping ids already shown today. `signatureOnly` asks only for the day's flight lines;
+ * `ready` can hold back a line that applies but cannot be said well right now.
  */
 export function pickUnsolicited(
   c: LineContext,
   fresh: (def: LineDef) => boolean,
-  opts: { signatureOnly?: boolean } = {},
+  opts: { signatureOnly?: boolean; ready?: (def: LineDef) => boolean } = {},
 ): LineDef | null {
   const tiers: LineDef['kind'][] = ['time', 'route'];
   for (const kind of tiers) {
@@ -280,6 +286,7 @@ export function pickUnsolicited(
       if (!routes.includes(c.pathname)) continue;
       if (!fresh(def)) continue;
       if (def.when && !def.when(c)) continue;
+      if (opts.ready && !opts.ready(def)) continue;
       return def;
     }
   }

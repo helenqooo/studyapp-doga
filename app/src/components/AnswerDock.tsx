@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Platform, View, type LayoutChangeEvent, type ViewStyle } from 'react-native';
 import Animated, {
   FadeIn,
@@ -15,7 +15,7 @@ import Animated, {
 import type { ChoiceLabel } from '../api/types';
 import { haptics } from '../lib/haptics';
 import { useWindowLayout } from '../lib/layout';
-import { elevated, useTheme } from '../theme';
+import { elevated, motion, useTheme } from '../theme';
 import { AppText } from './AppText';
 import { Bubble, type BubbleTone, type BubbleVerdict } from './Bubble';
 import { Button } from './Button';
@@ -26,19 +26,15 @@ import { Loader } from './motion/Loader';
 import { PressableScale } from './motion/PressableScale';
 import { ease, spring } from './motion/presets';
 
-// TOKEN-PENDING: motion.duration.rmFade = 120 (the Reduce Motion cross-fade, spec 0.7 / 5.6)
-const RM_FADE_MS = 120;
-// TOKEN-PENDING: layout.dock.inlineMin = 520 (inner dock width from which the letters and the actions share one row)
-const DOCK_INLINE_MIN = 520;
-// TOKEN-PENDING: motion.verdict.sealScale = 1.06 (the picked bubble breathing while the answer is graded)
-const SEAL_SCALE = 1.06;
-// TOKEN-PENDING: motion.verdict.burstRectTtl = 5000 (how long after the dock leaves its pick rect still launches a burst, ms)
-const PICK_RECT_TTL = 5000;
 
 const native = Platform.OS !== 'web';
 
 /** Whether the dock is wide enough for the letters and the actions on one row. */
 const DockInline = createContext(false);
+
+/** The dock's parts report the width they need on one row (0: gone). */
+type DockPart = 'letters' | 'actions';
+const DockFit = createContext<(part: DockPart, width: number) => void>(() => {});
 
 // ---- Where the picked letter is ---------------------------------------------------------
 // The verdict's burst launches from the letter she coded when the choices are collapsed
@@ -54,7 +50,7 @@ let releasedAt = 0;
 /** The dock's picked letter on screen (window coordinates), or null when there is none. */
 export function dockPickRect(): BurstRect | null {
   if (!picked) return null;
-  if (mountedDocks === 0 && Date.now() - releasedAt > PICK_RECT_TTL) return null;
+  if (mountedDocks === 0 && Date.now() - releasedAt > motion.verdict.burstRectTtl) return null;
   return letterRects[picked] ?? null;
 }
 
@@ -78,50 +74,63 @@ export function AnswerDock({ children, note }: { children: ReactNode; note?: Rea
   const theme = useTheme();
   const reduceMotion = useReducedMotion();
   const { tablet } = useWindowLayout();
-  const [inline, setInline] = useState(tablet);
   const pad = theme.spacing.sm;
+  const gap = theme.spacing.sm;
+  // Inline only when the row really fits: its measured parts (letters, the ghost action and
+  // Kodla with room around its label), never below `layout.dock.inlineMin`.
+  const [inner, setInner] = useState<number | null>(null);
+  const [parts, setParts] = useState<Record<DockPart, number>>({ letters: 0, actions: 0 });
+  const report = useCallback((part: DockPart, width: number) => {
+    setParts((p) => (p[part] === width ? p : { ...p, [part]: width }));
+  }, []);
+  const need = Math.max(theme.layout.dock.inlineMin, parts.letters && parts.actions ? parts.letters + gap + parts.actions : 0);
+  const inline = inner === null ? tablet : inner >= need;
   const onLayout = (e: LayoutChangeEvent) => {
-    const next = e.nativeEvent.layout.width - pad * 2 >= DOCK_INLINE_MIN;
-    if (next !== inline) setInline(next);
+    const next = e.nativeEvent.layout.width - pad * 2;
+    if (next !== inner) setInner(next);
   };
   const settle = spring('settle');
   // Reduce Motion: a short fade (never skipped, so the dock doesn't pop in).
   const entering = reduceMotion
-    ? FadeIn.duration(RM_FADE_MS).reduceMotion(ReduceMotion.Never)
+    ? FadeIn.duration(theme.motion.duration.rmFade).reduceMotion(ReduceMotion.Never)
     : native
       ? FadeInDown.springify().damping(settle.damping).stiffness(settle.stiffness).mass(settle.mass)
       : FadeIn;
   return (
     <DockInline.Provider value={inline}>
-      <Animated.View
-        onLayout={onLayout}
-        entering={entering}
-        layout={native ? LinearTransition.duration(theme.motion.duration.base) : undefined}
-        style={[
-          elevated(theme, 'floating'),
-          {
-            width: '100%',
-            maxWidth: theme.layout.dock.maxWidth,
-            alignSelf: 'center',
-            padding: pad,
-            gap: theme.spacing.xs,
-          },
-        ]}
-      >
-        {note ? <View style={{ paddingHorizontal: theme.spacing.sm, paddingTop: theme.spacing.xs }}>{note}</View> : null}
-        <View
-          style={{
-            flexDirection: 'row',
-            flexWrap: 'wrap',
-            alignItems: 'center',
-            columnGap: theme.spacing.sm,
-            rowGap: theme.spacing.xs,
-            minHeight: theme.layout.dock.height - theme.spacing.lg,
-          }}
+      <DockFit.Provider value={report}>
+        <Animated.View
+          onLayout={onLayout}
+          entering={entering}
+          layout={native ? LinearTransition.duration(theme.motion.duration.base) : undefined}
+          style={[
+            elevated(theme, 'floating'),
+            {
+              width: '100%',
+              // A tablet's dock lines up with the readable column (a portrait page) instead of
+              // squeezing the row into the phone's width.
+              maxWidth: tablet ? theme.layout.readableWidth : theme.layout.dock.maxWidth,
+              alignSelf: 'center',
+              padding: pad,
+              gap: theme.spacing.xs,
+            },
+          ]}
         >
-          {children}
-        </View>
-      </Animated.View>
+          {note ? <View style={{ paddingHorizontal: theme.spacing.sm, paddingTop: theme.spacing.xs }}>{note}</View> : null}
+          <View
+            style={{
+              flexDirection: 'row',
+              flexWrap: 'wrap',
+              alignItems: 'center',
+              columnGap: gap,
+              rowGap: theme.spacing.xs,
+              minHeight: theme.layout.dock.height - theme.spacing.lg,
+            }}
+          >
+            {children}
+          </View>
+        </Animated.View>
+      </DockFit.Provider>
     </DockInline.Provider>
   );
 }
@@ -156,7 +165,7 @@ function Letter({ label, filled, tone, verdict, sealing, disabled, a11y, checked
       breath.value = withTiming(0, { duration: theme.motion.duration.fast, reduceMotion: ReduceMotion.Never });
     }
   }, [sealing, reduceMotion, breath, theme.motion.duration]);
-  const breathStyle = useAnimatedStyle(() => ({ transform: [{ scale: 1 + (SEAL_SCALE - 1) * breath.value }] }));
+  const breathStyle = useAnimatedStyle(() => ({ transform: [{ scale: 1 + (theme.motion.verdict.sealScale - 1) * breath.value }] }));
 
   const measure = () =>
     box.current?.measureInWindow((x, y, width, height) => {
@@ -218,8 +227,15 @@ export function DockLetters({
   onPick: (label: ChoiceLabel) => void;
 }) {
   const theme = useTheme();
+  const { touch } = useWindowLayout();
   const inline = useContext(DockInline);
+  const report = useContext(DockFit);
   const graded = !!(correct || wrong);
+  const count = labels.length;
+  useEffect(() => {
+    report('letters', count ? count * touch + (count - 1) * theme.spacing.sm : 0);
+    return () => report('letters', 0);
+  }, [report, count, touch, theme.spacing.sm]);
 
   useEffect(() => {
     mountedDocks += 1;
@@ -269,7 +285,20 @@ export function DockLetters({
 }
 
 /** The dock's primary: a graphite (lamp in dark) fill, the rigid "Kodla" haptic. */
-function KodlaButton({ ready, loading, disabled, onPress }: { ready: boolean; loading: boolean; disabled: boolean; onPress: () => void }) {
+function KodlaButton({
+  ready,
+  loading,
+  disabled,
+  onPress,
+  onLabelWidth,
+}: {
+  ready: boolean;
+  loading: boolean;
+  disabled: boolean;
+  onPress: () => void;
+  /** The icon and label's width (for the dock's one-row fit). */
+  onLabelWidth?: (width: number) => void;
+}) {
   const theme = useTheme();
   const { tablet, touch } = useWindowLayout();
   const reduceMotion = useReducedMotion();
@@ -277,7 +306,7 @@ function KodlaButton({ ready, loading, disabled, onPress }: { ready: boolean; lo
   const live = (ready || loading) && !disabled;
   const bg = live ? c.primary : c.disabledBg;
   const fg = live ? c.onPrimary : c.disabledFg;
-  const fade = { duration: reduceMotion ? RM_FADE_MS : theme.motion.duration.base, easing: ease('standard'), reduceMotion: ReduceMotion.Never };
+  const fade = { duration: reduceMotion ? theme.motion.duration.rmFade : theme.motion.duration.base, easing: ease('standard'), reduceMotion: ReduceMotion.Never };
   const colorStyle = useAnimatedStyle(() => ({ backgroundColor: withTiming(bg, fade) }), [bg, reduceMotion]);
   const shadow = useSharedValue(live ? 1 : 0);
   useEffect(() => {
@@ -324,7 +353,7 @@ function KodlaButton({ ready, loading, disabled, onPress }: { ready: boolean; lo
       {loading ? (
         <Loader color={fg} />
       ) : (
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm }}>
+        <View onLayout={(e) => onLabelWidth?.(e.nativeEvent.layout.width)} style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm }}>
           <Icon name="pen-line" size={system.iconSize.sm} color={fg} />
           <FadeText
             variant="label"
@@ -361,19 +390,38 @@ export function DockSubmit({
   secondary?: { label: string; icon?: IconName; onPress: () => void };
 }) {
   const theme = useTheme();
+  const report = useContext(DockFit);
+  // What the actions need on the letters' row: the ghost action as it is, Kodla with room
+  // around its label (widest seen: a squeezed label measures narrower).
+  const [ghostWidth, setGhostWidth] = useState(0);
+  const [labelWidth, setLabelWidth] = useState(0);
+  const hasGhost = !!secondary;
+  useEffect(() => {
+    if (!labelWidth || (hasGhost && !ghostWidth)) return;
+    report('actions', (hasGhost ? ghostWidth + theme.spacing.sm : 0) + labelWidth + theme.spacing.xl * 2);
+  }, [report, hasGhost, ghostWidth, labelWidth, theme.spacing]);
+  useEffect(() => () => report('actions', 0), [report]);
   return (
     <>
       {secondary ? (
-        <Button
-          label={secondary.label}
-          icon={secondary.icon ?? 'circle-question-mark'}
-          variant="ghost"
-          disabled={loading || disabled}
-          onPress={secondary.onPress}
-          style={{ paddingHorizontal: theme.spacing.sm }}
-        />
+        <View onLayout={(e) => setGhostWidth(Math.ceil(e.nativeEvent.layout.width))}>
+          <Button
+            label={secondary.label}
+            icon={secondary.icon ?? 'circle-question-mark'}
+            variant="ghost"
+            disabled={loading || disabled}
+            onPress={secondary.onPress}
+            style={{ paddingHorizontal: theme.spacing.sm }}
+          />
+        </View>
       ) : null}
-      <KodlaButton ready={ready} loading={loading} disabled={disabled} onPress={onSubmit} />
+      <KodlaButton
+        ready={ready}
+        loading={loading}
+        disabled={disabled}
+        onPress={onSubmit}
+        onLabelWidth={(w) => setLabelWidth((prev) => Math.max(prev, Math.ceil(w)))}
+      />
     </>
   );
 }
@@ -397,7 +445,7 @@ function Pip({ on, color, size }: { on: boolean; color: string; size: number }) 
   const fill = useSharedValue(on ? 1 : 0);
   useEffect(() => {
     fill.value = withTiming(on ? 1 : 0, {
-      duration: reduceMotion ? RM_FADE_MS : theme.motion.duration.base,
+      duration: reduceMotion ? theme.motion.duration.rmFade : theme.motion.duration.base,
       easing: ease('standard'),
       reduceMotion: ReduceMotion.Never,
     });
@@ -430,7 +478,7 @@ export function DockStatus({ title, tone, xp, answer }: { title: string; tone: s
   const reduceMotion = useReducedMotion();
   // The XP carries information: under Reduce Motion it still fades (short, never skipped).
   const xpIn = reduceMotion
-    ? FadeIn.duration(RM_FADE_MS).reduceMotion(ReduceMotion.Never)
+    ? FadeIn.duration(theme.motion.duration.rmFade).reduceMotion(ReduceMotion.Never)
     : FadeIn.delay(theme.motion.duration.slow * 2).duration(theme.motion.duration.base);
   // Mount with her pick, then grade on the next frame, so the verdict marks draw (Bubble
   // never animates on mount).

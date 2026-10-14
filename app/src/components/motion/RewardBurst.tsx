@@ -25,21 +25,6 @@ import { ease, spring } from './presets';
 
 export type RewardKind = { kind: 'badge'; badgeId: string } | { kind: 'streak'; days: number } | { kind: 'level'; level: number };
 
-// TOKEN-PENDING: motion.reward.stamp = { fromScale: 1.3, fromDeg: -8 } (the badge stamp coming down)
-const STAMP = { fromScale: 1.3, fromDeg: -8 };
-// TOKEN-PENDING: motion.reward.successAfter = 120 (ms between the stamp's rigid tap and the success haptic)
-const SUCCESS_AFTER = 120;
-// TOKEN-PENDING: opacity.foil = 0.6 (peak of the foil sheen's soft band; never a flash)
-const FOIL_OPACITY = 0.6;
-// TOKEN-PENDING: layout.reward.foilBand = 0.42, foilDeg = 20 (sheen band width as a share of the hero, and its slant)
-const FOIL_BAND = 0.42;
-const FOIL_DEG = 20;
-// TOKEN-PENDING: opacity.rewardRay = 0.28 (soft tier-colored rays behind the hero)
-const RAY_OPACITY = 0.28;
-// TOKEN-PENDING: motion.reward.raySpinDeg = 24 (how far the rays turn over the whole moment)
-const RAY_SPIN_DEG = 24;
-// TOKEN-PENDING: layout.reward.heroScale = 1.4 (hero size as a multiple of layout.resultBadge)
-const HERO_SCALE = 1.4;
 // The seal's inner circle on its 100-unit grid (BadgeSeal); the sheen stays inside it.
 const SEAL_INNER = 0.445;
 
@@ -49,12 +34,12 @@ const EMBERS = 10;
 function Ray({ index, spin, length, color }: { index: number; spin: SharedValue<number>; length: number; color: string }) {
   const theme = useTheme();
   const style = useAnimatedStyle(() => ({
-    transform: [{ rotate: `${(index / RAYS) * 360 + spin.value * RAY_SPIN_DEG}deg` }, { translateY: -length * 0.9 }],
+    transform: [{ rotate: `${(index / RAYS) * 360 + spin.value * theme.motion.reward.raySpinDeg}deg` }, { translateY: -length * 0.9 }],
   }));
   return (
     <Animated.View
       style={[
-        { position: 'absolute', width: theme.spacing.xs, height: length * 0.5, borderRadius: theme.radius.pill, backgroundColor: color, opacity: RAY_OPACITY },
+        { position: 'absolute', width: theme.spacing.xs, height: length * 0.5, borderRadius: theme.radius.pill, backgroundColor: color, opacity: theme.opacity.rewardRay },
         style,
       ]}
     />
@@ -82,9 +67,10 @@ function Ember({ index, progress, color, height }: { index: number; progress: Sh
 
 /** One soft band of foil light crossing the hero once, clipped to its disc. */
 function FoilSheen({ size, inset, progress, color }: { size: number; inset: number; progress: SharedValue<number>; color: string }) {
-  const band = size * FOIL_BAND;
+  const theme = useTheme();
+  const band = size * theme.layout.reward.foilBand;
   const style = useAnimatedStyle(() => ({
-    transform: [{ translateX: -size + progress.value * size * 2 }, { rotate: `${FOIL_DEG}deg` }],
+    transform: [{ translateX: -size + progress.value * size * 2 }, { rotate: `${theme.layout.reward.foilDeg}deg` }],
   }));
   const d = size - inset * 2;
   return (
@@ -97,7 +83,7 @@ function FoilSheen({ size, inset, progress, color }: { size: number; inset: numb
           <Defs>
             <LinearGradient id="foil" x1="0" y1="0" x2="1" y2="0">
               <Stop offset="0" stopColor={color} stopOpacity={0} />
-              <Stop offset="0.5" stopColor={color} stopOpacity={FOIL_OPACITY} />
+              <Stop offset="0.5" stopColor={color} stopOpacity={theme.opacity.foil.reward} />
               <Stop offset="1" stopColor={color} stopOpacity={0} />
             </LinearGradient>
           </Defs>
@@ -130,7 +116,7 @@ export function RewardBurst({ reward, onDone, onStage }: Props) {
   const theme = useTheme();
   const reduceMotion = useReducedMotion();
   const { duration } = theme.motion;
-  const size = theme.layout.resultBadge * HERO_SCALE;
+  const size = theme.layout.resultBadge * theme.layout.reward.heroScale;
   const mascotSize = theme.layout.mascot.note;
 
   const pop = useSharedValue(0);
@@ -190,7 +176,7 @@ export function RewardBurst({ reward, onDone, onStage }: Props) {
     const feel = () => {
       if (stamps) {
         haptics.rigid();
-        timers.push(setTimeout(haptics.success, SUCCESS_AFTER));
+        timers.push(setTimeout(haptics.success, theme.motion.reward.successAfter));
       } else {
         haptics.success();
       }
@@ -222,7 +208,7 @@ export function RewardBurst({ reward, onDone, onStage }: Props) {
     const s = stamp.value;
     return {
       opacity: Math.min(1, s * 2.5),
-      transform: reduceMotion ? [] : [{ scale: STAMP.fromScale + (1 - STAMP.fromScale) * s }, { rotate: `${STAMP.fromDeg * (1 - s)}deg` }],
+      transform: reduceMotion ? [] : [{ scale: theme.motion.reward.stamp.fromScale + (1 - theme.motion.reward.stamp.fromScale) * s }, { rotate: `${theme.motion.reward.stamp.fromDeg * (1 - s)}deg` }],
     };
   });
   const textStyle = useAnimatedStyle(() => ({

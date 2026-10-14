@@ -30,7 +30,7 @@ import {
   nextMidnight,
 } from '../../lib/companionRules';
 import { haptics } from '../../lib/haptics';
-import { eventLineId, lineDef, pickUnsolicited, resolveLine, TAP_TIPS, type AnswerTally, type LineRun } from '../../lib/lumiLines';
+import { eventLineId, lineDef, lineTarget, pickUnsolicited, resolveLine, TAP_TIPS, type AnswerTally, type LineDef, type LineRun } from '../../lib/lumiLines';
 import { useCompanionContext, type ContextMemory } from '../../lib/useCompanionContext';
 import { useAuthStore } from '../../store/authStore';
 import { useCompanionStore, type CompanionEvent, type CompanionLine, type Phase, type Rect } from '../../store/companionStore';
@@ -46,42 +46,8 @@ import { CompanionNote, type NotePlacement } from './CompanionNote';
 import { arcLift, arcPoint, bankDeg, flightMs, type Pt } from './flight';
 import { Trail, type FlightValues } from './Trail';
 
-// TOKEN-PENDING: motion.companion.routeSettleMs = 220 (perches register before Lumi hops after a route change)
-const ROUTE_SETTLE_MS = 220;
-// TOKEN-PENDING: motion.companion.liveLingerMs = 2000 (LiveMascot swaps back to Still this long after landing at the nest)
-const LIVE_LINGER_MS = 2000;
-// TOKEN-PENDING: motion.companion.gazeResetMs = 600 (eyes back to open after scrolling stops)
-const GAZE_RESET_MS = 600;
-// TOKEN-PENDING: motion.companion.longPressMs = 400 (long-press Lumi: snooze.ask)
-const LONG_PRESS_MS = 400;
-// TOKEN-PENDING: motion.companion.tickMs = 500 (how often the unsolicited-line scheduler looks)
-const TICK_MS = 500;
-// TOKEN-PENDING: motion.companion.haloBreathMs = 2400 (the nest's breathing halo round the tip light)
-const HALO_BREATH_MS = 2400;
-// TOKEN-PENDING: motion.companion.slideOutMs = 220 (dragged away: Lumi slides off)
-const SLIDE_OUT_MS = 220;
-// TOKEN-PENDING: layout.companion.drag = { slop: 6, awayVy: 0.8, awayVx: 0.8, edge: 32 } (drag-away thresholds)
-const DRAG = { slop: 6, awayVy: 0.8, awayVx: 0.8, edge: 32 };
-// TOKEN-PENDING: layout.companion.land = { y: 0.82, x: 1.1 } (landing squash, spring land back to 1)
-const LAND = { y: 0.82, x: 1.1 };
-// TOKEN-PENDING: layout.companion.glideAt = { x: 0.3, y: 0.75 } (glide start/end, × size before the target)
-const GLIDE_AT = { x: 0.3, y: 0.75 };
-// TOKEN-PENDING: layout.companion.noteOverlap = 0.15 (the note's corner tucks under Lumi's feet, × size)
-const NOTE_OVERLAP = 0.15;
-// TOKEN-PENDING: layout.companion.noteRoom = 160 (room a note needs below Lumi before it goes above)
-const NOTE_ROOM = 160;
-// TOKEN-PENDING: layout.companion.hopFar = 120 (a landing farther than this flies instead of hopping)
-const HOP_FAR = 120;
-// TOKEN-PENDING: layout.companion.routeHopLift = 0.5 (route hops and returns fly a flatter arc)
-const SHORT_ARC = 0.5;
-// TOKEN-PENDING: opacity.companionHalo = { low: 0.35, high: 1 } (the breathing halo round the tip light)
-const HALO = { low: 0.35, high: 1, scale: 1.25 };
-// TOKEN-PENDING: layout.companion.haloDot = 0.2 (the breathing tip-light halo's radius, × size)
-const HALO_DOT = 0.2;
 /** Lumi's drawing grid (parts.tsx viewBox). */
 const GRID = 200;
-// TOKEN-PENDING: motion.companion.scrollDismiss = 24 (a scroll this far closes the note)
-const SCROLL_DISMISS = 24;
 /** Staging Lumi for level-ups. Off until the celebration overlay can draw it above its scrim (RewardBurst draws its own). */
 const STAGING_ENABLED = false;
 
@@ -275,7 +241,7 @@ export function CompanionHost() {
   const [restId, setRestId] = useState(restKey);
   useEffect(() => {
     if (restKey === restId) return;
-    const t = setTimeout(() => setRestId(restKey), ROUTE_SETTLE_MS);
+    const t = setTimeout(() => setRestId(restKey), theme.motion.companion.routeSettleMs);
     return () => clearTimeout(t);
   }, [restKey, restId]);
   const rest: Spot = restId !== 'nest' && perchSpot && perchSpot.id === restId ? perchSpot : nest;
@@ -336,8 +302,8 @@ export function CompanionHost() {
   });
   const bodyStyle = useAnimatedStyle(() => {
     const bank = arcOn.value ? bankDeg(p.value, fx.value, fy.value, tx.value, ty.value, lift.value, bankMaxDeg) : 0;
-    const sy = (1 - (1 - takeoffScale) * crouch.value) * (1 - (1 - LAND.y) * land.value);
-    const sx = 1 + (LAND.x - 1) * land.value;
+    const sy = (1 - (1 - takeoffScale) * crouch.value) * (1 - (1 - theme.layout.companion.land.y) * land.value);
+    const sx = 1 + (theme.layout.companion.land.x - 1) * land.value;
     // Squash around the feet: a translate sandwich (iOS ignores transformOrigin here).
     return {
       opacity: fade.value,
@@ -345,8 +311,8 @@ export function CompanionHost() {
     };
   });
   const haloStyle = useAnimatedStyle(() => ({
-    opacity: HALO.low + (HALO.high - HALO.low) * halo.value,
-    transform: [{ scale: 1 + (HALO.scale - 1) * halo.value }],
+    opacity: theme.opacity.companionHalo.low + (theme.opacity.companionHalo.high - theme.opacity.companionHalo.low) * halo.value,
+    transform: [{ scale: 1 + (theme.layout.companion.haloBreathScale - 1) * halo.value }],
   }));
 
   const scrollNow = useCallback(() => (useCompanionStore.getState().activeScroll?.value ?? 0), []);
@@ -427,7 +393,7 @@ export function CompanionHost() {
   const settleLive = useCallback(() => {
     setLinger(true);
     if (lingerTimer.current) clearTimeout(lingerTimer.current);
-    lingerTimer.current = setTimeout(() => setLinger(false), LIVE_LINGER_MS);
+    lingerTimer.current = setTimeout(() => setLinger(false), theme.motion.companion.liveLingerMs);
   }, []);
   useEffect(() => () => {
     if (lingerTimer.current) clearTimeout(lingerTimer.current);
@@ -470,7 +436,7 @@ export function CompanionHost() {
       anchorTo(to);
       const dest = { x: to.x, y: toY };
       const arc = arcLift(from, dest, lay.arcLift, lay.arcLiftMax);
-      lift.value = kind === 'glide' ? 0 : kind === 'hop' ? lay.hop : kind === 'route' || kind === 'return' ? arc * SHORT_ARC : arc;
+      lift.value = kind === 'glide' ? 0 : kind === 'hop' ? lay.hop : kind === 'route' || kind === 'return' ? arc * theme.layout.companion.routeHopLift : arc;
       const ms =
         kind === 'glide' ? cfg.glideMs : kind === 'hop' || kind === 'route' ? cfg.homeHopMs : kind === 'return' ? cfg.returnMs : flightMs(from, dest, cfg);
       arcOn.value = kind === 'glide' ? 0 : 1;
@@ -591,18 +557,24 @@ export function CompanionHost() {
       return;
     }
     if (handled.current === current.id) return;
-    handled.current = current.id;
     const line = current;
     const { targets: tg, talk: tk, reduceMotion: rm } = latest.current;
     const target = line.target ? tg[line.target] : undefined;
+    // An unsolicited line about something not on screen now (another tab of the page) would
+    // talk over the page from the nest: it is dropped unshown (not counted, so it can come back).
+    if (line.source === 'system' && line.target && !target && latest.current.restNow.id === 'nest') {
+      useCompanionStore.getState().dismiss();
+      return;
+    }
+    handled.current = current.id;
     if (line.target && target && canFly(tk, rm) && line.source === 'system') {
       // "Lumi işaretliyor": fly to the line, glide along it with the marker, land, then speak.
       run(async (alive) => {
         const s = latest.current.size;
-        const startY = target.y - GLIDE_AT.y * s;
+        const startY = target.y - theme.layout.companion.glideAt.y * s;
         const anchor = target.anchored ? { scrollAt: target.scrollAt } : null;
-        const start: Spot = { id: 'mission', x: target.x - GLIDE_AT.x * s, y: startY, anchor };
-        const end: Spot = { id: 'mission', x: target.x + target.w - GLIDE_AT.x * s, y: startY, anchor };
+        const start: Spot = { id: 'mission', x: target.x - theme.layout.companion.glideAt.x * s, y: startY, anchor };
+        const end: Spot = { id: 'mission', x: target.x + target.w - theme.layout.companion.glideAt.x * s, y: startY, anchor };
         if (!(await travel(start, 'flight', alive, 'marker'))) return;
         glide.value = 0;
         gliding.value = 1;
@@ -615,7 +587,7 @@ export function CompanionHost() {
         mem.current = { ...mem.current, signatureDay: dayOf(Date.now()) };
         const { perches: pr, restNow: r } = latest.current;
         const landing = line.perch && pr[line.perch] ? spotFromRect(line.perch, pr[line.perch]!) : r;
-        const far = Math.hypot(landing.x - end.x, spotY(landing) - spotY(end)) > HOP_FAR;
+        const far = Math.hypot(landing.x - end.x, spotY(landing) - spotY(end)) > theme.layout.companion.hopFar;
         if (!(await travel(landing, far ? 'flight' : 'hop', alive))) return;
         arrive(landing);
         setNoteAt({ x: landing.x, y: spotY(landing) });
@@ -643,6 +615,13 @@ export function CompanionHost() {
     setNoteAt(here());
     setSpeaking(line.id);
   }, [current, hidden, busy, nudge, run, travel, arrive, glide, gliding, spotFromRect, spotY, here]);
+
+  // A shown unsolicited line closes with its mark when the mark leaves the screen (she switched
+  // to another tab of the page) and the note would stay over the page at the nest.
+  const lostTarget = !!current && current.source === 'system' && !!current.target && !targets[current.target];
+  useEffect(() => {
+    if (lineShown && lostTarget && restNow.id === 'nest') useCompanionStore.getState().dismiss();
+  }, [lineShown, lostTarget, restNow.id]);
 
   // A line on screen: count it, time it, and let a scroll close it.
   const hold = useRef<{ pause: () => void; resume: () => void } | null>(null);
@@ -835,14 +814,21 @@ export function CompanionHost() {
       const ledger = { shownIds: m.shownIds, unsolicitedToday: intro ? 0 : m.unsolicitedToday, lastAt: intro ? 0 : m.lastAt, snoozedUntil: st.snoozedUntil };
       const verdict = canSpeakUnsolicited(ledger, moment, { dwellMs: homeFirst || intro ? cfg.firstLineDelayMs + theme.motion.focusPull.ms : undefined });
       if (!verdict.ok) return;
-      const def = pickUnsolicited(ctx, (d) => freshToday(m, d.id, d.repeats));
+      // The day's signature flight plays once; a second signature line just speaks.
+      const flies = (d: LineDef) => !(d.signature && d.id !== 'idle.countdown' && m.signatureDay === today);
+      // A line about a mark that is not on screen (the Bugün tab's count while Geçmiş shows)
+      // waits for it, unless Lumi has a perch here to say it from.
+      const ready = (d: LineDef) => {
+        const t = flies(d) ? lineTarget(d, ctx) : undefined;
+        return !t || !!st.targets[t] || latest.current.restNow.id !== 'nest';
+      };
+      const def = pickUnsolicited(ctx, (d) => freshToday(m, d.id, d.repeats), { ready });
       if (!def) return;
       spokeThisVisit.current = true;
       const line = resolveLine(def, ctx, 'system', runAction);
-      // The day's signature flight plays once; a second signature line just speaks.
-      if (def.signature && def.id !== 'idle.countdown' && m.signatureDay === today) line.target = undefined;
+      if (!flies(def)) line.target = undefined;
       st.say(line);
-    }, TICK_MS);
+    }, theme.motion.companion.tickMs);
     return () => clearInterval(id);
   }, [hidden, appActive, pathname, talk, keyboard, celebrating, readCtx, runAction, cfg.firstLineDelayMs, theme.motion.focusPull.ms]);
 
@@ -857,9 +843,9 @@ export function CompanionHost() {
       lastTouchAt.current = Date.now();
       setGaze(dir > 0 ? 'down' : 'up');
       if (gazeTimer.current) clearTimeout(gazeTimer.current);
-      gazeTimer.current = setTimeout(() => setGaze(null), GAZE_RESET_MS);
+      gazeTimer.current = setTimeout(() => setGaze(null), theme.motion.companion.gazeResetMs);
       const start = noteScroll.current;
-      if (start !== null && Math.abs(y - start) > SCROLL_DISMISS && !latest.current.hidden) {
+      if (start !== null && Math.abs(y - start) > theme.motion.companion.scrollDismiss && !latest.current.hidden) {
         noteScroll.current = null;
         useCompanionStore.getState().dismiss();
       }
@@ -877,7 +863,7 @@ export function CompanionHost() {
       if (prev === null || y === prev) return;
       const dir = y > prev ? 1 : -1;
       const now = Date.now();
-      if (dir !== lastDir.value || now - lastPing.value > GAZE_RESET_MS / 4) {
+      if (dir !== lastDir.value || now - lastPing.value > theme.motion.companion.gazeResetMs / 4) {
         lastDir.value = dir;
         lastPing.value = now;
         runOnJS(onScroll)(dir, y);
@@ -911,10 +897,10 @@ export function CompanionHost() {
       halo.value = 0;
       return;
     }
-    halo.value = withSequence(withTiming(0, { duration: 0 }), withTiming(1, { duration: HALO_BREATH_MS, easing: ease('breath') }));
+    halo.value = withSequence(withTiming(0, { duration: 0 }), withTiming(1, { duration: theme.motion.companion.haloBreathMs, easing: ease('breath') }));
     const id = setInterval(() => {
-      halo.value = withTiming(halo.value > 0.5 ? 0 : 1, { duration: HALO_BREATH_MS, easing: ease('breath') });
-    }, HALO_BREATH_MS);
+      halo.value = withTiming(halo.value > 0.5 ? 0 : 1, { duration: theme.motion.companion.haloBreathMs, easing: ease('breath') });
+    }, theme.motion.companion.haloBreathMs);
     return () => clearInterval(id);
   }, [reduceMotion, hidden, atNest, appActive, halo]);
 
@@ -974,14 +960,14 @@ export function CompanionHost() {
   const slideAway = useCallback(
     (vx: number, vy: number) => {
       const across = Math.abs(vx) > Math.abs(vy);
-      const out = { duration: SLIDE_OUT_MS, easing: ease('exit') };
+      const out = { duration: theme.motion.companion.slideOutMs, easing: ease('exit') };
       if (across) dragX.value = withTiming(Math.sign(vx || 1) * W, out);
       else dragY.value = withTiming(H, out);
       setTimeout(() => {
         dragX.value = 0;
         dragY.value = 0;
         useCompanionStore.setState({ draggedAway: true });
-      }, SLIDE_OUT_MS);
+      }, theme.motion.companion.slideOutMs);
     },
     [dragX, dragY, W, H],
   );
@@ -993,7 +979,7 @@ export function CompanionHost() {
     () =>
       PanResponder.create({
         onStartShouldSetPanResponder: () => true,
-        onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > DRAG.slop || Math.abs(g.dy) > DRAG.slop,
+        onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > theme.layout.companion.drag.slop || Math.abs(g.dy) > theme.layout.companion.drag.slop,
         onPanResponderTerminationRequest: () => false,
         onPanResponderGrant: () => {
           const pr = press.current;
@@ -1003,11 +989,11 @@ export function CompanionHost() {
           pr.timer = setTimeout(() => {
             pr.long = true;
             gesture.current.onLongPress();
-          }, LONG_PRESS_MS);
+          }, theme.motion.companion.longPressMs);
         },
         onPanResponderMove: (_, g) => {
           const pr = press.current;
-          if (!pr.moved && Math.hypot(g.dx, g.dy) > DRAG.slop) {
+          if (!pr.moved && Math.hypot(g.dx, g.dy) > theme.layout.companion.drag.slop) {
             pr.moved = true;
             if (pr.timer) clearTimeout(pr.timer);
           }
@@ -1025,8 +1011,8 @@ export function CompanionHost() {
             return;
           }
           const w = gesture.current.W;
-          const nearEdge = g.moveX < DRAG.edge || g.moveX > w - DRAG.edge;
-          const flung = g.vy > DRAG.awayVy || Math.abs(g.vx) > DRAG.awayVx;
+          const nearEdge = g.moveX < theme.layout.companion.drag.edge || g.moveX > w - theme.layout.companion.drag.edge;
+          const flung = g.vy > theme.layout.companion.drag.awayVy || Math.abs(g.vx) > theme.layout.companion.drag.awayVx;
           if (nearEdge || flung) gesture.current.slideAway(g.vx, g.vy);
           else {
             dragX.value = withSpring(0, spring('settle'));
@@ -1053,11 +1039,11 @@ export function CompanionHost() {
     const floor = tab ? stripTop - (timerOn ? tb.ear.height + tb.ear.gap : 0) : H - insets.bottom;
     const rightSide = at.x + size / 2 > W / 2;
     const horizontal = rightSide
-      ? { right: Math.max(margin, W - (at.x + size * (1 - NOTE_OVERLAP))) }
-      : { left: Math.max(margin, at.x + size * NOTE_OVERLAP) };
-    const below = at.y + size + NOTE_ROOM < floor;
+      ? { right: Math.max(margin, W - (at.x + size * (1 - theme.layout.companion.noteOverlap))) }
+      : { left: Math.max(margin, at.x + size * theme.layout.companion.noteOverlap) };
+    const below = at.y + size + theme.layout.companion.noteRoom < floor;
     // Lumi stands on the note's top corner; at the nest the note sits above Lumi instead.
-    const vertical = below ? { top: at.y + size * (1 - NOTE_OVERLAP) } : { bottom: Math.max(H - at.y + theme.spacing.xs, H - floor + theme.spacing.sm) };
+    const vertical = below ? { top: at.y + size * (1 - theme.layout.companion.noteOverlap) } : { bottom: Math.max(H - at.y + theme.spacing.xs, H - floor + theme.spacing.sm) };
     return { ...horizontal, ...vertical, maxWidth };
   }, [noteAt, rest, size, W, H, tab, stripTop, timerOn, tb.ear, insets.bottom, tablet, lay.noteMaxWidth, theme]);
 
@@ -1085,7 +1071,7 @@ export function CompanionHost() {
   const lx = (LIGHT.x / GRID) * size;
   const ly = (LIGHT.y / GRID) * size;
   const haloR = (size * lay.haloScale) / 2;
-  const glowR = size * HALO_DOT;
+  const glowR = size * theme.layout.companion.haloDot;
 
   return (
     <View pointerEvents="box-none" style={[StyleSheet.absoluteFill, { zIndex: theme.layout.z.companion }]}>

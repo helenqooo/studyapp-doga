@@ -7,17 +7,6 @@ import { useTheme } from '../theme';
 import { Icon, type IconName } from './Icon';
 import { ease } from './motion/presets';
 
-// TOKEN-PENDING: motion.badge.foilMs = 700 (the one-time foil sheen over a newly seen badge, spec 7.5)
-const FOIL_MS = 700;
-// TOKEN-PENDING: opacity.foil = 0.55 (the sheen band; soft, no flash, spec 2.0 rule 4)
-const FOIL_OPACITY = 0.55;
-// TOKEN-PENDING: layout.badge.foil = { band: 0.34, tiltDeg: 20 } (band width as a share of the seal, its slant)
-const FOIL = { band: 0.34, tiltDeg: 20 };
-// TOKEN-PENDING: layout.badge.arc = { radius: 57, stroke: 6, inset: 12 } (the locked seal's progress arc, 100-unit grid;
-//   6 so the arc still reads at a 52–60 pt seal)
-const ARC = { radius: 57, stroke: 6, inset: 12 };
-// TOKEN-PENDING: layout.badge.glyphShare = 0.38 (the glyph as a share of the seal)
-const GLYPH_SHARE = 0.38;
 
 const SCALLOPS = 18;
 
@@ -71,18 +60,18 @@ export function BadgeSeal({ icon, tier, size, locked = false, progress, sheen = 
   const ink = locked ? theme.colors.badge.lockedInk : theme.colors.badge.ink;
   const withArc = locked && progress !== undefined;
   // Room for the arc: the seal draws smaller inside the same box.
-  const viewBox = withArc ? `${-ARC.inset} ${-ARC.inset} ${100 + ARC.inset * 2} ${100 + ARC.inset * 2}` : '0 0 100 100';
-  const sealSize = withArc ? (s * 100) / (100 + ARC.inset * 2) : s;
+  const viewBox = withArc ? `${-theme.layout.badge.arc.inset} ${-theme.layout.badge.arc.inset} ${100 + theme.layout.badge.arc.inset * 2} ${100 + theme.layout.badge.arc.inset * 2}` : '0 0 100 100';
+  const sealSize = withArc ? (s * 100) / (100 + theme.layout.badge.arc.inset * 2) : s;
 
   const sweep = useSharedValue(0);
   useEffect(() => {
     if (!sheen || locked || reduceMotion) return;
     sweep.value = 0;
-    sweep.value = withDelay(sheenDelay, withTiming(1, { duration: FOIL_MS, easing: ease('standard') }));
+    sweep.value = withDelay(sheenDelay, withTiming(1, { duration: theme.motion.badge.foilMs, easing: ease('standard') }));
   }, [sheen, locked, reduceMotion, sheenDelay, sweep]);
-  const band = s * FOIL.band;
+  const band = s * theme.layout.badge.foil.band;
   const sheenStyle = useAnimatedStyle(() => ({
-    opacity: sweep.value > 0 && sweep.value < 1 ? FOIL_OPACITY : 0,
+    opacity: sweep.value > 0 && sweep.value < 1 ? theme.opacity.foil.seal : 0,
     transform: [{ translateX: -band * 2 + (s + band * 2) * sweep.value }],
   }));
 
@@ -91,9 +80,9 @@ export function BadgeSeal({ icon, tier, size, locked = false, progress, sheen = 
       <Svg width={s} height={s} viewBox={viewBox} style={StyleSheet.absoluteFill}>
         {withArc ? (
           <>
-            <Circle cx={50} cy={50} r={ARC.radius} fill="none" stroke={theme.colors.optikSoft} strokeWidth={ARC.stroke} />
+            <Circle cx={50} cy={50} r={theme.layout.badge.arc.radius} fill="none" stroke={theme.colors.optikSoft} strokeWidth={theme.layout.badge.arc.stroke} />
             {progress > 0 ? (
-              <Path d={arcPath(progress, ARC.radius)} fill="none" stroke={theme.colors.badge[tier]} strokeWidth={ARC.stroke} strokeLinecap="round" />
+              <Path d={arcPath(progress, theme.layout.badge.arc.radius)} fill="none" stroke={theme.colors.badge[tier]} strokeWidth={theme.layout.badge.arc.stroke} strokeLinecap="round" />
             ) : null}
           </>
         ) : null}
@@ -103,13 +92,13 @@ export function BadgeSeal({ icon, tier, size, locked = false, progress, sheen = 
       {sheen && !locked ? (
         <View pointerEvents="none" style={{ position: 'absolute', width: sealSize, height: sealSize, borderRadius: sealSize / 2, overflow: 'hidden' }}>
           <Animated.View style={[{ position: 'absolute', top: -s / 2, bottom: -s / 2, left: 0, width: band }, sheenStyle]}>
-            <View style={{ flex: 1, backgroundColor: theme.colors.badge.foil, transform: [{ rotate: `${FOIL.tiltDeg}deg` }] }} />
+            <View style={{ flex: 1, backgroundColor: theme.colors.badge.foil, transform: [{ rotate: `${theme.layout.badge.foil.tiltDeg}deg` }] }} />
           </Animated.View>
         </View>
       ) : null}
       {/* In its own view so it stacks above the absolutely placed seal on web too. */}
       <View>
-        <Icon name={locked ? 'lock' : icon} size={sealSize * GLYPH_SHARE} color={ink} duotone={!locked} />
+        <Icon name={locked ? 'lock' : icon} size={sealSize * theme.layout.badge.glyphShare} color={ink} duotone={!locked} />
       </View>
     </View>
   );

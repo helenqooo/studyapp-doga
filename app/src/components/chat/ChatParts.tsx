@@ -18,24 +18,6 @@ import { PressableScale } from '../motion/PressableScale';
 import { ease } from '../motion/presets';
 import { Section } from '../SectionHeader';
 
-// TOKEN-PENDING: motion.duration.rmFade = 120 (the Reduce Motion cross-fade, spec 0.7 / 5.6)
-const RM_FADE_MS = 120;
-// TOKEN-PENDING: layout.chat.composerMin = { compact: 48, tablet: 56 } (the composer well's single-line height, spec 7.6; 56 matches TextField on a tablet)
-const COMPOSER_MIN = { compact: 48, tablet: 56 };
-// TOKEN-PENDING: layout.chat.promptLines = 2 (the starter sheets on a tall tablet window are as tall as a two-line question, so the 2×2 reads even)
-const PROMPT_LINES = 2;
-// TOKEN-PENDING: layout.chat.promptTallMin = 900 (a window at least this tall stacks each starter's icon over its question; a shorter one, a landscape iPad, lays them in a row so the 2×2 stays above the composer)
-const PROMPT_TALL_MIN = 900;
-// TOKEN-PENDING: layout.chat.promptRow = 72 (a row starter's least height)
-const PROMPT_ROW = 72;
-// TOKEN-PENDING: layout.chat.replySizeTablet = 18 (Lumi's Lora words on a tablet: Lora's small x-height reads a size under the student's 17 pt Poppins; a phone keeps body)
-const REPLY_SIZE_TABLET = 18;
-// TOKEN-PENDING: layout.chat.edgeFade = 48 (the fade over the clipped end of the fact scroller)
-const EDGE_FADE = 48;
-// TOKEN-PENDING: layout.chat.composerLines = 4 (the composer grows up to this many lines, spec 7.6)
-const COMPOSER_LINES = 4;
-// TOKEN-PENDING: layout.chat.userBubbleMax = '85%' (the student's bubble's widest, as a share of the thread)
-const USER_BUBBLE_MAX = '85%';
 
 /** A starter question shown as a card in the empty assistant (icon plus text). */
 export interface ChatPrompt {
@@ -81,7 +63,7 @@ export function ChatBubble({
       <View
         style={{
           alignSelf: 'flex-end',
-          maxWidth: USER_BUBBLE_MAX,
+          maxWidth: theme.layout.chat.userBubbleMax,
           backgroundColor: theme.colors.primarySoft,
           borderRadius: theme.radius.lg,
           borderBottomRightRadius: theme.radius.sm,
@@ -111,7 +93,7 @@ export function ChatBubble({
         {/* Mounted while waiting too, so the page is loaded when the first words come. */}
         <MathView
           markdown={row.content}
-          fontSize={tablet ? REPLY_SIZE_TABLET : fs.md}
+          fontSize={tablet ? theme.layout.chat.replySizeTablet : fs.md}
           typing={row.live === 'streaming' ? 'stream' : row.live === 'done' ? 'type' : 'off'}
           onTyped={onTyped}
         />
@@ -145,16 +127,16 @@ export function ChatComposer({
   const [focused, setFocused] = useState(false);
   const canSend = !busy && !!value.trim();
 
-  const composerMin = tablet ? COMPOSER_MIN.tablet : COMPOSER_MIN.compact;
+  const composerMin = tablet ? theme.layout.chat.composerMin.tablet : theme.layout.chat.composerMin.compact;
   const body = theme.typography.body;
   const lineHeight = Math.round(fs.md * body.lineRatio);
   const padY = Math.max(0, (composerMin - lineHeight) / 2);
-  const maxHeight = padY * 2 + lineHeight * COMPOSER_LINES;
+  const maxHeight = padY * 2 + lineHeight * theme.layout.chat.composerLines;
   const well = elevated(theme, 'flat');
 
   // Focus draws a graphite edge on the well; it cross-fades in and out (client rule 0.7).
   const edge = focused ? theme.colors.mark : well.backgroundColor;
-  const fade = { duration: reduceMotion ? RM_FADE_MS : theme.motion.duration.base, easing: ease('standard'), reduceMotion: ReduceMotion.Never };
+  const fade = { duration: reduceMotion ? theme.motion.duration.rmFade : theme.motion.duration.base, easing: ease('standard'), reduceMotion: ReduceMotion.Never };
   const edgeStyle = useAnimatedStyle(() => ({ borderColor: withTiming(edge, fade) }), [edge, reduceMotion]);
 
   return (
@@ -241,11 +223,11 @@ export function PromptGrid({ prompts, onPick }: { prompts: ChatPrompt[]; onPick:
       </Card>
     );
   }
-  const tall = height >= PROMPT_TALL_MIN;
+  const tall = height >= theme.layout.chat.promptTallMin;
   const lineHeight = Math.round(fontSizeTablet.md * theme.typography.body.lineRatio);
   const sheet: ViewStyle = tall
-    ? { flex: 1, minHeight: sheetPadding * 2 + theme.layout.iconSize.md + theme.spacing.md + lineHeight * PROMPT_LINES, justifyContent: 'space-between' }
-    : { flex: 1, minHeight: PROMPT_ROW, paddingVertical: theme.spacing.md, flexDirection: 'row', alignItems: 'center' };
+    ? { flex: 1, minHeight: sheetPadding * 2 + theme.layout.iconSize.md + theme.spacing.md + lineHeight * theme.layout.chat.promptLines, justifyContent: 'space-between' }
+    : { flex: 1, minHeight: theme.layout.chat.promptRow, paddingVertical: theme.spacing.md, flexDirection: 'row', alignItems: 'center' };
   const rows: ChatPrompt[][] = [];
   for (let i = 0; i < prompts.length; i += 2) rows.push(prompts.slice(i, i + 2));
   return (
@@ -353,14 +335,14 @@ function EdgeFade({ side, shown }: { side: 'left' | 'right'; shown: boolean }) {
   const theme = useTheme();
   const reduceMotion = useReducedMotion();
   const id = `edge${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
-  const fade = { duration: reduceMotion ? RM_FADE_MS : theme.motion.duration.base, easing: ease('standard'), reduceMotion: ReduceMotion.Never };
+  const fade = { duration: reduceMotion ? theme.motion.duration.rmFade : theme.motion.duration.base, easing: ease('standard'), reduceMotion: ReduceMotion.Never };
   const style = useAnimatedStyle(() => ({ opacity: withTiming(shown ? 1 : 0, fade) }), [shown, reduceMotion]);
   const paper = theme.colors.background;
   return (
     <Animated.View
       pointerEvents="none"
       aria-hidden
-      style={[{ position: 'absolute', top: 0, bottom: 0, width: EDGE_FADE }, side === 'left' ? { left: 0 } : { right: 0 }, style]}
+      style={[{ position: 'absolute', top: 0, bottom: 0, width: theme.layout.chat.edgeFade }, side === 'left' ? { left: 0 } : { right: 0 }, style]}
     >
       <Svg width="100%" height="100%">
         <Defs>

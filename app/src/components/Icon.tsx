@@ -5,8 +5,6 @@ import { ICONS, type IconName } from './icons/icons.generated';
 
 export type { IconName };
 
-// TOKEN-PENDING: layout.system.iconStrokeBold = 2.4 (Icon weight 'bold', spec 3)
-const ICON_STROKE_BOLD = 2.4;
 
 interface Props {
   name: IconName;
@@ -42,7 +40,7 @@ export function Icon({ name, size, color, filled = false, duotone = false, weigh
       viewBox="0 0 24 24"
       fill={filled ? c : 'none'}
       stroke={c}
-      strokeWidth={weight === 'bold' ? ICON_STROKE_BOLD : theme.layout.iconStroke}
+      strokeWidth={weight === 'bold' ? theme.layout.system.iconStrokeBold : theme.layout.iconStroke}
       strokeLinecap="round"
       strokeLinejoin="round"
       style={style}

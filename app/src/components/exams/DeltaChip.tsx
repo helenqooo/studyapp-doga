@@ -9,8 +9,6 @@ import { Icon, type IconName } from '../Icon';
 import { FadeText } from '../motion/FadeText';
 import { ease } from '../motion/presets';
 
-// TOKEN-PENDING: motion.duration.rmFade = 120 (the Reduce Motion cross-fade, spec 0.7 / 5.6)
-const RM_FADE_MS = 120;
 /** Below this a change reads as "no change" (nets move in quarters). */
 const FLAT = 0.005;
 
@@ -82,7 +80,7 @@ export function DeltaChip({ delta, highlightId, caption, captionBelow = false, l
   const reduceMotion = useReducedMotion();
   const tone = toneOf(theme, delta);
   const plain = look === 'plain';
-  const duration = reduceMotion ? RM_FADE_MS : theme.motion.duration.base;
+  const duration = reduceMotion ? theme.motion.duration.rmFade : theme.motion.duration.base;
   const fade = { duration, easing: ease('standard'), reduceMotion: ReduceMotion.Never };
   const bg = plain ? theme.colors.transparent : tone.bg;
   const fill = useAnimatedStyle(() => ({ backgroundColor: withTiming(bg, fade) }), [bg, reduceMotion]);

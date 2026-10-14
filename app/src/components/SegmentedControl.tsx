@@ -8,8 +8,6 @@ import { FadeText } from './motion/FadeText';
 import { PressableScale } from './motion/PressableScale';
 import { spring } from './motion/presets';
 
-// TOKEN-PENDING: motion.duration.rmFade = 120 (the Reduce Motion cross-fade, spec 0.7 / 5.6)
-const RM_FADE_MS = 120;
 
 interface Props<T extends string> {
   options: { value: T; label: string }[];
@@ -64,10 +62,10 @@ export function SegmentedControl<T extends string>({ options, value, onChange, f
     }
     if (reduceMotion) {
       const never = { reduceMotion: ReduceMotion.Never };
-      placed.value = withTiming(0, { duration: RM_FADE_MS / 2, ...never }, () => {
+      placed.value = withTiming(0, { duration: theme.motion.duration.rmFade / 2, ...never }, () => {
         x.value = slot.x;
         w.value = slot.w;
-        placed.value = withTiming(1, { duration: RM_FADE_MS / 2, ...never });
+        placed.value = withTiming(1, { duration: theme.motion.duration.rmFade / 2, ...never });
       });
       return;
     }

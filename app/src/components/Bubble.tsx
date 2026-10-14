@@ -16,8 +16,6 @@ import { useTheme, type Theme, type TypeVariant } from '../theme';
 import { AppText } from './AppText';
 import { ease } from './motion/presets';
 
-// TOKEN-PENDING: motion.duration.rmFade = 120 (the Reduce Motion / small-bubble opacity swap, spec 0.7 and 5.6)
-const RM_FADE_MS = 120;
 
 const AnimatedPath = Animated.createAnimatedComponent(Path);
 
@@ -109,7 +107,7 @@ export function Bubble({ size = 'letter', filled = false, fill, tone = 'mark', v
       if (quiet) {
         stroke.value = 1;
         solid.value = 1;
-        group.value = withTiming(1, { duration: RM_FADE_MS, ...never });
+        group.value = withTiming(1, { duration: theme.motion.duration.rmFade, ...never });
         return;
       }
       group.value = 1;
@@ -119,7 +117,7 @@ export function Bubble({ size = 'letter', filled = false, fill, tone = 'mark', v
       solid.value = withDelay(scribble.ms, withTiming(1, { duration: scribble.fillFade, ...never }));
     } else {
       if (quiet) {
-        group.value = withTiming(0, { duration: RM_FADE_MS, ...never });
+        group.value = withTiming(0, { duration: theme.motion.duration.rmFade, ...never });
         return;
       }
       group.value = withTiming(0, { duration: scribble.eraseMs, easing: ease('exit'), ...never });
@@ -161,9 +159,9 @@ export function Bubble({ size = 'letter', filled = false, fill, tone = 'mark', v
     if (seenVerdict.current === verdict) return;
     seenVerdict.current = verdict;
     if (verdict) {
-      verdictOn.value = quiet ? withTiming(1, { duration: RM_FADE_MS, reduceMotion: ReduceMotion.Never }) : 1;
+      verdictOn.value = quiet ? withTiming(1, { duration: theme.motion.duration.rmFade, reduceMotion: ReduceMotion.Never }) : 1;
     } else {
-      verdictOn.value = withTiming(0, { duration: quiet ? RM_FADE_MS : duration.fast, reduceMotion: ReduceMotion.Never });
+      verdictOn.value = withTiming(0, { duration: quiet ? theme.motion.duration.rmFade : duration.fast, reduceMotion: ReduceMotion.Never });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [verdict]);
@@ -175,7 +173,7 @@ export function Bubble({ size = 'letter', filled = false, fill, tone = 'mark', v
   useEffect(() => {
     if (seenHide.current === hideContent) return;
     seenHide.current = hideContent;
-    content.value = withTiming(hideContent ? 0 : 1, { duration: quiet ? RM_FADE_MS : duration.fast, reduceMotion: ReduceMotion.Never });
+    content.value = withTiming(hideContent ? 0 : 1, { duration: quiet ? theme.motion.duration.rmFade : duration.fast, reduceMotion: ReduceMotion.Never });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hideContent]);
 

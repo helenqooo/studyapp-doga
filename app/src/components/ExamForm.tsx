@@ -108,12 +108,12 @@ interface Props {
   onSubmit: (input: ExamInput) => void;
   /** The Screen's in-content title (stack screens share one title voice). */
   title?: string;
+  /** The one line under the title. */
+  subtitle?: string;
   /** Shown above the form, e.g. the karne-read notice. */
   intro?: ReactNode;
 }
 
-// TOKEN-PENDING: layout.examForm = { tableFrom: 560, switchCol: 56 } (the subject table's one-line rows, the Girdim column)
-const FORM = { tableFrom: 560, switchCol: 56 };
 
 /** A round stepper, one touch target (44 / 48 pt), bubble press feedback, `select` haptic. */
 function Stepper({ icon, label, disabled, onPress }: { icon: IconName; label: string; disabled?: boolean; onPress: () => void }) {
@@ -176,9 +176,10 @@ function Dot({ color }: { color: string }) {
  * Screen. The subjects sit in one sheet: a table with a header row (Doğru, Yanlış, Boş, Net,
  * Girdim) once it is wide enough, stacked blocks on a phone. Landscape iPad: two columns,
  * the exam's details and the live total with Kaydet on the left, the subjects on the right.
- * Elsewhere the total and Kaydet float in a dock over the bottom of the page.
+ * Portrait iPad: the same total sheet under the subjects, the total beside Kaydet. On a phone
+ * the total and Kaydet float in a dock over the bottom of the page.
  */
-export function ExamForm({ initial, submitLabel, submitting, error, onSubmit, title, intro }: Props) {
+export function ExamForm({ initial, submitLabel, submitting, error, onSubmit, title, subtitle, intro }: Props) {
   const theme = useTheme();
   const { sizeClass } = useWindowLayout();
   const wide = sizeClass === 'wide';
@@ -247,8 +248,8 @@ export function ExamForm({ initial, submitLabel, submitting, error, onSubmit, ti
     </View>
   );
 
-  // Phone and portrait: the total and Kaydet float over the bottom of the page.
-  const dock = wide ? undefined : (
+  // Phone: the total and Kaydet float over the bottom of the page.
+  const dock = sizeClass !== 'compact' ? undefined : (
     <View style={{ ...elevated(theme, 'floating'), padding: theme.spacing.md, gap: theme.spacing.sm }}>
       {errorText}
       <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: theme.spacing.md }}>
@@ -309,10 +310,15 @@ export function ExamForm({ initial, submitLabel, submitting, error, onSubmit, ti
     );
 
   const subjects = <SubjectTable form={form} swapIn={swapIn} updateSection={updateSection} updateTopic={updateTopic} restoreTopic={restoreTopic} />;
+  const saveButton = (
+    <Button label={submitLabel} icon="check" size="lg" loading={submitting} disabled={!canSubmit} onPress={submit} style={wide ? undefined : { minWidth: theme.layout.cta.minWidth }} />
+  );
+  // Once the title has scrolled away (no dock on a tablet), Kaydet waits in the native header.
+  const compactSave = <CompactSave label={submitLabel} enabled={canSubmit} onPress={submit} />;
 
   if (wide) {
     return (
-      <Screen safeTop={false} width="dashboard" title={title} headerRight={<CompactSave label={submitLabel} enabled={canSubmit} onPress={submit} />}>
+      <Screen safeTop={false} width="dashboard" title={title} subtitle={subtitle} headerRight={compactSave}>
         <Row>
           <Col span={{ compact: 4, wide: 5 }}>
             {intro}
@@ -325,7 +331,7 @@ export function ExamForm({ initial, submitLabel, submitting, error, onSubmit, ti
               </AppText>
               {total('hero')}
               {errorText}
-              <Button label={submitLabel} icon="check" size="lg" loading={submitting} disabled={!canSubmit} onPress={submit} />
+              {saveButton}
             </Card>
           </Col>
           <Col span={{ compact: 4, wide: 7 }}>{subjects}</Col>
@@ -334,8 +340,32 @@ export function ExamForm({ initial, submitLabel, submitting, error, onSubmit, ti
     );
   }
 
+  if (sizeClass === 'regular') {
+    return (
+      <Screen safeTop={false} width="readable" title={title} subtitle={subtitle} headerRight={compactSave}>
+        {intro}
+        {examType}
+        {details}
+        {subjects}
+        {/* The form's key number under the subjects: the total, live, with Kaydet beside it. */}
+        <Card variant="hero">
+          <View style={{ flexDirection: 'row', alignItems: 'flex-end', flexWrap: 'wrap', gap: theme.spacing.lg }}>
+            <View style={{ flexGrow: 1, gap: theme.spacing.xxs }}>
+              <AppText variant="label" color="textMuted">
+                Toplam
+              </AppText>
+              {total('hero')}
+            </View>
+            {saveButton}
+          </View>
+          {errorText}
+        </Card>
+      </Screen>
+    );
+  }
+
   return (
-    <Screen safeTop={false} width="readable" title={title} dock={dock}>
+    <Screen safeTop={false} width="readable" title={title} subtitle={subtitle} dock={dock}>
       {intro}
       {examType}
       {details}
@@ -378,12 +408,12 @@ function SubjectTable({ form, swapIn, updateSection, updateTopic, restoreTopic }
   const theme = useTheme();
   const { touch, sheetPadding, tablet } = useWindowLayout();
   const { width } = useContentSize();
-  const table = width >= FORM.tableFrom;
+  const table = width >= theme.layout.examForm.tableFrom;
   const col = touch + theme.spacing.xl;
   const gap = theme.spacing.md;
   const padY = tablet ? theme.layout.group.rowPadY.tablet : theme.layout.group.rowPadY.compact;
   // The Girdim column: the switch and a topic's remove button, each one full touch target.
-  const controlCol = Math.max(touch, FORM.switchCol);
+  const controlCol = Math.max(touch, theme.layout.examForm.switchCol);
   const [removed, setRemoved] = useState<Removed | null>(null);
   const undo = removed && removed.exam === form.exam ? removed : null;
 

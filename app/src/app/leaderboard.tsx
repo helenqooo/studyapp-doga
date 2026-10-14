@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { View } from 'react-native';
 import { useLeaderboard } from '../api/hooks';
 import type { LeaderboardEntry } from '../api/types';
 import { AppText } from '../components/AppText';
 import { Avatar } from '../components/Avatar';
 import { Card } from '../components/Card';
+import { Col, Row } from '../components/Grid';
 import { Highlight } from '../components/Highlight';
 import { Icon } from '../components/Icon';
 import { GapBar } from '../components/leaderboard/GapBar';
@@ -17,8 +18,6 @@ import { DEMO_MODE } from '../config';
 import { useFontScale, useWindowLayout } from '../lib/layout';
 import { useTheme } from '../theme';
 
-// TOKEN-PENDING: layout.leaderboard.rowAvatar = { compact: 40, tablet: 48 } (a row's avatar, read at arm's length on an iPad)
-const ROW_AVATAR = { compact: 40, tablet: 48 };
 
 type Period = 'week' | 'all';
 
@@ -32,7 +31,7 @@ function daysToReset(): number {
  * A row from rank 4 on, inside the divided sheet: rank, avatar (yours ringed), the name (yours
  * with a highlighter swipe), level and streak, the gap to the leader as a thin bar, and the XP.
  */
-function Row({ e, leaderXp }: { e: LeaderboardEntry; leaderXp: number }) {
+function RankRow({ e, leaderXp }: { e: LeaderboardEntry; leaderXp: number }) {
   const theme = useTheme();
   const { tablet } = useWindowLayout();
   const type = useFontScale();
@@ -50,7 +49,7 @@ function Row({ e, leaderXp }: { e: LeaderboardEntry; leaderXp: number }) {
       <AppText variant="numeric" color="textMuted" align="center" style={{ width: theme.spacing.xl }}>
         {e.rank}
       </AppText>
-      <Avatar name={e.displayName} color={e.avatar} size={tablet ? ROW_AVATAR.tablet : ROW_AVATAR.compact} ring={e.isMe ? theme.colors.accent : undefined} />
+      <Avatar name={e.displayName} color={e.avatar} size={tablet ? theme.layout.leaderboard.rowAvatar.tablet : theme.layout.leaderboard.rowAvatar.compact} ring={e.isMe ? theme.colors.accent : undefined} />
       <View style={{ flex: 1, minWidth: 0, gap: theme.spacing.xs }}>
         <View style={{ flexDirection: 'row' }}>
           <View style={{ flexShrink: 1 }}>{e.isMe ? <Highlight drawn>{name}</Highlight> : name}</View>
@@ -82,6 +81,8 @@ function Row({ e, leaderXp }: { e: LeaderboardEntry; leaderXp: number }) {
 
 export default function LeaderboardScreen() {
   const theme = useTheme();
+  const { sizeClass } = useWindowLayout();
+  const wide = sizeClass === 'wide';
   const [period, setPeriod] = useState<Period>('week');
   const board = useLeaderboard(period);
   const items = board.data?.items ?? [];
@@ -96,39 +97,41 @@ export default function LeaderboardScreen() {
       : `Tüm zamanlarda ${me.rank}. sıradasın.`
     : 'Arkadaşlarınla XP yarışı.';
 
-  return (
-    <Screen safeTop={false} width="readable" title="Sıralama" subtitle={subtitle}>
-      <View style={{ gap: theme.spacing.sm }}>
-        <SegmentedControl<Period>
-          options={[
-            { value: 'week', label: 'Bu hafta' },
-            { value: 'all', label: 'Tüm zamanlar' },
-          ]}
-          value={period}
-          onChange={setPeriod}
-        />
-        <AppText variant="caption" color="textMuted">
-          {period === 'week' ? `Pazartesi sıfırlanır, ${days} gün kaldı.` : 'Başladığından beri kazanılan toplam XP.'}
-        </AppText>
-      </View>
-
+  const segments = (
+    <SegmentedControl<Period>
+      options={[
+        { value: 'week', label: 'Bu hafta' },
+        { value: 'all', label: 'Tüm zamanlar' },
+      ]}
+      value={period}
+      onChange={setPeriod}
+    />
+  );
+  const note = (
+    <AppText variant="caption" color="textMuted">
+      {period === 'week' ? `Pazartesi sıfırlanır, ${days} gün kaldı.` : 'Başladığından beri kazanılan toplam XP.'}
+    </AppText>
+  );
+  const states = (
+    <>
       {board.isPending ? (
         <Skeleton>
           <SkeletonRows count={5} />
         </Skeleton>
       ) : null}
       {board.isError ? <ErrorState error={board.error} onRetry={() => board.refetch()} /> : null}
-
-      {items.length ? <Podium items={items.slice(0, 3)} /> : null}
-
+    </>
+  );
+  const podium = items.length ? <Podium items={items.slice(0, 3)} /> : null;
+  const list = (
+    <>
       {rest.length ? (
         <Card divided>
           {rest.map((e) => (
-            <Row key={`${period}-${e.userId}`} e={e} leaderXp={leaderXp} />
+            <RankRow key={`${period}-${e.userId}`} e={e} leaderXp={leaderXp} />
           ))}
         </Card>
       ) : null}
-
       {items.length === 1 ? (
         <Card background={theme.colors.hintBackground}>
           <View style={{ flexDirection: 'row', gap: theme.spacing.md }}>
@@ -139,11 +142,52 @@ export default function LeaderboardScreen() {
           </View>
         </Card>
       ) : null}
-      {DEMO_MODE ? (
-        <AppText variant="caption" color="textMuted" align="center">
-          Demo: listedeki arkadaşlar örnek.
-        </AppText>
-      ) : null}
+    </>
+  );
+  const demo = DEMO_MODE ? (
+    <AppText variant="caption" color="textMuted" align={wide ? 'left' : 'center'}>
+      Demo: listedeki arkadaşlar örnek.
+    </AppText>
+  ) : null;
+
+  // Landscape, 7/5 on the dashboard width: the podium (the primary) and its period switch on the
+  // left, the ranked list and when it resets on the right. Portrait and phone keep one readable column.
+  let body: ReactNode;
+  if (wide) {
+    body = (
+      <>
+        {states}
+        <Row>
+          <Col span={{ compact: 4, wide: 7 }}>
+            {segments}
+            {podium}
+          </Col>
+          <Col span={{ compact: 4, wide: 5 }} style={{ gap: theme.spacing.sm }}>
+            {list}
+            {note}
+            {demo}
+          </Col>
+        </Row>
+      </>
+    );
+  } else {
+    body = (
+      <>
+        <View style={{ gap: theme.spacing.sm }}>
+          {segments}
+          {note}
+        </View>
+        {states}
+        {podium}
+        {list}
+        {demo}
+      </>
+    );
+  }
+
+  return (
+    <Screen safeTop={false} width={wide ? 'dashboard' : 'readable'} title="Sıralama" subtitle={subtitle}>
+      {body}
     </Screen>
   );
 }

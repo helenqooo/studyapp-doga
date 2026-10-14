@@ -4,10 +4,6 @@ import Svg, { G, Rect, Text as SvgText } from 'react-native-svg';
 import { useFontScale, useWindowLayout } from '../../lib/layout';
 import { useTheme } from '../../theme';
 
-// TOKEN-PENDING: layout.chart.weekHeight = { compact: 148, tablet: 196 } (the week's bar chart, labels included)
-const HEIGHT = { compact: 148, tablet: 196 };
-// TOKEN-PENDING: layout.chart.minBar = 2 (an empty day still shows a sliver)
-const MIN_BAR = 2;
 
 const DAY_NAMES = ['Paz', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt'];
 
@@ -20,7 +16,7 @@ export function WeekBars({ days }: { days: { date: string; focusSec: number }[] 
   const theme = useTheme();
   const fs = useFontScale();
   const { tablet } = useWindowLayout();
-  const height = tablet ? HEIGHT.tablet : HEIGHT.compact;
+  const height = tablet ? theme.layout.chart.weekHeight.tablet : theme.layout.chart.weekHeight.compact;
   const [width, setWidth] = useState(0);
   const { barShare, labelGap } = theme.layout.chart.weekBar;
   const n = Math.max(1, days.length);
@@ -43,7 +39,7 @@ export function WeekBars({ days }: { days: { date: string; focusSec: number }[] 
         <Svg width={width} height={height}>
           <Rect x={0} y={top + plot} width={width} height={theme.layout.borderWidth} fill={theme.colors.chart.grid} />
           {days.map((d, i) => {
-            const h = Math.max(MIN_BAR, (plot * d.focusSec) / max);
+            const h = Math.max(theme.layout.chart.minBar, (plot * d.focusSec) / max);
             const x = i * slot + (slot - barW) / 2;
             const isToday = i === days.length - 1;
             const minutes = Math.round(d.focusSec / 60);
