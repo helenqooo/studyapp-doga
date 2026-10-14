@@ -86,4 +86,44 @@ export function OptikHistory({ question, style }: { question: Question; style?: 
   );
 }
 
+/**
+ * Her last answer in one line, for list rows: her letter as a `dot` bubble (filled in her mark,
+ * a red-pen loop when it was wrong, success when right) and the result word in its color.
+ * It never shows the right letter, so the review queue doesn't give the answer away.
+ * No letter (blank, open-ended, never marked): the result icon instead of the bubble.
+ */
+export function LastMark({ question, style }: { question: Question; style?: StyleProp<ViewStyle> }) {
+  const theme = useTheme();
+  const last = lastAttempt(question);
+  const mine = question.choices?.length ? asLetter(last?.userAnswer) : null;
+  const look = resultLook(theme, last?.result);
+  const right = last?.result === 'correct';
+  return (
+    <View
+      accessible
+      accessibilityLabel={mine ? `Son cevabın ${mine}, ${look.label.toLocaleLowerCase('tr')}` : `Son cevabın ${look.label.toLocaleLowerCase('tr')}`}
+      style={[{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.xs }, style]}
+    >
+      {mine ? (
+        // The red-pen loop draws outside the bubble: keep it off the word beside it.
+        <Bubble
+          size="dot"
+          animate={false}
+          filled
+          tone={right ? 'success' : 'mark'}
+          verdict={last?.result === 'wrong' ? 'pen' : undefined}
+          style={{ marginLeft: theme.spacing.xs, marginRight: theme.spacing.sm }}
+        >
+          {mine}
+        </Bubble>
+      ) : (
+        <Icon name={look.icon} size={theme.layout.iconSize.sm} color={look.color} />
+      )}
+      <AppText variant="label" tint={look.color} numberOfLines={1} accessible={false}>
+        {look.label}
+      </AppText>
+    </View>
+  );
+}
+
 export { resultLook };

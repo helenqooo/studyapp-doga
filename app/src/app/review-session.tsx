@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { View } from 'react-native';
+import Animated from 'react-native-reanimated';
 import { useReviewResult, useReviewsToday } from '../api/hooks';
 import { demoQuestionImage } from '../api/demo/demoApi';
 import type { ChoiceLabel, Question, ReviewResultInput, ReviewState } from '../api/types';
@@ -16,13 +17,14 @@ import { MathView } from '../components/math/MathView';
 import { Appear } from '../components/motion/Appear';
 import { FocusPull } from '../components/motion/FocusPull';
 import { Odometer } from '../components/motion/Odometer';
+import { exit } from '../components/motion/presets';
 import { QuestionImage } from '../components/QuestionImage';
 import { Merdiven, rungIndex } from '../components/review/Merdiven';
 import { SessionPips, type PipResult } from '../components/review/SessionPips';
 import { RevealOnMount, Screen, SplitScreen } from '../components/Screen';
 import { TextToggle } from '../components/TextToggle';
 import { ErrorState } from '../components/states/ErrorState';
-import { Skeleton, SkeletonQuestion } from '../components/states/Skeleton';
+import { BoneText, Skeleton, SkeletonQuestion } from '../components/states/Skeleton';
 import { DEMO_MODE, LOW_CONFIDENCE_THRESHOLD } from '../config';
 import { getTopic, topicLabel } from '../data/topics';
 import { useVerdict } from '../lib/celebrate';
@@ -122,6 +124,34 @@ function Feedback({ outcome, fromRung }: { outcome: Outcome; fromRung: number })
   );
 }
 
+/**
+ * The answer or the solution in its sheet. The math page takes a moment to lay out, so quiet
+ * lines hold its place (the sheet never shows empty) and fade as the text fades in.
+ */
+function SheetMath({ markdown }: { markdown: string }) {
+  const theme = useTheme();
+  const [ready, setReady] = useState(false);
+  return (
+    <View>
+      {ready ? null : (
+        <Animated.View exiting={exit(theme.motion.duration.base)}>
+          <Skeleton>
+            <BoneText lines={3} />
+          </Skeleton>
+        </Animated.View>
+      )}
+      {/* MathView stays 0 tall until its page has measured: the first real height means it is shown. */}
+      <View
+        onLayout={(e) => {
+          if (e.nativeEvent.layout.height > 0) setReady(true);
+        }}
+      >
+        <MathView markdown={markdown} fontSize={theme.fontSize.lg} />
+      </View>
+    </View>
+  );
+}
+
 function DoneScreen({ results, xp, remaining }: { results: PipResult[]; xp: number; remaining: number | null }) {
   const theme = useTheme();
   useCompanionYield();
@@ -148,9 +178,14 @@ function DoneScreen({ results, xp, remaining }: { results: PipResult[]; xp: numb
           {total ? (
             <>
               <SessionPips results={results} style={{ justifyContent: 'center' }} />
-              <View style={{ alignItems: 'center' }} accessible accessibilityLabel={`${total} sorudan ${correct} doğru`}>
+              {/* The score with its unit beside it, like "5 soru bekliyor" (the Lora slash runs below the baseline). */}
+              <View
+                style={{ flexDirection: 'row', alignItems: 'flex-end', gap: theme.spacing.sm }}
+                accessible
+                accessibilityLabel={`${total} sorudan ${correct} doğru`}
+              >
                 <FocusPull text={`${correct}/${total}`} variant="hero" play />
-                <AppText variant="label" color="textMuted">
+                <AppText variant="heading" style={{ paddingBottom: theme.spacing.sm }}>
                   doğru
                 </AppText>
               </View>
@@ -241,9 +276,13 @@ export default function ReviewSessionScreen() {
   const fromRung = rungOf(q.review, rungs);
 
   // The dock is the optik form; the typed choices stay folded unless the photo may not carry
-  // them (no photo, or a low-confidence reading), she opens them, or the verdict is in.
+  // them (no photo, or a low-confidence reading) or she opens them. Side by side they also
+  // open with the verdict, in the question's own pane. In one column they stay folded: the
+  // dock already shows her letter and the key, and a list mounting above the verdict would
+  // push it (and the solution) under the dock.
   const forceChoices = q.confidence < LOW_CONFIDENCE_THRESHOLD || !hasQuestionImage(q.id);
-  const choicesShown = graded && (forceChoices || choicesOpen || !!outcome);
+  const verdictChoices = !!outcome && split;
+  const choicesShown = graded && (forceChoices || choicesOpen || verdictChoices);
 
   const busy = submit.isPending || sealing;
   const answer = (input: Pick<ReviewResultInput, 'choice' | 'result'>, local?: 'blank') => {
@@ -299,50 +338,54 @@ export default function ReviewSessionScreen() {
     setPicked((p) => (p === label ? null : label));
   };
 
-  const questionPane = (
-    <>
-      <SessionPips results={results} current={index} />
-
-      <Appear still>
-        <Card accessibilityLabel="Soru kâğıdı">
-          <View style={{ gap: theme.spacing.xs }}>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.sm }}>
-              <Badge label={q.exam} color={theme.colors.exam[q.exam].fg} background={theme.colors.exam[q.exam].bg} />
-              <Badge label={q.subject} dot={subjectColor(theme, q.subject)} />
-            </View>
-            {topic ? <AppText variant="heading">{topicLabel(topic)}</AppText> : null}
-          </View>
-          <QuestionImage questionId={q.id} size="large" />
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.sm }}>
-            <TextToggle open={showText} onToggle={() => setShowText((v) => !v)} />
-            {graded && !forceChoices && !outcome ? <TextToggle open={choicesOpen} onToggle={() => setChoicesOpen((v) => !v)} label="Şıkları yazıyla gör" openLabel="Şıkları gizle" icon="list-checks" /> : null}
-          </View>
-          {showText ? <MathView markdown={q.questionText} /> : null}
-          {choicesShown ? (
-            <Appear still>
-              <MathView
-                markdown=""
-                choices={q.choices}
-                choiceState={
-                  outcome
-                    ? { correct: key, wrong: outcome.pick && outcome.pick !== key ? outcome.pick : null, disabled: true }
-                    : { selected: picked, disabled: busy, sealing }
-                }
-                onChoice={pick}
-                onVerdict={(v) => verdict.onVerdict(v.rect)}
-              />
-            </Appear>
-          ) : null}
-        </Card>
-      </Appear>
-    </>
+  // Where she is in the session: "Soru 2/5", the pips and, once she has one, her run of right answers.
+  const progress = (
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', columnGap: theme.spacing.lg, rowGap: theme.spacing.xs }}>
+      <SessionPips results={results} current={index} style={{ flexShrink: 1 }} />
+      {streak > 0 ? <StreakCounter streak={streak} /> : null}
+    </View>
   );
 
-  // Before answering: how to answer, the run of right answers and where this one sits on the ladder.
+  // The question sheet: the photo is the primary; the text and the typed choices fold under it.
+  const questionSheet = (
+    <Appear still>
+      <Card accessibilityLabel="Soru kâğıdı">
+        <View style={{ gap: theme.spacing.xs }}>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.sm }}>
+            <Badge label={q.exam} color={theme.colors.exam[q.exam].fg} background={theme.colors.exam[q.exam].bg} />
+            <Badge label={q.subject} dot={subjectColor(theme, q.subject)} />
+          </View>
+          {topic ? <AppText variant="heading">{topicLabel(topic)}</AppText> : null}
+        </View>
+        <QuestionImage questionId={q.id} size="large" />
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.sm }}>
+          <TextToggle open={showText} onToggle={() => setShowText((v) => !v)} />
+          {graded && !forceChoices && !verdictChoices ? <TextToggle open={choicesOpen} onToggle={() => setChoicesOpen((v) => !v)} label="Şıkları yazıyla gör" openLabel="Şıkları gizle" icon="list-checks" /> : null}
+        </View>
+        {showText ? <MathView markdown={q.questionText} /> : null}
+        {choicesShown ? (
+          <Appear still>
+            <MathView
+              markdown=""
+              choices={q.choices}
+              choiceState={
+                outcome
+                  ? { correct: key, wrong: outcome.pick && outcome.pick !== key ? outcome.pick : null, disabled: true }
+                  : { selected: picked, disabled: busy, sealing }
+              }
+              onChoice={pick}
+              onVerdict={(v) => verdict.onVerdict(v.rect)}
+            />
+          </Appear>
+        ) : null}
+      </Card>
+    </Appear>
+  );
+
+  // Before answering: how to answer and where this one sits on the ladder.
   const guidePane = (
     <Card variant="flat">
       <AppText>{graded ? 'Kâğıtta çöz, şıkkını aşağıdan kodla.' : 'Kâğıtta çöz, hazır olunca cevabı aç.'}</AppText>
-      <StreakCounter streak={streak} />
       <View style={{ gap: theme.spacing.sm }}>
         <Merdiven marker={fromRung} />
         <AppText variant="caption" color="textMuted">
@@ -360,7 +403,7 @@ export default function ReviewSessionScreen() {
           <Appear style={{ gap: theme.spacing.lg }}>
             {outcome ? <Feedback outcome={outcome} fromRung={fromRung} /> : null}
             <Card title={showSolution ? 'Çözüm' : 'Doğru cevap'}>
-              <MathView markdown={showSolution ? solutionMarkdown(q) : answerMarkdown(q)} fontSize={theme.fontSize.lg} />
+              <SheetMath markdown={showSolution ? solutionMarkdown(q) : answerMarkdown(q)} />
             </Card>
           </Appear>
         </RevealOnMount>
@@ -397,12 +440,13 @@ export default function ReviewSessionScreen() {
     dock = (
       <AnswerDock>
         <DockStatus
-          title={outcome.correct ? (outcome.review.status === 'graduated' ? 'Öğrendin!' : 'Doğru') : 'Yarın yine sorarım'}
+          title={outcome.correct ? (outcome.review.status === 'graduated' ? 'Öğrendin!' : 'Doğru') : 'Yarın tekrar'}
           tone={outcome.correct ? theme.colors.success : theme.colors.text}
           xp={outcome.xpGained}
           answer={graded ? { labels: q.choices?.map((c) => c.label) ?? [], picked: outcome.pick, correct: key } : null}
         />
-        <Button label={last ? 'Bitir' : 'Sonraki'} icon={last ? 'flag' : 'arrow-right'} onPress={next} style={{ flex: 1 }} />
+        {/* The button hugs its label so the status beside it gets the room (and stays one line). */}
+        <Button label={last ? 'Bitir' : 'Sonraki'} icon={last ? 'flag' : 'arrow-right'} onPress={next} style={{ flexShrink: 0 }} />
       </AnswerDock>
     );
   } else if (graded) {
@@ -440,12 +484,31 @@ export default function ReviewSessionScreen() {
     );
   }
 
-  // Keyed by question so scroll positions start at the top for each one.
-  if (split) return <SplitScreen key={q.id} left={questionPane} right={answerPane} dock={dock} />;
+  // Keyed by question so scroll positions start at the top for each one. Side by side, the
+  // question sheet has its pane to itself and the progress heads the answering side. The
+  // photo is what she solves from, so it gets the wider pane, as on the question screen (the
+  // share holds after the verdict, so nothing reflows under her).
+  if (split) {
+    return (
+      <SplitScreen
+        key={q.id}
+        leftFlex={theme.layout.splitQuestion}
+        left={questionSheet}
+        right={
+          <>
+            {progress}
+            {answerPane}
+          </>
+        }
+        dock={dock}
+      />
+    );
+  }
 
   return (
     <Screen key={q.id} safeTop={false} width="readable" dock={dock}>
-      {questionPane}
+      {progress}
+      {questionSheet}
       {answerPane}
     </Screen>
   );

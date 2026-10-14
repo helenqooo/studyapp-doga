@@ -2,14 +2,15 @@ import { useEffect, useState } from 'react';
 import { ScrollView, View, type LayoutChangeEvent, type StyleProp, type ViewStyle } from 'react-native';
 import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withDelay, withSpring } from 'react-native-reanimated';
 import type { Question } from '../../api/types';
+import { useWindowLayout } from '../../lib/layout';
 import { useTheme } from '../../theme';
 import { AppText } from '../AppText';
 import { Bubble } from '../Bubble';
 import { FadeText } from '../motion/FadeText';
 import { spring } from '../motion/presets';
 
-// TOKEN-PENDING: layout.ladder.rungMin = 50 (the narrowest a rung column gets before the ladder scrolls)
-const RUNG_MIN = 50;
+// TOKEN-PENDING: layout.ladder.rungMin = { compact: 50, tablet: 60 } (the narrowest a rung column gets before the ladder scrolls; "30 gün" at 15 pt needs 60)
+const RUNG_MIN = { compact: 50, tablet: 60 };
 // TOKEN-PENDING: layout.ladder.rail = 4 (the optikSoft rail between the rung bubbles)
 const RAIL = 4;
 
@@ -55,8 +56,10 @@ interface Props {
  */
 export function Merdiven({ counts, marker = null, markerFrom = null, style }: Props) {
   const theme = useTheme();
+  const { tablet } = useWindowLayout();
   const reduceMotion = useReducedMotion();
   const rungs = theme.layout.ladder.rungs;
+  const rungMin = tablet ? RUNG_MIN.tablet : RUNG_MIN.compact;
   const bubble = theme.layout.bubble.row;
   const dot = theme.layout.bubble.dot;
   const [width, setWidth] = useState(0);
@@ -108,7 +111,7 @@ export function Merdiven({ counts, marker = null, markerFrom = null, style }: Pr
       accessible
       accessibilityLabel={a11y}
     >
-      <View onLayout={onLayout} style={{ flexGrow: 1, minWidth: RUNG_MIN * rungs.length, gap: theme.spacing.xs }}>
+      <View onLayout={onLayout} style={{ flexGrow: 1, minWidth: rungMin * rungs.length, gap: theme.spacing.xs }}>
         {showTop ? (
           <View style={{ height: topH, flexDirection: 'row' }}>
             {counts

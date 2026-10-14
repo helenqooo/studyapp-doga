@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { View, type StyleProp, type ViewStyle } from 'react-native';
 import Animated, { ReduceMotion, useAnimatedStyle, useReducedMotion, useSharedValue, withTiming } from 'react-native-reanimated';
 import type { AttemptResult } from '../../api/types';
+import { useWindowLayout } from '../../lib/layout';
 import { useTheme } from '../../theme';
 import { AppText } from '../AppText';
 import { Bubble, type BubbleTone } from '../Bubble';
@@ -19,6 +20,7 @@ const TONE: Record<AttemptResult, BubbleTone> = { correct: 'success', wrong: 'da
 /** One answered/unanswered question; the current one gets a graphite ring that fades in and out. */
 function Pip({ result, current }: { result: PipResult; current: boolean }) {
   const theme = useTheme();
+  const { tablet } = useWindowLayout();
   const reduceMotion = useReducedMotion();
   const ring = useSharedValue(current ? 1 : 0);
   useEffect(() => {
@@ -49,15 +51,16 @@ function Pip({ result, current }: { result: PipResult; current: boolean }) {
           ringStyle,
         ]}
       />
-      <Bubble size="dot" filled={!!result} tone={result ? TONE[result] : 'mark'} />
+      <Bubble size={tablet ? 'row' : 'dot'} filled={!!result} tone={result ? TONE[result] : 'mark'} />
     </View>
   );
 }
 
 /**
- * The review session's progress as a row of optik `dot` bubbles: answered ones filled
- * in success, danger or neutral (blank), the current one ringed. With `current` it also
- * shows "Soru 2/5"; without it (the done screen) it is the session's tally.
+ * The review session's progress as a row of optik bubbles (`row` size on a tablet, `dot` on a
+ * phone): answered ones filled in success, danger or neutral (blank), the current one ringed.
+ * With `current` it also shows "Soru 2/5" at heading size; without it (the done screen) it is
+ * the session's tally.
  */
 export function SessionPips({ results, current, style }: { results: PipResult[]; current?: number; style?: StyleProp<ViewStyle> }) {
   const theme = useTheme();
@@ -81,7 +84,7 @@ export function SessionPips({ results, current, style }: { results: PipResult[];
           <AppText variant="label" color="textMuted">
             Soru
           </AppText>
-          <AppText variant="numeric">
+          <AppText variant="heading" tabular>
             {Math.min(current + 1, total)}/{total}
           </AppText>
         </View>
