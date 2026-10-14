@@ -14,7 +14,7 @@ import { ProgressBar } from '../ProgressBar';
 import { StreakFlame } from '../StreakFlame';
 import { weekdayShort } from './dates';
 import { FIGURE_DROP } from './Countdown';
-import { Marked } from './Marked';
+import { Highlight } from '../Highlight';
 
 // TOKEN-PENDING: motion.duration.rmFade = 120 (the Reduce Motion cross-fade, spec 0.7 and 5.6)
 const RM_FADE_MS = 120;
@@ -94,9 +94,9 @@ export function StreakCard({ style }: { style?: StyleProp<ViewStyle> }) {
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md }}>
         <StreakFlame active={streak > 0} streak={streak} />
         <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: theme.spacing.sm, flexShrink: 1 }}>
-          <Marked id="home.seri">
+          <Highlight id="home.seri">
             <AppText variant="stat">{String(streak)}</AppText>
-          </Marked>
+          </Highlight>
           <AppText variant="label" color="textMuted" style={{ flexShrink: 1, marginBottom: Math.round(statSize * FIGURE_DROP) }}>
             günlük seri
           </AppText>
@@ -106,9 +106,9 @@ export function StreakCard({ style }: { style?: StyleProp<ViewStyle> }) {
       <View style={{ gap: theme.spacing.sm }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', gap: theme.spacing.sm }}>
           <AppText variant="heading">Seviye {p?.level ?? 1}</AppText>
-          <Marked id="home.xp">
+          <Highlight id="home.xp">
             <AppText variant="numeric">{p ? `${p.levelXp} / ${p.levelXpRequired} XP` : '– XP'}</AppText>
-          </Marked>
+          </Highlight>
         </View>
         <ProgressBar variant="groove" progress={p ? p.levelXp / p.levelXpRequired : 0} />
       </View>

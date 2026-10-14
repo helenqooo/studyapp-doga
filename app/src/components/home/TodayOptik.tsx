@@ -22,7 +22,7 @@ import { ease } from '../motion/presets';
 import { Note } from '../Note';
 import { useHomeDay } from './homeDay';
 import type { TodayGoals } from './useTodayGoals';
-import { Marked } from './Marked';
+import { Highlight } from '../Highlight';
 
 // TOKEN-PENDING: layout.goalRow = { height: 52, label: 76, value: 84 } (spec 7.1 goal rows: row height, label and figure columns)
 const GOAL_ROW = { height: 52, label: 76, value: 84 } as const;
@@ -68,9 +68,9 @@ function GoalRow({ id, label, value, unit, verb, href, complete, strip }: RowPro
   if (complete && marked && !struck) setStruck(true);
 
   const name = (
-    <Marked id={id} persistKey={key} done={struck}>
+    <Highlight id={id} persistKey={key} done={struck}>
       <AppText variant="heading">{label}</AppText>
-    </Marked>
+    </Highlight>
   );
   const figure = (
     <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: theme.spacing.xxs }}>

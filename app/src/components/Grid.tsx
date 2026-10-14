@@ -8,6 +8,10 @@ interface Props {
   children: ReactNode;
   /** Columns per content size class; missing classes fall back to the smaller one. */
   columns: { compact: number; regular?: number; wide?: number };
+  /** Space between rows (pt); default `spacing.md`. */
+  gap?: number;
+  /** Space between columns (pt); default `gap`. */
+  columnGap?: number;
 }
 
 /** Appear inside a cell stretches to the cell, so cards in a row end at the same height. */
@@ -21,19 +25,20 @@ function fillCell(item: ReactNode) {
  * Equal-width columns that adapt to the measured content width. Items in a row stretch
  * to the same height; a short last row keeps the column width.
  */
-export function Grid({ children, columns }: Props) {
+export function Grid({ children, columns, gap, columnGap }: Props) {
   const theme = useTheme();
   const n = Math.max(1, useResponsive(columns));
   const items = Children.toArray(children);
-  if (n === 1) return <View style={{ gap: theme.spacing.md }}>{items}</View>;
+  const rowGap = gap ?? theme.spacing.md;
+  if (n === 1) return <View style={{ gap: rowGap }}>{items}</View>;
 
   const rows: ReactNode[][] = [];
   for (let i = 0; i < items.length; i += n) rows.push(items.slice(i, i + n));
 
   return (
-    <View style={{ gap: theme.spacing.md }}>
+    <View style={{ gap: rowGap }}>
       {rows.map((row, r) => (
-        <View key={r} style={{ flexDirection: 'row', gap: theme.spacing.md }}>
+        <View key={r} style={{ flexDirection: 'row', gap: columnGap ?? rowGap }}>
           {row.map((item, i) => (
             <View key={i} style={{ flex: 1 }}>
               {fillCell(item)}

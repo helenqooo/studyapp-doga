@@ -72,8 +72,9 @@ export function HighlightBand({ width, lineHeight, progress, opacity, tone }: Ba
   const passes = dark ? 1 : hl.passes;
 
   const clipStyle = useAnimatedStyle(() => ({
-    // The band's left padding, then the drawn share; the right padding only once complete.
-    width: pad + bandW * Math.min(1, Math.max(0, progress.value)) + (progress.value >= 1 ? pad : 0),
+    // Nothing before the draw starts; then the band's left padding (its slanted start), the
+    // drawn share, and the right padding only once complete.
+    width: progress.value <= 0 ? 0 : pad + bandW * Math.min(1, progress.value) + (progress.value >= 1 ? pad : 0),
     opacity: opacity ? opacity.value : 1,
   }));
 

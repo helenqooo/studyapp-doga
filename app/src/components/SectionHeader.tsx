@@ -28,7 +28,8 @@ export function SectionHeader({ title, count, action, swipe, style }: Props) {
     <View style={[{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm, minHeight: theme.layout.system.minTouch }, style]}>
       <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: theme.spacing.sm, flexShrink: 1, flexGrow: 1 }}>
         {swipe ? (
-          <Highlight drawn tone={swipe} ink={theme.colors.text}>
+          // Highlight's own wrap aligns to flex-start; baseline keeps the count on the title's line.
+          <Highlight drawn tone={swipe} ink={theme.colors.text} style={{ alignSelf: 'baseline', flexShrink: 1 }}>
             {heading}
           </Highlight>
         ) : (

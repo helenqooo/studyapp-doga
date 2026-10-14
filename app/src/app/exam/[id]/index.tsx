@@ -137,7 +137,7 @@ export default function ExamDetailScreen() {
 
       {topics.length ? (
         <Card title="Konu analizi">
-          <Grid columns={{ compact: 1, wide: 2 }}>
+          <Grid columns={{ compact: 1, wide: 2 }} columnGap={theme.spacing.xxl}>
             {topics.map((t) => {
               const topic = getTopic(t.topicId);
               return (

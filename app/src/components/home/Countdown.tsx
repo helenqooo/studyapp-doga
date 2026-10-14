@@ -2,12 +2,13 @@ import { useEffect, useRef } from 'react';
 import { View } from 'react-native';
 import { YKS_DATE } from '../../data/exam';
 import { daysBetween, localToday } from '../../lib/format';
-import { useContentSize, useWindowLayout } from '../../lib/layout';
+import { useWindowLayout } from '../../lib/layout';
 import { useTheme } from '../../theme';
 import { AppText } from '../AppText';
 import { FocusPull } from '../motion/FocusPull';
 import { useHomeDay } from './homeDay';
-import { Marked } from './Marked';
+import { Highlight } from '../Highlight';
+import { useCompactHeader } from '../Screen';
 
 // TOKEN-PENDING: typography.figureDrop = 0.02 (how far Barlow figures sit above their line box bottom, as a share of the size; aligns labels beside a big number)
 export const FIGURE_DROP = 0.02;
@@ -19,16 +20,16 @@ export function daysToYks(): number {
 
 /**
  * Home's header right: "YKS'ye 249 gün", the number in `hero` (tablet) with the day's one
- * focus pull and Lumi's `home.countdown` highlight. Inside the screen's compact bar (which
- * has no measured content width) it repeats small, without the highlight.
+ * focus pull and Lumi's `home.countdown` highlight. Inside the screen's compact bar it
+ * repeats small, without the highlight.
  */
 export function Countdown() {
   const theme = useTheme();
   const { tablet } = useWindowLayout();
-  const { width } = useContentSize();
+  const compact = useCompactHeader();
   const left = daysToYks();
   if (left <= 0) return null;
-  if (width === 0) {
+  if (compact) {
     return (
       <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: theme.spacing.xs }} accessibilityLabel={`YKS'ye ${left} gün`}>
         <AppText variant="numeric">{left}</AppText>
@@ -77,9 +78,9 @@ function HeaderCountdown({ days, tablet }: { days: number; tablet: boolean }) {
         <AppText variant="label" color="textMuted" style={{ marginBottom: drop }}>
           YKS'ye
         </AppText>
-        <Marked id="home.countdown">
+        <Highlight id="home.countdown">
           <FocusPull text={String(days)} variant={variant} play={play.current === true} />
-        </Marked>
+        </Highlight>
         <AppText variant="label" color="textMuted" style={{ marginBottom: drop }}>
           gün
         </AppText>

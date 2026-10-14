@@ -5,13 +5,14 @@ import * as ScreenOrientation from 'expo-screen-orientation';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo, useState } from 'react';
-import { AppState, Platform } from 'react-native';
+import { AppState, Platform, View } from 'react-native';
 import { CompanionHost } from '../components/companion/CompanionHost';
 import { CelebrationProvider } from '../components/motion/Celebration';
 import { TimerPill } from '../components/TimerPill';
 import { TimerSupervisor } from '../components/TimerSupervisor';
 import { isTabletDevice } from '../lib/layout';
 import { useAuthStore } from '../store/authStore';
+import { useCompanionStore } from '../store/companionStore';
 import { usePrefsStore } from '../store/prefsStore';
 import { fonts, useTheme } from '../theme';
 
@@ -34,6 +35,12 @@ const FONT_FILES = {
 // The single-file web preview ships these fonts as inline CSS (see scripts/build-web-preview.mjs).
 const fontsInlined =
   Platform.OS === 'web' && (globalThis as { __DERECE_INLINE_FONTS__?: boolean }).__DERECE_INLINE_FONTS__ === true;
+
+/** Notes a touch start for the companion and lets the touch through. */
+function noteTouch() {
+  useCompanionStore.setState({ lastTouchAt: Date.now() });
+  return false;
+}
 
 export default function RootLayout() {
   const theme = useTheme();
@@ -94,44 +101,49 @@ export default function RootLayout() {
       <ThemeProvider value={navTheme}>
         <StatusBar style="auto" />
         <CelebrationProvider>
-          <Stack
-            screenOptions={{
-              // The header sits on the paper: same color, no shadow, a graphite (or lamp) back chevron.
-              headerTintColor: theme.colors.primaryText,
-              headerTitleStyle: { color: theme.colors.text, fontFamily: theme.fonts.sans.semibold, fontSize: theme.fontSize.lg },
-              headerStyle: { backgroundColor: theme.colors.background },
-              headerShadowVisible: false,
-              headerBackButtonDisplayMode: 'minimal',
-              contentStyle: { backgroundColor: theme.colors.background },
-            }}
-          >
-            <Stack.Protected guard={signedIn}>
-              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-              <Stack.Screen name="camera" options={{ presentation: 'fullScreenModal', headerShown: false, animation: 'fade' }} />
-              <Stack.Screen name="crop" options={{ presentation: 'fullScreenModal', headerShown: false, gestureEnabled: false }} />
-              <Stack.Screen name="question/[id]/index" options={{ title: 'Çözüm' }} />
-              <Stack.Screen name="question/[id]/chat" options={{ title: 'Soru sohbeti' }} />
-              <Stack.Screen name="review-session" options={{ title: 'Tekrar' }} />
-              <Stack.Screen name="topic-picker" options={{ presentation: 'modal', title: 'Konu seç' }} />
-              <Stack.Screen name="exam/new" options={{ title: 'Deneme ekle' }} />
-              <Stack.Screen name="exam/[id]/index" options={{ title: 'Deneme' }} />
-              <Stack.Screen name="exam/[id]/edit" options={{ title: 'Denemeyi düzenle' }} />
-              <Stack.Screen name="timer" options={{ title: 'Sayaç' }} />
-              <Stack.Screen name="leaderboard" options={{ title: 'Sıralama' }} />
-              <Stack.Screen name="assistant" options={{ title: 'Lumi' }} />
-              <Stack.Screen name="dev-kit" options={{ title: 'Dev kit' }} />
-            </Stack.Protected>
-            <Stack.Protected guard={!signedIn}>
-              <Stack.Screen name="login" options={{ headerShown: false, animation: 'fade' }} />
-            </Stack.Protected>
-          </Stack>
-          {signedIn ? (
-            <>
-              <TimerSupervisor />
-              <TimerPill />
-              <CompanionHost />
-            </>
-          ) : null}
+          {/* Every touch start is noted for the companion (tap-outside closes its note; no line
+              within 1.5 s of a touch). Returning false never takes the touch. */}
+          <View style={{ flex: 1 }} onStartShouldSetResponderCapture={noteTouch}>
+            <Stack
+              screenOptions={{
+                // The header sits on the paper: same color, no shadow, a graphite (or lamp) back chevron.
+                headerTintColor: theme.colors.primaryText,
+                headerTitleStyle: { color: theme.colors.text, fontFamily: theme.fonts.sans.semibold, fontSize: theme.fontSize.lg },
+                headerStyle: { backgroundColor: theme.colors.background },
+                headerShadowVisible: false,
+                headerBackButtonDisplayMode: 'minimal',
+                contentStyle: { backgroundColor: theme.colors.background },
+              }}
+            >
+              <Stack.Protected guard={signedIn}>
+                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                <Stack.Screen name="camera" options={{ presentation: 'fullScreenModal', headerShown: false, animation: 'fade' }} />
+                <Stack.Screen name="crop" options={{ presentation: 'fullScreenModal', headerShown: false, gestureEnabled: false }} />
+                <Stack.Screen name="question/[id]/index" options={{ title: 'Çözüm' }} />
+                <Stack.Screen name="question/[id]/chat" options={{ title: 'Soru sohbeti' }} />
+                <Stack.Screen name="review-session" options={{ title: 'Tekrar' }} />
+                <Stack.Screen name="topic-picker" options={{ presentation: 'modal', title: 'Konu seç' }} />
+                <Stack.Screen name="exam/new" options={{ title: 'Deneme ekle' }} />
+                <Stack.Screen name="exam/[id]/index" options={{ title: 'Deneme' }} />
+                <Stack.Screen name="exam/[id]/edit" options={{ title: 'Denemeyi düzenle' }} />
+                <Stack.Screen name="timer" options={{ title: 'Sayaç' }} />
+                <Stack.Screen name="leaderboard" options={{ title: 'Sıralama' }} />
+                <Stack.Screen name="assistant" options={{ title: 'Lumi' }} />
+                <Stack.Screen name="dev-kit" options={{ title: 'Dev kit' }} />
+                <Stack.Screen name="dev-lumi" options={{ title: 'Lumi laboratuvarı' }} />
+              </Stack.Protected>
+              <Stack.Protected guard={!signedIn}>
+                <Stack.Screen name="login" options={{ headerShown: false, animation: 'fade' }} />
+              </Stack.Protected>
+            </Stack>
+            {signedIn ? (
+              <>
+                <TimerSupervisor />
+                <TimerPill />
+                <CompanionHost />
+              </>
+            ) : null}
+          </View>
         </CelebrationProvider>
       </ThemeProvider>
     </QueryClientProvider>

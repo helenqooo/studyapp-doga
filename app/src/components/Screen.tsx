@@ -24,6 +24,7 @@ import { AppText } from './AppText';
 import { Icon, type IconName } from './Icon';
 import { Kareli } from './Kareli';
 import { LogoMark } from './Logo';
+import { PressableScale } from './motion/PressableScale';
 
 // TOKEN-PENDING: motion.scroll = { titleRate: 0.5, titleFadeEnd: 64, barFrom: 48, barTo: 72, rmSwitch: 56,
 //   stackTitleFrom: 40, stackTitleTo: 72, bandRate: 0.35, bandFadeEnd: 160, rmFade: 120 } (design spec 5.2)
@@ -67,6 +68,30 @@ const RevealContext = createContext<(target: View | null) => void>(() => {});
 
 /** The focused Screen's scroll offset (UI thread). */
 const ScreenScrollContext = createContext<SharedValue<number> | null>(null);
+
+/** True inside a tab screen's compact header bar, where `headerRight` renders at icon size. */
+const CompactHeaderContext = createContext(false);
+
+/** Whether this `headerRight` is drawn in the compact header bar (render icon-size actions there). */
+export function useCompactHeader() {
+  return useContext(CompactHeaderContext);
+}
+
+/** An icon-size header action: a 44 pt target with a line icon in `primaryText`. */
+export function HeaderAction({ icon, label, onPress }: { icon: IconName; label: string; onPress: () => void }) {
+  const theme = useTheme();
+  return (
+    <PressableScale
+      kind="bubble"
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      onPress={onPress}
+      style={{ width: theme.layout.minTouch, height: theme.layout.minTouch, alignItems: 'center', justifyContent: 'center' }}
+    >
+      <Icon name={icon} color={theme.colors.primaryText} />
+    </PressableScale>
+  );
+}
 
 /** Returns `reveal(view)`, for guiding the eye to something that just appeared. */
 export function useReveal() {
@@ -392,7 +417,11 @@ export function Screen({ title, subtitle, children, safeTop = true, width = 'das
             <AppText variant="heading" numberOfLines={1} style={{ flex: 1 }}>
               {title}
             </AppText>
-            {headerRight ? <View style={{ flexDirection: 'row', alignItems: 'center' }}>{headerRight}</View> : null}
+            {headerRight ? (
+              <CompactHeaderContext.Provider value>
+                <View style={{ flexDirection: 'row', alignItems: 'center', height: theme.layout.minTouch }}>{headerRight}</View>
+              </CompactHeaderContext.Provider>
+            ) : null}
           </View>
         </Animated.View>
       ) : null}

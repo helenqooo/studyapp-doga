@@ -14,7 +14,7 @@ import { ExamSummary } from '../../components/exams/ExamSummary';
 import { newestFirst, previousOf } from '../../components/exams/examMath';
 import { Col, Grid, Row } from '../../components/Grid';
 import { ease } from '../../components/motion/presets';
-import { Screen } from '../../components/Screen';
+import { HeaderAction, Screen, useCompactHeader } from '../../components/Screen';
 import { SectionHeader } from '../../components/SectionHeader';
 import { SegmentedControl } from '../../components/SegmentedControl';
 import { EmptyState } from '../../components/states/EmptyState';
@@ -39,6 +39,16 @@ const openManual = () => router.push('/exam/new');
 /** Karne fotoğrafı (primary) and Elle gir (secondary). `fill`: the primary takes the rest of the row. */
 function AddActions({ size = 'md', fill = false }: { size?: 'sm' | 'md'; fill?: boolean }) {
   const theme = useTheme();
+  const compact = useCompactHeader();
+  // The compact header bar repeats them at icon size.
+  if (compact) {
+    return (
+      <View style={{ flexDirection: 'row' }}>
+        <HeaderAction icon="scan-text" label="Karne fotoğrafı" onPress={openPhoto} />
+        <HeaderAction icon="square-pen" label="Elle gir" onPress={openManual} />
+      </View>
+    );
+  }
   return (
     <View style={{ flexDirection: 'row', gap: theme.spacing.sm }}>
       <Button label="Karne fotoğrafı" icon="scan-text" size={size} onPress={openPhoto} style={fill ? { flexGrow: 1 } : undefined} />

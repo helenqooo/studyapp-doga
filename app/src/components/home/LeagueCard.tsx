@@ -6,7 +6,7 @@ import { raceLine } from '../../lib/lumiLines';
 import { useTheme } from '../../theme';
 import { AppText } from '../AppText';
 import { Card } from '../Card';
-import { Marked } from './Marked';
+import { Highlight } from '../Highlight';
 
 // TOKEN-PENDING: layout.miniPodium = { max: 56, min: 14, barWidth: 36 } (Home's "Bu hafta" bars)
 const PODIUM = { max: 56, min: 14, barWidth: 36 } as const;
@@ -64,9 +64,9 @@ export function LeagueCard({ style }: { style?: StyleProp<ViewStyle> }) {
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'baseline', columnGap: theme.spacing.xs }}>
           {before ? <AppText>{before}</AppText> : null}
           {m ? (
-            <Marked id="home.lig">
+            <Highlight id="home.lig">
               <AppText variant="numeric">{`${m[1]} XP`}</AppText>
-            </Marked>
+            </Highlight>
           ) : null}
           {after ? <AppText style={{ marginLeft: -theme.spacing.xs }}>{after}</AppText> : null}
         </View>

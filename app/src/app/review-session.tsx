@@ -16,7 +16,6 @@ import { MathView } from '../components/math/MathView';
 import { Appear } from '../components/motion/Appear';
 import { FocusPull } from '../components/motion/FocusPull';
 import { Odometer } from '../components/motion/Odometer';
-import { PressableScale } from '../components/motion/PressableScale';
 import { QuestionImage } from '../components/QuestionImage';
 import { Merdiven, rungIndex } from '../components/review/Merdiven';
 import { SessionPips, type PipResult } from '../components/review/SessionPips';
@@ -67,40 +66,6 @@ function rungOf(review: ReviewState | null, rungs: readonly number[]): number {
   if (!review) return 0;
   if (review.status === 'graduated') return rungs.length - 1;
   return rungIndex(review.intervalDays, rungs);
-}
-
-/** "Şıkları yazıyla gör": the typed choices, for when the photo is hard to read. */
-function ChoicesToggle({ open, onToggle }: { open: boolean; onToggle: () => void }) {
-  const theme = useTheme();
-  return (
-    <PressableScale
-      accessibilityRole="button"
-      accessibilityState={{ expanded: open }}
-      onPress={() => {
-        haptics.select();
-        onToggle();
-      }}
-      hitSlop={theme.spacing.sm}
-      style={{ alignSelf: 'flex-start' }}
-    >
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: theme.spacing.xs,
-          minHeight: theme.layout.minTouch - theme.spacing.md,
-          paddingHorizontal: theme.spacing.md,
-          borderRadius: theme.radius.pill,
-          backgroundColor: theme.colors.surfaceAlt,
-        }}
-      >
-        <Icon name={open ? 'chevron-up' : 'list-checks'} size={theme.layout.iconSize.sm} color={theme.colors.textMuted} />
-        <AppText variant="label" color="textMuted">
-          {open ? 'Şıkları gizle' : 'Şıkları yazıyla gör'}
-        </AppText>
-      </View>
-    </PressableScale>
-  );
 }
 
 /** "Üst üste 2 doğru", with a flame from three on. */
@@ -350,7 +315,7 @@ export default function ReviewSessionScreen() {
           <QuestionImage questionId={q.id} size="large" />
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.sm }}>
             <TextToggle open={showText} onToggle={() => setShowText((v) => !v)} />
-            {graded && !forceChoices && !outcome ? <ChoicesToggle open={choicesOpen} onToggle={() => setChoicesOpen((v) => !v)} /> : null}
+            {graded && !forceChoices && !outcome ? <TextToggle open={choicesOpen} onToggle={() => setChoicesOpen((v) => !v)} label="Şıkları yazıyla gör" openLabel="Şıkları gizle" icon="list-checks" /> : null}
           </View>
           {showText ? <MathView markdown={q.questionText} /> : null}
           {choicesShown ? (
@@ -435,6 +400,7 @@ export default function ReviewSessionScreen() {
           title={outcome.correct ? (outcome.review.status === 'graduated' ? 'Öğrendin!' : 'Doğru') : 'Yarın yine sorarım'}
           tone={outcome.correct ? theme.colors.success : theme.colors.text}
           xp={outcome.xpGained}
+          answer={graded ? { labels: q.choices?.map((c) => c.label) ?? [], picked: outcome.pick, correct: key } : null}
         />
         <Button label={last ? 'Bitir' : 'Sonraki'} icon={last ? 'flag' : 'arrow-right'} onPress={next} style={{ flex: 1 }} />
       </AnswerDock>

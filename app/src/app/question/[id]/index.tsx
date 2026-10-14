@@ -345,6 +345,7 @@ export default function QuestionScreen() {
           title={saved.result === 'correct' ? 'Doğru!' : 'Tekrara eklendi'}
           tone={saved.result === 'correct' ? theme.colors.success : theme.colors.text}
           xp={savedXp}
+          answer={graded ? { labels, picked: savedPick, correct: key } : null}
         />
         <Button label="Yeni soru" icon="camera" onPress={() => router.replace('/camera')} style={{ flex: 1 }} />
       </AnswerDock>

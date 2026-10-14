@@ -103,6 +103,8 @@ export interface CompanionStore {
   memoryNonce: number;
   /** The line Lumi is saying right now (after its flight or hop), for the hero note's re-type. */
   speakingId: string | null;
+  /** When a touch last started anywhere in the app (set by the root layout's capture hook). */
+  lastTouchAt: number;
 }
 
 const RANK: Record<CompanionLine['priority'], number> = { event: 0, time: 1, route: 2 };
@@ -140,6 +142,7 @@ export const useCompanionStore = create<CompanionStore>((set, get) => ({
   heroVoice: 0,
   memoryNonce: 0,
   speakingId: null,
+  lastTouchAt: 0,
 
   say: (line) => {
     const { current, queue } = get();
