@@ -147,6 +147,10 @@ blockquote p:last-child { margin-bottom: 0; }
 .no-motion .caret { animation: none; }
 @media (prefers-reduced-motion: reduce) { .caret { animation: none; } }
 .katex-display { margin: 0.5em 0; overflow-x: auto; overflow-y: hidden; padding: 2px 0; }
+/* A display line wider than the pane wraps after its = and operators (KaTeX splits the line
+   into unbreakable parts there; its CSS keeps them on one line, which the narrow panes clip).
+   A single part wider than the pane still scrolls sideways. Wrapped lines get a little air. */
+.katex-display > .katex { white-space: normal; line-height: 1.5; }
 `;
 
 const safeScript = (js) => js.replace(/<\/script/gi, '<\\/script');
