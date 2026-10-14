@@ -1,72 +1,155 @@
 import { router } from 'expo-router';
-import { View } from 'react-native';
+import { Fragment } from 'react';
+import { useWindowDimensions, View } from 'react-native';
 import type { ExamResult } from '../api/types';
-import { formatNet, shortDate } from '../lib/format';
-import { subjectColor, useTheme } from '../theme';
+import { SUBJECTS_BY_EXAM, type Exam } from '../data/topics';
+import { formatDelta, formatNet, shortDate } from '../lib/format';
+import { useContentSize, useWindowLayout } from '../lib/layout';
+import { elevated, subjectColor, useTheme } from '../theme';
 import { AppText } from './AppText';
-import { Card } from './Card';
+import { Card, GroupDivider } from './Card';
 import { DeltaChip } from './exams/DeltaChip';
-import { examMax, isComplete } from './exams/examMath';
+import { examMax, isComplete, previousOf } from './exams/examMath';
 import { NetStrip } from './exams/NetStrip';
+import { Icon } from './Icon';
+import { PressableScale } from './motion/PressableScale';
+
+// TOKEN-PENDING: layout.examRow = { inlineFrom: 680, netCol: { compact: 88, tablet: 96 }, deltaCol: 76, stripShare: '30%' }
+// netCol fits "102,75 /120"; one fixed width, so every row's strip track has the same length.
+const ROW = { inlineFrom: 680, netCol: { compact: 88, tablet: 96 }, deltaCol: 76, stripShare: '30%' } as const;
+/** AppText's `numeric` stops growing at this Dynamic Type scale. */
+const NUMERIC_MAX_SCALE = 1.6;
 
 export function examTitle(e: Pick<ExamResult, 'name' | 'exam'>): string {
   return e.name || `${e.exam} denemesi`;
 }
 
-interface Props {
+interface RowProps {
   exam: ExamResult;
-  /** The previous full exam of the same type, for the delta chip. */
+  /** The previous full exam of the same type, for the delta. */
   previous?: ExamResult | null;
+  /** One line (name, strip, net, delta) when the sheet is wide; else the strip sits under the name. */
+  inline: boolean;
+  first: boolean;
+  last: boolean;
 }
 
 /**
- * A karne card: title and date, the net (`stat`) with a delta chip, the net strip (subject
- * inks over an optikSoft track, on the full exam's scale) and the section nets as numeric
- * pairs that never break mid-pair. Fills its grid cell so cards in a row end together.
+ * One exam in its type's list: name and date, the net strip (subject inks on the full exam's
+ * scale), the net in numeric figures and a plain delta, then a chevron. The press tint runs
+ * edge to edge and follows the sheet's corners on the first and last rows.
  */
-export function ExamCard({ exam, previous }: Props) {
+function ExamRow({ exam, previous, inline, first, last }: RowProps) {
   const theme = useTheme();
+  const { tablet, sheetPadding } = useWindowLayout();
+  const { fontScale } = useWindowDimensions();
+  const netCol = Math.ceil((tablet ? ROW.netCol.tablet : ROW.netCol.compact) * Math.min(Math.max(fontScale, 1), NUMERIC_MAX_SCALE));
+  const g = theme.layout.group;
+  const r = elevated(theme, 'sheet').borderRadius;
   const full = isComplete(exam);
-  return (
-    <Card
-      onPress={() => router.push({ pathname: '/exam/[id]', params: { id: exam.id } })}
-      accessibilityLabel={`${examTitle(exam)}, ${shortDate(exam.date)}, ${formatNet(exam.totalNet)} net`}
-      style={{ flexGrow: 1 }}
-    >
-      <View style={{ gap: theme.spacing.xxs }}>
-        <AppText variant="heading" numberOfLines={1}>
-          {examTitle(exam)}
-        </AppText>
-        <AppText variant="caption" color="textMuted" numberOfLines={1}>
-          {shortDate(exam.date)}
-          {full ? '' : `, branş denemesi`}
-        </AppText>
-      </View>
+  const delta = previous ? exam.totalNet - previous.totalNet : null;
 
-      <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: theme.spacing.sm }}>
-        <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: theme.spacing.xs }}>
-          <AppText variant="stat">{formatNet(exam.totalNet)}</AppText>
-          <AppText variant="label" color="textMuted">
-            /{exam.totalQuestions}
+  const name = (
+    <View style={{ gap: theme.spacing.xxs }}>
+      <AppText weight="medium" numberOfLines={2}>
+        {examTitle(exam)}
+      </AppText>
+      <AppText variant="caption" color="textMuted" numberOfLines={1}>
+        {shortDate(exam.date)}
+        {full ? '' : ', branş denemesi'}
+      </AppText>
+    </View>
+  );
+  const strip = <NetStrip sections={exam.sections} max={examMax(exam.exam)} />;
+  const net = (
+    <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'flex-end', gap: theme.spacing.xxs }}>
+      <AppText variant="numeric">{formatNet(exam.totalNet)}</AppText>
+      <AppText variant="caption" color="textMuted">
+        /{exam.totalQuestions}
+      </AppText>
+    </View>
+  );
+  const change = delta !== null ? <DeltaChip delta={delta} look="plain" /> : null;
+
+  return (
+    <PressableScale
+      kind="row"
+      accessibilityRole="button"
+      accessibilityLabel={`${examTitle(exam)}, ${shortDate(exam.date)}, ${formatNet(exam.totalNet)} net${delta !== null ? `, öncekine göre ${formatDelta(delta)}` : ''}`}
+      onPress={() => router.push({ pathname: '/exam/[id]', params: { id: exam.id } })}
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: tablet ? theme.spacing.lg : theme.spacing.md,
+        minHeight: tablet ? g.rowMinHeight.tablet : g.rowMinHeight.compact,
+        paddingVertical: tablet ? g.rowPadY.tablet : g.rowPadY.compact,
+        paddingHorizontal: sheetPadding,
+        borderTopLeftRadius: first ? r : 0,
+        borderTopRightRadius: first ? r : 0,
+        borderBottomLeftRadius: last ? r : 0,
+        borderBottomRightRadius: last ? r : 0,
+        borderCurve: 'continuous',
+      }}
+    >
+      {inline ? (
+        <>
+          <View style={{ flex: 1, minWidth: 0 }}>{name}</View>
+          <View style={{ width: ROW.stripShare }}>{strip}</View>
+          <View style={{ width: netCol }}>{net}</View>
+          <View style={{ width: ROW.deltaCol, alignItems: 'flex-end' }}>{change}</View>
+        </>
+      ) : (
+        <>
+          <View style={{ flex: 1, minWidth: 0, gap: theme.spacing.sm }}>
+            {name}
+            {strip}
+          </View>
+          {/* A fixed width, so the strips beside it all get the same track. */}
+          <View style={{ width: netCol, alignItems: 'flex-end', gap: theme.spacing.xxs }}>
+            {net}
+            {change}
+          </View>
+        </>
+      )}
+      <Icon name="chevron-right" size={theme.layout.iconSize.sm} color={theme.colors.textMuted} />
+    </PressableScale>
+  );
+}
+
+/** The subject inks of an exam type, as a quiet legend for the strips below it. */
+export function SubjectLegend({ exam }: { exam: Exam }) {
+  const theme = useTheme();
+  return (
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', columnGap: theme.spacing.lg, rowGap: theme.spacing.xxs }} aria-hidden>
+      {SUBJECTS_BY_EXAM[exam].map((s) => (
+        <View key={s} style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.xs }}>
+          <View style={{ width: theme.spacing.sm, height: theme.spacing.sm, borderRadius: theme.radius.pill, backgroundColor: subjectColor(theme, s) }} />
+          <AppText variant="caption" color="textMuted">
+            {s}
           </AppText>
         </View>
-        {previous ? <DeltaChip delta={exam.totalNet - previous.totalNet} /> : null}
-      </View>
+      ))}
+    </View>
+  );
+}
 
-      <View style={{ gap: theme.spacing.md, marginTop: 'auto' }}>
-        <NetStrip sections={exam.sections} max={examMax(exam.exam)} />
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', columnGap: theme.spacing.lg, rowGap: theme.spacing.xs }}>
-          {exam.sections.map((s) => (
-            <View key={s.subject} style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.xs, flexShrink: 0 }}>
-              <View style={{ width: theme.spacing.sm, height: theme.spacing.sm, borderRadius: theme.radius.pill, backgroundColor: subjectColor(theme, s.subject) }} />
-              <AppText variant="caption" color="textMuted" numberOfLines={1}>
-                {s.subject}
-              </AppText>
-              <AppText variant="numeric">{formatNet(s.net)}</AppText>
-            </View>
-          ))}
-        </View>
-      </View>
+/**
+ * An exam type's exams in one sheet, newest first, split by optik hairlines. Rows go on one
+ * line once the sheet is wide enough for the strip beside the name.
+ */
+export function ExamRows({ items, all }: { items: readonly ExamResult[]; all: readonly ExamResult[] }) {
+  const { width } = useContentSize();
+  const { sizeClass } = useWindowLayout();
+  // Not measured yet: decide by the window so the first frame doesn't jump.
+  const inline = width === 0 ? sizeClass === 'regular' : width >= ROW.inlineFrom;
+  return (
+    <Card style={{ padding: 0, gap: 0 }}>
+      {items.map((e, i) => (
+        <Fragment key={e.id}>
+          {i > 0 ? <GroupDivider /> : null}
+          <ExamRow exam={e} previous={previousOf(e, all)} inline={inline} first={i === 0} last={i === items.length - 1} />
+        </Fragment>
+      ))}
     </Card>
   );
 }

@@ -4,7 +4,7 @@ import Animated, { useAnimatedProps } from 'react-native-reanimated';
 import Svg, { Circle, Line, Path, Text as SvgText } from 'react-native-svg';
 import { formatNet, shortDate } from '../../lib/format';
 import { haptics } from '../../lib/haptics';
-import { useWindowLayout } from '../../lib/layout';
+import { useFontScale, useWindowLayout } from '../../lib/layout';
 import { useTheme } from '../../theme';
 import { AppText } from '../AppText';
 import { niceDomain } from './scale';
@@ -28,6 +28,12 @@ interface Props {
   unit?: string;
   /** Plot height; defaults to `chart.trendHeight` for the window (180 phone, 240 iPad). */
   height?: number;
+  /**
+   * `full` (default): the readout above, touch-and-drag scrubbing and the value at the line's
+   * end. `summary`: just the plot with three ticks and the first and last dates, for a sheet
+   * whose own big number already says the latest value.
+   */
+  mode?: 'full' | 'summary';
 }
 
 interface MarksProps {
@@ -36,10 +42,12 @@ interface MarksProps {
   /** Index of the marker (selected or latest point). */
   shown: number;
   endLabel: string | null;
+  /** SVG label size for this window (`fontSize.xs` or its tablet size). */
+  labelSize: number;
 }
 
 /** Line, area and end marker; drawn in from left to right when first shown. */
-function TrendMarks({ points, baseline, shown, endLabel }: MarksProps) {
+function TrendMarks({ points, baseline, shown, endLabel, labelSize }: MarksProps) {
   const theme = useTheme();
   const c = theme.colors.chart;
   const dims = theme.layout.chart;
@@ -91,8 +99,8 @@ function TrendMarks({ points, baseline, shown, endLabel }: MarksProps) {
       {endLabel && lastP ? (
         <AnimatedSvgText
           x={lastP.x + theme.spacing.sm}
-          y={lastP.y + theme.fontSize.xs / 3}
-          fontSize={theme.fontSize.xs}
+          y={lastP.y + labelSize / 3}
+          fontSize={labelSize}
           fontFamily={theme.fonts.sans.semibold}
           fill={theme.colors.text}
           animatedProps={tipProps}
@@ -107,25 +115,33 @@ function TrendMarks({ points, baseline, shown, endLabel }: MarksProps) {
 /**
  * Single-series net trend: 2px line with a light area wash, hairline grid, value at the
  * end. Touch and drag to scrub; the readout above shows the selected exam (value first).
+ * In `summary` mode it is a quiet, still plot: ticks on the left, dates under the ends.
  */
-export function NetTrendChart({ data, max, unit = 'net', height: heightProp }: Props) {
+export function NetTrendChart({ data, max, unit = 'net', height: heightProp, mode = 'full' }: Props) {
   const theme = useTheme();
   const c = theme.colors.chart;
   const dims = theme.layout.chart;
+  const sizes = useFontScale();
   const [width, setWidth] = useState(0);
   const [active, setActive] = useState<number | null>(null);
+  const full = mode === 'full';
 
   const { tablet } = useWindowLayout();
   const height = heightProp ?? (tablet ? dims.trendHeight.tablet : dims.trendHeight.compact);
+  // Axis text at the window's caption size (15 on iPad), never the phone table.
+  const labelSize = sizes.xs;
   const top = theme.spacing.md;
-  const bottom = theme.spacing.xl;
-  const left = dims.axisWidth;
+  const bottom = labelSize + theme.spacing.md;
+  // The axis and end-label room are set for the phone label size; they grow with it.
+  const grow = labelSize / theme.fontSize.xs;
+  const left = Math.round(dims.axisWidth * grow);
   // The end label starts `spacing.sm` after the last point, so its room starts there too.
-  const right = dims.endLabelWidth + theme.spacing.sm;
+  // Without it the marker only needs its own radius.
+  const right = full ? Math.round(dims.endLabelWidth * grow) + theme.spacing.sm : dims.markerRadius + dims.ringWidth;
   const plotW = Math.max(0, width - left - right);
   const plotH = height - top - bottom;
 
-  const domain = useMemo(() => niceDomain(data.map((d) => d.value), max), [data, max]);
+  const domain = useMemo(() => niceDomain(data.map((d) => d.value), max, full ? 4 : 3), [data, max, full]);
   const x = (i: number) => (data.length === 1 ? left + plotW / 2 : left + (i * plotW) / (data.length - 1));
   const y = (v: number) => top + plotH - ((v - domain.min) / (domain.max - domain.min)) * plotH;
 
@@ -164,7 +180,7 @@ export function NetTrendChart({ data, max, unit = 'net', height: heightProp }: P
 
   return (
     <View style={{ gap: theme.spacing.sm }}>
-      {current ? (
+      {full && current ? (
         <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: theme.spacing.sm }}>
           <AppText variant="stat">{formatNet(current.value)}</AppText>
           <AppText variant="label" color="textMuted">
@@ -186,19 +202,20 @@ export function NetTrendChart({ data, max, unit = 'net', height: heightProp }: P
         style={{ height }}
         accessibilityRole="image"
         accessibilityLabel={`Net grafiği, ${data.length} deneme. Son: ${current ? formatNet(data[last]!.value) : '—'} net.`}
-        {...responder.panHandlers}
+        {...(full ? responder.panHandlers : null)}
       >
         {width > 0 ? (
           <Svg width={width} height={height}>
             {domain.ticks.map((t) => (
               <Line key={`g${t}`} x1={left} x2={left + plotW} y1={y(t)} y2={y(t)} stroke={c.grid} strokeWidth={theme.layout.borderWidth} />
             ))}
-            {domain.ticks.map((t) => (
+            {/* A summary labels every other tick from the top, so a short plot stays readable. */}
+            {domain.ticks.filter((_, i) => full || (domain.ticks.length - 1 - i) % 2 === 0).map((t) => (
               <SvgText
                 key={`t${t}`}
                 x={left - theme.spacing.sm}
-                y={y(t) + theme.fontSize.xs / 3}
-                fontSize={theme.fontSize.xs}
+                y={y(t) + labelSize / 3}
+                fontSize={labelSize}
                 fontFamily={theme.fonts.sans.regular}
                 fill={c.axisText}
                 textAnchor="end"
@@ -217,16 +234,17 @@ export function NetTrendChart({ data, max, unit = 'net', height: heightProp }: P
               points={points}
               baseline={top + plotH}
               shown={shown}
-              endLabel={data.length && active === null ? formatNet(data[last]!.value) : null}
+              endLabel={full && data.length && active === null ? formatNet(data[last]!.value) : null}
+              labelSize={labelSize}
             />
 
             {data.length ? (
-              <SvgText x={x(0)} y={height - theme.spacing.xs} fontSize={theme.fontSize.xs} fontFamily={theme.fonts.sans.regular} fill={c.axisText} textAnchor={data.length === 1 ? 'middle' : 'start'}>
+              <SvgText x={x(0)} y={height - theme.spacing.xs} fontSize={labelSize} fontFamily={theme.fonts.sans.regular} fill={c.axisText} textAnchor={data.length === 1 ? 'middle' : 'start'}>
                 {shortDate(data[0]!.date)}
               </SvgText>
             ) : null}
             {data.length > 1 ? (
-              <SvgText x={x(last)} y={height - theme.spacing.xs} fontSize={theme.fontSize.xs} fontFamily={theme.fonts.sans.regular} fill={c.axisText} textAnchor="end">
+              <SvgText x={x(last)} y={height - theme.spacing.xs} fontSize={labelSize} fontFamily={theme.fonts.sans.regular} fill={c.axisText} textAnchor="end">
                 {shortDate(data[last]!.date)}
               </SvgText>
             ) : null}

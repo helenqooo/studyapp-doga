@@ -1,24 +1,34 @@
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { View, type LayoutChangeEvent } from 'react-native';
+import { useWindowDimensions, View, type LayoutChangeEvent } from 'react-native';
 import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withDelay, withTiming } from 'react-native-reanimated';
 import type { TopicLoss } from '../../api/types';
 import { getTopic, topicLabel } from '../../data/topics';
 import { formatNet } from '../../lib/format';
+import { useWindowLayout } from '../../lib/layout';
 import { useHistoryFilter } from '../../store/historyFilter';
 import { subjectColor, subjectSoftColor, useTheme } from '../../theme';
 import { AppText } from '../AppText';
+import { Grid } from '../Grid';
 import { PressableScale } from '../motion/PressableScale';
 import { ease } from '../motion/presets';
+
+// TOKEN-PENDING: layout.chart.lossValueWidth = { compact: 72, tablet: 84 } (fits "88,88 net"; every track ends at the same x)
+const VALUE_WIDTH = { compact: 72, tablet: 84 };
+/** AppText's `numeric` stops growing at this Dynamic Type scale. */
+const NUMERIC_MAX_SCALE = 1.6;
 
 const counts = (wrong: number, blank: number) =>
   [wrong ? `${wrong} yanlış` : '', blank ? `${blank} boş` : ''].filter(Boolean).join(', ');
 
-function breakdown(t: TopicLoss): string {
+/** "TYT Temel Matematik, denemede 5 yanlış, 2 boş; soru çözerken 1 yanlış". */
+function breakdown(t: TopicLoss, where: string): string {
   const parts: string[] = [];
-  if (t.examWrong || t.examBlank) parts.push(`Denemede ${counts(t.examWrong, t.examBlank)}`);
+  if (t.examWrong || t.examBlank) parts.push(`denemede ${counts(t.examWrong, t.examBlank)}`);
   if (t.practiceWrong || t.practiceBlank) parts.push(`soru çözerken ${counts(t.practiceWrong, t.practiceBlank)}`);
-  return parts.join('; ');
+  const text = parts.join('; ');
+  if (where) return text ? `${where}, ${text}` : where;
+  return text.charAt(0).toLocaleUpperCase('tr') + text.slice(1);
 }
 
 /**
@@ -55,17 +65,22 @@ function GrowBar({ share, index, ink, track }: { share: number; index: number; i
 }
 
 /**
- * Horizontal bars of nets lost per topic, each in its subject's ink, value after the track.
- * Tapping a row opens the question history filtered to that topic.
+ * Horizontal bars of nets lost per topic, each in its subject's ink, value after the track,
+ * then where the losses came from. Tapping a row opens the question history for that topic.
+ * The value column has one fixed width, so every track is the same length; a wide sheet
+ * (landscape) lays the rows in two columns.
  */
 export function TopicLossBars({ items }: { items: TopicLoss[] }) {
   const theme = useTheme();
+  const { tablet } = useWindowLayout();
+  const { fontScale } = useWindowDimensions();
   const setSubject = useHistoryFilter((s) => s.setSubject);
   const setTopicId = useHistoryFilter((s) => s.setTopicId);
   const maxLost = Math.max(...items.map((t) => t.lostNet), 1);
+  const valueWidth = Math.ceil((tablet ? VALUE_WIDTH.tablet : VALUE_WIDTH.compact) * Math.min(Math.max(fontScale, 1), NUMERIC_MAX_SCALE));
 
   return (
-    <View style={{ gap: theme.spacing.xs }}>
+    <Grid columns={{ compact: 1, wide: 2 }} gap={theme.spacing.xs} columnGap={theme.spacing.xxl}>
       {items.map((t, index) => {
         const topic = getTopic(t.topicId);
         const subject = topic?.subject ?? t.subject ?? '';
@@ -91,17 +106,12 @@ export function TopicLossBars({ items }: { items: TopicLoss[] }) {
               borderCurve: 'continuous',
             }}
           >
-            <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: theme.spacing.sm }}>
-              <AppText variant="label" numberOfLines={1} style={{ flex: 1 }}>
-                {topic ? topicLabel(topic) : t.topicId}
-              </AppText>
-              <AppText variant="caption" color="textMuted" numberOfLines={1}>
-                {topic ? `${topic.exam} ${topic.subject}` : ''}
-              </AppText>
-            </View>
+            <AppText variant="label" numberOfLines={2}>
+              {topic ? topicLabel(topic) : t.topicId}
+            </AppText>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm }}>
               <GrowBar share={share} index={index} ink={subjectColor(theme, subject)} track={subjectSoftColor(theme, subject)} />
-              <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: theme.spacing.xxs, minWidth: theme.layout.chart.endLabelWidth + theme.spacing.lg, justifyContent: 'flex-end' }}>
+              <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: theme.spacing.xxs, width: valueWidth, justifyContent: 'flex-end' }}>
                 <AppText variant="numeric">{formatNet(t.lostNet)}</AppText>
                 <AppText variant="caption" color="textMuted">
                   net
@@ -109,11 +119,11 @@ export function TopicLossBars({ items }: { items: TopicLoss[] }) {
               </View>
             </View>
             <AppText variant="caption" color="textMuted">
-              {breakdown(t)}
+              {breakdown(t, topic ? `${topic.exam} ${topic.subject}` : '')}
             </AppText>
           </PressableScale>
         );
       })}
-    </View>
+    </Grid>
   );
 }

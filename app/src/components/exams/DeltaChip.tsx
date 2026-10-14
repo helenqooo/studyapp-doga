@@ -66,6 +66,10 @@ interface Props {
   highlightId?: string;
   /** A muted word after the chip, e.g. "öncekine göre". */
   caption?: string;
+  /** Sets the caption under the chip instead of beside it (a narrow column next to a chart). */
+  captionBelow?: boolean;
+  /** `pill` (default): a soft tinted pill. `plain`: the arrow and number alone, for list rows. */
+  look?: 'pill' | 'plain';
   style?: StyleProp<ViewStyle>;
 }
 
@@ -73,26 +77,37 @@ interface Props {
  * A change against the previous exam: a soft pill in the verdict's tint (green up, red pen
  * down, neutral flat) with the signed net in numeric figures. Tint changes cross-fade.
  */
-export function DeltaChip({ delta, highlightId, caption, style }: Props) {
+export function DeltaChip({ delta, highlightId, caption, captionBelow = false, look = 'pill', style }: Props) {
   const theme = useTheme();
   const reduceMotion = useReducedMotion();
   const tone = toneOf(theme, delta);
+  const plain = look === 'plain';
   const duration = reduceMotion ? RM_FADE_MS : theme.motion.duration.base;
   const fade = { duration, easing: ease('standard'), reduceMotion: ReduceMotion.Never };
-  const fill = useAnimatedStyle(() => ({ backgroundColor: withTiming(tone.bg, fade) }), [tone.bg, reduceMotion]);
+  const bg = plain ? theme.colors.transparent : tone.bg;
+  const fill = useAnimatedStyle(() => ({ backgroundColor: withTiming(bg, fade) }), [bg, reduceMotion]);
   const text = formatDelta(delta);
   const label = `${text} net${caption ? ` ${caption}` : ''}`;
 
   return (
-    <View accessible accessibilityLabel={label} style={[{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.xs, flexWrap: 'wrap' }, style]}>
+    <View
+      accessible
+      accessibilityLabel={label}
+      style={[
+        captionBelow
+          ? { alignItems: 'flex-start', gap: theme.spacing.xxs }
+          : { flexDirection: 'row', alignItems: 'center', gap: theme.spacing.xs, flexWrap: 'wrap' },
+        style,
+      ]}
+    >
       <Animated.View
         style={[
           {
             flexDirection: 'row',
             alignItems: 'center',
             gap: theme.spacing.xxs,
-            paddingHorizontal: theme.spacing.sm,
-            paddingVertical: theme.spacing.xxs,
+            paddingHorizontal: plain ? 0 : theme.spacing.sm,
+            paddingVertical: plain ? 0 : theme.spacing.xxs,
             borderRadius: theme.radius.pill,
             borderCurve: 'continuous',
           },

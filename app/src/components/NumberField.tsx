@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { TextInput, View } from 'react-native';
 import Animated, { ReduceMotion, useAnimatedStyle, useReducedMotion, withTiming } from 'react-native-reanimated';
-import { useFontScale } from '../lib/layout';
+import { useFontScale, useWindowLayout } from '../lib/layout';
 import { font, useTheme } from '../theme';
 import { AppText } from './AppText';
 import { ease } from './motion/presets';
@@ -14,33 +14,45 @@ interface Props {
   value: string;
   onChangeText: (text: string) => void;
   invalid?: boolean;
+  /** A topic's D / Y / B well: one touch target tall. */
   compact?: boolean;
+  /** The label stays for VoiceOver but isn't drawn (a table header names the column). */
+  hideLabel?: boolean;
+  /** Overrides the well's width, so wells line up under a table header. */
+  width?: number;
+  /** What VoiceOver reads (e.g. "Türkçe doğru"); defaults to `label`. */
+  accessibilityLabel?: string;
 }
 
 /**
- * Small numeric well with a label above (D / Y / B counts), figures in the display face.
+ * Numeric well with a label above (D / Y / B counts), figures in the display face. As tall
+ * as a TextField (52 pt on a phone, 56 on a tablet); a compact well is one touch target.
  * The edge cross-fades: graphite while focused, red pen when invalid.
  */
-export function NumberField({ label, value, onChangeText, invalid = false, compact = false }: Props) {
+export function NumberField({ label, value, onChangeText, invalid = false, compact = false, hideLabel = false, width, accessibilityLabel }: Props) {
   const theme = useTheme();
   const sizes = useFontScale();
+  const { touch } = useWindowLayout();
   const reduceMotion = useReducedMotion();
   const [focused, setFocused] = useState(false);
-  const { minTouch, selectedBorder } = theme.layout.system;
+  const { selectedBorder } = theme.layout.system;
+  const height = compact ? touch : touch + theme.spacing.sm;
   const edge = invalid ? theme.colors.danger : focused ? theme.colors.mark : theme.colors.transparent;
   const fade = { duration: reduceMotion ? RM_FADE_MS : theme.motion.duration.base, easing: ease('standard'), reduceMotion: ReduceMotion.Never };
   const edgeStyle = useAnimatedStyle(() => ({ borderColor: withTiming(edge, fade) }), [edge, reduceMotion]);
 
   return (
     <View style={{ gap: theme.spacing.xxs, alignItems: 'center' }}>
-      <AppText variant="caption" color="textMuted">
-        {label}
-      </AppText>
+      {hideLabel ? null : (
+        <AppText variant="caption" color="textMuted">
+          {label}
+        </AppText>
+      )}
       <Animated.View
         style={[
           {
-            width: minTouch + (compact ? 0 : theme.spacing.lg),
-            height: minTouch,
+            width: width ?? touch + (compact ? 0 : theme.spacing.xl),
+            height,
             borderRadius: theme.radius.md,
             borderCurve: 'continuous',
             borderWidth: selectedBorder,
@@ -58,7 +70,7 @@ export function NumberField({ label, value, onChangeText, invalid = false, compa
           keyboardType="number-pad"
           maxLength={2}
           selectTextOnFocus
-          accessibilityLabel={label}
+          accessibilityLabel={accessibilityLabel ?? label}
           placeholder="0"
           placeholderTextColor={theme.colors.textMuted}
           style={{

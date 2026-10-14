@@ -9,18 +9,18 @@ import { Button } from '../../components/Button';
 import { Card } from '../../components/Card';
 import { NetTrendChart } from '../../components/charts/NetTrendChart';
 import { TopicLossBars } from '../../components/charts/TopicLossBars';
-import { ExamCard, examTitle } from '../../components/ExamCard';
-import { ExamSummary } from '../../components/exams/ExamSummary';
-import { newestFirst, previousOf } from '../../components/exams/examMath';
-import { Col, Grid, Row } from '../../components/Grid';
+import { ExamRows, examTitle, SubjectLegend } from '../../components/ExamCard';
+import { ExamHero } from '../../components/exams/ExamSummary';
+import { newestFirst } from '../../components/exams/examMath';
+import { Col, Row } from '../../components/Grid';
 import { ease } from '../../components/motion/presets';
 import { HeaderAction, Screen, useCompactHeader } from '../../components/Screen';
-import { SectionHeader } from '../../components/SectionHeader';
+import { Section } from '../../components/SectionHeader';
 import { SegmentedControl } from '../../components/SegmentedControl';
 import { EmptyState } from '../../components/states/EmptyState';
 import { ErrorState } from '../../components/states/ErrorState';
 import { Skeleton, SkeletonCard, SkeletonRows } from '../../components/states/Skeleton';
-import { SubjectTrendTile } from '../../components/SubjectTrendTile';
+import { SubjectTiles } from '../../components/SubjectTrendTile';
 import { WeeklySummaryCard } from '../../components/WeeklySummaryCard';
 import type { Exam } from '../../data/topics';
 import { useWindowLayout } from '../../lib/layout';
@@ -28,6 +28,8 @@ import { useTheme } from '../../theme';
 
 // TOKEN-PENDING: motion.duration.rmFade = 120 (the Reduce Motion cross-fade, spec 0.7 / 5.6)
 const RM_FADE_MS = 120;
+// TOKEN-PENDING: layout.chart.trendHeight.wide = 380 (landscape: the trend fills the sheet beside the subjects)
+const TREND_WIDE = 380;
 
 type Tab = 'list' | 'analysis';
 
@@ -57,27 +59,23 @@ function AddActions({ size = 'md', fill = false }: { size?: 'sm' | 'md'; fill?: 
   );
 }
 
-/** One exam type's karne cards: 3 across in landscape, 2 in portrait, 1 on a phone. */
+/** One exam type's exams: a section on the paper, a legend for the strips, then one sheet of rows. */
 function ExamSection({ exam, items, all }: { exam: Exam; items: ExamResult[]; all: ExamResult[] }) {
-  const theme = useTheme();
   return (
-    <View style={{ gap: theme.spacing.sm }}>
-      <SectionHeader title={`${exam} denemeleri`} count={items.length || undefined} />
+    <Section title={`${exam} denemeleri`} count={items.length || undefined}>
       {items.length ? (
-        <Grid columns={{ compact: 1, regular: 2, wide: 3 }}>
-          {items.map((e) => (
-            <ExamCard key={e.id} exam={e} previous={previousOf(e, all)} />
-          ))}
-        </Grid>
+        <>
+          <SubjectLegend exam={exam} />
+          <ExamRows items={items} all={all} />
+        </>
       ) : (
         <AppText color="textMuted">Henüz {exam} denemesi yok.</AppText>
       )}
-    </View>
+    </Section>
   );
 }
 
 function ExamList() {
-  const theme = useTheme();
   const { tablet } = useWindowLayout();
   const exams = useExams();
 
@@ -104,15 +102,12 @@ function ExamList() {
 
   return (
     <>
-      <Row>
-        {EXAMS.map((x) => (
-          <Col key={x} span={{ compact: 2, regular: 4, wide: 6 }}>
-            <ExamSummary exam={x} items={all} />
-          </Col>
-        ))}
-      </Row>
+      {/* The primary: the latest TYT and AYT nets with their trends, in one sheet. */}
+      <ExamHero exams={EXAMS} items={all} />
       {/* On a phone the add actions sit under the summary; on iPad they are in the title row. */}
       {tablet ? null : <AddActions fill />}
+      {/* The lists run full width, one under the other: TYT always outnumbers AYT, so side by
+          side columns would end far apart; full width, each row reads on one line. */}
       {EXAMS.map((x) => (
         <ExamSection key={x} exam={x} items={all.filter((e) => e.exam === x)} all={all} />
       ))}
@@ -123,6 +118,7 @@ function ExamList() {
 /** The trend sheet: TYT/AYT segmented in its header, then the net trend of full exams. */
 function TrendSheet({ overview, exam, onExam }: { overview: Overview; exam: Exam; onExam: (e: Exam) => void }) {
   const theme = useTheme();
+  const wide = useWindowLayout().sizeClass === 'wide';
   const data = overview.byExam[exam];
   // Branş (partial) exams would distort the total, so the total trend uses complete ones.
   const complete = data.trend.filter((t) => t.complete);
@@ -144,6 +140,7 @@ function TrendSheet({ overview, exam, onExam }: { overview: Overview; exam: Exam
         <>
           <NetTrendChart
             max={data.maxNet}
+            height={wide ? TREND_WIDE : undefined}
             data={complete.map((t) => ({ key: t.id, date: t.date, label: examTitle({ name: t.name, exam }), value: t.totalNet }))}
           />
           {complete.length === 1 ? (
@@ -161,6 +158,8 @@ function TrendSheet({ overview, exam, onExam }: { overview: Overview; exam: Exam
 
 function Analysis() {
   const theme = useTheme();
+  const { tablet } = useWindowLayout();
+  const blockGap = tablet ? theme.layout.screen.gap.tablet : theme.layout.screen.gap.compact;
   const reduceMotion = useReducedMotion();
   const overview = useOverview();
   const { refetch } = overview;
@@ -197,36 +196,35 @@ function Analysis() {
   }));
 
   return (
-    <Animated.View style={[{ gap: theme.spacing.lg }, dimStyle]}>
-      {/* Chart first: the trend, with the subject tiles beside it in landscape. */}
+    <Animated.View style={[{ gap: blockGap }, dimStyle]}>
+      {/* The primary: the total net's trend; this exam type's subjects beside it in landscape. */}
       <Row>
         <Col span={{ compact: 4, regular: 8, wide: 7 }}>
           <TrendSheet overview={o} exam={selected} onExam={setExam} />
         </Col>
-        <Col span={{ compact: 4, regular: 8, wide: 5 }}>
-          {tiles.length ? (
-            <Grid columns={{ compact: 2, regular: 4 }}>
-              {tiles.map((t) => (
-                <SubjectTrendTile key={t.summary.subject} summary={t.summary} nets={t.nets} />
-              ))}
-            </Grid>
-          ) : null}
-        </Col>
+        {tiles.length ? (
+          <Col span={{ compact: 4, regular: 8, wide: 5 }}>
+            <SubjectTiles title={`${selected} dersleri`} tiles={tiles} style={{ flexGrow: 1 }} />
+          </Col>
+        ) : null}
       </Row>
 
-      <Card title={`En çok net kaybettiğin konular (son ${o.windowDays} gün)`}>
+      {/* Full width everywhere: in landscape the bars run in two columns, so the list is half as tall. */}
+      <Card title="Net kaybettiğin konular">
         {o.topicLosses.length ? (
           <>
+            <AppText variant="caption" color="textMuted" style={{ marginTop: -theme.spacing.sm }}>
+              Son {o.windowDays} gün. Bir konuya dokununca o konudaki soruların açılır.
+            </AppText>
             <TopicLossBars items={o.topicLosses} />
             <AppText variant="caption" color="textMuted">
-              Deneme konu analizleri ve çözdüğün soruların birleşimi. Her yanlış 1,25, her boş 1 net sayılır; çözdüğün sorulardaki hatalar yarım ağırlıkta. Dokununca o konudaki sorularını açar.
+              Denemeler ve çözdüğün sorular birlikte sayılır. Her yanlış 1,25, her boş 1 net; çözdüğün sorulardaki hatalar yarım ağırlıkta.
             </AppText>
           </>
         ) : (
           <AppText color="textMuted">Konu analizi olan bir deneme girdiğinde ya da soru çözüp işaretlediğinde burada görünür.</AppText>
         )}
       </Card>
-
       <WeeklySummaryCard />
     </Animated.View>
   );
