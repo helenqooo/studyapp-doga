@@ -801,6 +801,10 @@ export function CompanionHost() {
   useEffect(() => {
     enteredAt.current = Date.now();
     spokeThisVisit.current = false;
+    // A route line belongs to its screens: leaving them closes it (the note fades out).
+    const st = useCompanionStore.getState();
+    const def = st.current ? lineDef(st.current.id) : undefined;
+    if (def?.kind === 'route' && def.routes && !def.routes.includes(pathname)) st.dismiss();
   }, [pathname]);
 
   useEffect(() => {

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { haptics } from '../lib/haptics';
+import { useWindowLayout } from '../lib/layout';
 import { useTheme } from '../theme';
 import { AppText } from './AppText';
 import { Card } from './Card';
@@ -18,6 +19,7 @@ const DEFAULT_DETAIL = 'Sunucu olmadan örnek sorular ve örnek denemelerle çal
  */
 export function DemoBanner({ detail, compact = false }: { detail?: string; compact?: boolean }) {
   const theme = useTheme();
+  const { touch } = useWindowLayout();
   const [open, setOpen] = useState(!compact);
   // Only a tap cross-fades; the first paint just shows the banner.
   const [toggled, setToggled] = useState(false);
@@ -44,7 +46,7 @@ export function DemoBanner({ detail, compact = false }: { detail?: string; compa
             flexDirection: 'row',
             alignItems: 'center',
             gap: theme.spacing.xs,
-            minHeight: theme.layout.minTouch,
+            minHeight: touch,
             paddingHorizontal: theme.spacing.md,
             borderRadius: theme.radius.pill,
             borderCurve: 'continuous',
@@ -81,8 +83,8 @@ export function DemoBanner({ detail, compact = false }: { detail?: string; compa
               accessibilityLabel="Kapat"
               onPress={() => toggle(false)}
               style={{
-                width: theme.layout.minTouch,
-                height: theme.layout.minTouch,
+                width: touch,
+                height: touch,
                 alignItems: 'center',
                 justifyContent: 'center',
                 margin: -theme.spacing.md,

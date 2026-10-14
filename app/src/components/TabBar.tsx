@@ -101,8 +101,7 @@ export function TimerFace() {
           fill="none"
           strokeDasharray={`${circumference} ${circumference}`}
           strokeDashoffset={circumference * (1 - done)}
-          rotation={-90}
-          origin={`${c}, ${c}`}
+          transform={`rotate(-90 ${c} ${c})`}
         />
         <Circle cx={c + r * Math.sin(angle)} cy={c - r * Math.cos(angle)} r={EAR_RING_STROKE} fill={theme.colors.accent} />
       </Svg>

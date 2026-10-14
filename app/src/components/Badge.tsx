@@ -1,4 +1,5 @@
 import { View, type StyleProp, type ViewStyle } from 'react-native';
+import { useFontScale } from '../lib/layout';
 import { useTheme } from '../theme';
 import { AppText } from './AppText';
 import { Icon, type IconName } from './Icon';
@@ -17,6 +18,7 @@ interface Props {
 /** Small pill used for exam / subject / topic chips. */
 export function Badge({ label, color, background, icon, dot, style }: Props) {
   const theme = useTheme();
+  const scale = useFontScale();
   const fg = color ?? (dot ? theme.colors.text : theme.colors.primaryText);
   return (
     <View
@@ -38,7 +40,7 @@ export function Badge({ label, color, background, icon, dot, style }: Props) {
       {dot ? (
         <View style={{ width: theme.spacing.sm, height: theme.spacing.sm, borderRadius: theme.radius.pill, backgroundColor: dot }} />
       ) : null}
-      {icon ? <Icon name={icon} size={theme.fontSize.sm} color={fg} /> : null}
+      {icon ? <Icon name={icon} size={scale.sm} color={fg} /> : null}
       <AppText variant="caption" weight="semibold" tint={fg}>
         {label}
       </AppText>
