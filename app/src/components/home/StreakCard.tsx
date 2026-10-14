@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { View, type StyleProp, type ViewStyle } from 'react-native';
+import { View } from 'react-native';
 import Animated, { ReduceMotion, useAnimatedStyle, useReducedMotion, useSharedValue, withTiming } from 'react-native-reanimated';
 import Svg, { Ellipse } from 'react-native-svg';
 import { useProfile, useStudyDays } from '../../api/hooks';
@@ -8,7 +8,6 @@ import { useWindowLayout } from '../../lib/layout';
 import { useTheme } from '../../theme';
 import { AppText } from '../AppText';
 import { Bubble } from '../Bubble';
-import { Card } from '../Card';
 import { ease } from '../motion/presets';
 import { ProgressBar } from '../ProgressBar';
 import { StreakFlame } from '../StreakFlame';
@@ -69,7 +68,7 @@ function WeekDots({ studied, todayCounts }: { studied: boolean[]; todayCounts: b
 }
 
 /** Seri: the flame and the streak, the week as bubbles, then the level and its XP groove. */
-export function StreakCard({ style }: { style?: StyleProp<ViewStyle> }) {
+export function StreakSection() {
   const theme = useTheme();
   const { tablet } = useWindowLayout();
   const p = useProfile().data;
@@ -90,7 +89,7 @@ export function StreakCard({ style }: { style?: StyleProp<ViewStyle> }) {
   const statSize = tablet ? theme.typography.stat.sizeTablet : theme.typography.stat.size;
 
   return (
-    <Card style={style}>
+    <View style={{ gap: theme.spacing.md }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md }}>
         <StreakFlame active={streak > 0} streak={streak} />
         <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: theme.spacing.sm, flexShrink: 1 }}>
@@ -112,6 +111,6 @@ export function StreakCard({ style }: { style?: StyleProp<ViewStyle> }) {
         </View>
         <ProgressBar variant="groove" progress={p ? p.levelXp / p.levelXpRequired : 0} />
       </View>
-    </Card>
+    </View>
   );
 }

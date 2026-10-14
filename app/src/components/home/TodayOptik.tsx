@@ -1,31 +1,40 @@
 import { router, type Href } from 'expo-router';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { StyleSheet, View, type LayoutChangeEvent, type StyleProp, type ViewStyle } from 'react-native';
-import Animated, { ReduceMotion, useAnimatedProps, useReducedMotion, useSharedValue, withTiming } from 'react-native-reanimated';
+import Animated, { ReduceMotion, useAnimatedProps, useAnimatedStyle, useReducedMotion, useSharedValue, withTiming } from 'react-native-reanimated';
 import Svg, { Path } from 'react-native-svg';
 import { useProfile } from '../../api/hooks';
 import { highlightKey } from '../../lib/companionPersist';
 import { haptics } from '../../lib/haptics';
-import { useWindowLayout } from '../../lib/layout';
+import { useContentSize, useWindowLayout } from '../../lib/layout';
 import { homeLine } from '../../lib/lumiLines';
 import { useCompanionStore } from '../../store/companionStore';
 import { useTimerStore } from '../../store/timerStore';
 import { useTheme } from '../../theme';
 import { AppText } from '../AppText';
 import { Bubble } from '../Bubble';
+import { Button } from '../Button';
 import { Card } from '../Card';
 import { CompanionPerch } from '../companion/Perch';
 import { TypedLine, useHeroVoice } from '../companion/voice';
 import { Icon } from '../Icon';
+import { FadeText } from '../motion/FadeText';
 import { PressableScale } from '../motion/PressableScale';
 import { ease } from '../motion/presets';
-import { Note } from '../Note';
 import { useHomeDay } from './homeDay';
 import type { TodayGoals } from './useTodayGoals';
 import { Highlight } from '../Highlight';
 
-// TOKEN-PENDING: layout.goalRow = { height: 52, label: 76, value: 84 } (spec 7.1 goal rows: row height, label and figure columns)
-const GOAL_ROW = { height: 52, label: 76, value: 84 } as const;
+// TOKEN-PENDING: layout.goalRow = { label: 84, figure: 136, action: 120, stacked: { compact: 112, tablet: 128 }, pillMin: 628, columnsMin: 728, maxShare: 1.6 }
+//   (spec 7.1 goal rows: the goal and its figure in their own columns, or the goal over its figure; the content
+//   width from which the rows end in an action pill (else a chevron), and from which goal and figure get columns;
+//   the figure columns are least widths, widened together to the widest figure; a stretched row grows to at most
+//   maxShare × layout.group.rowMinHeight.tablet)
+const GOAL_ROW = { label: 84, figure: 136, action: 120, stacked: { compact: 112, tablet: 128 }, pillMin: 628, columnsMin: 728, maxShare: 1.6 } as const;
+// TOKEN-PENDING: motion.duration.rmFade = 120 (the Reduce Motion cross-fade, spec 0.7 / 5.6)
+const RM_FADE_MS = 120;
+// TOKEN-PENDING: layout.bubbleTailTurn = '45deg' (the speech bubble's tail: a square of bubble paper turned into a diamond)
+const TAIL_TURN = '45deg';
 // TOKEN-PENDING: home.goalBubbles = { reviewCap: 10, focusSteps: 5 } (Tekrar: one per due question, Odak: 5 × 10 min)
 const GOAL_BUBBLES = { reviewCap: 10, focusSteps: 5 } as const;
 // TOKEN-PENDING: layout.goalCheck = { stroke: 3, points: [[0.06, 0.55], [0.2, 0.9], [0.94, 0.08]] } (the graphite check across the goals)
@@ -33,15 +42,50 @@ const CHECK = { stroke: 3, points: [[0.06, 0.55], [0.2, 0.9], [0.94, 0.08]] as [
 
 const AnimatedPath = Animated.createAnimatedComponent(Path);
 
-/** A strip of row bubbles: `filled` whole ones, then one partly filled (0..1), the rest empty. */
+/** A strip of goal bubbles: `filled` whole ones, then one partly filled (0..1), the rest empty. */
 function BubbleStrip({ count, filled, partial = 0 }: { count: number; filled: number; partial?: number }) {
   const theme = useTheme();
+  const { tablet } = useWindowLayout();
   return (
-    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.xs }} aria-hidden>
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: tablet ? theme.spacing.sm : theme.spacing.xs }} aria-hidden>
       {Array.from({ length: count }, (_, i) => (
-        <Bubble key={i} size="row" filled={i < filled} fill={i === filled ? partial : 0} />
+        <Bubble key={i} size={tablet ? 'letter' : 'row'} filled={i < filled} fill={i === filled ? partial : 0} />
       ))}
     </View>
+  );
+}
+
+/**
+ * The row's verb as a pill (the whole row is the press target): soft, or filled like a primary
+ * button on the row that holds Lumi's next step. The fill and the label cross-fade.
+ */
+function ActionPill({ label, lead }: { label: string; lead: boolean }) {
+  const theme = useTheme();
+  const reduceMotion = useReducedMotion();
+  const { touch } = useWindowLayout();
+  const c = theme.colors;
+  const bg = lead ? c.primary : c.primarySoft;
+  const fade = { duration: reduceMotion ? RM_FADE_MS : theme.motion.duration.base, easing: ease('standard'), reduceMotion: ReduceMotion.Never };
+  const fill = useAnimatedStyle(() => ({ backgroundColor: withTiming(bg, fade) }), [bg, reduceMotion]);
+  return (
+    <Animated.View
+      style={[
+        {
+          width: GOAL_ROW.action,
+          minHeight: touch,
+          paddingHorizontal: theme.spacing.md,
+          borderRadius: theme.radius.button,
+          borderCurve: 'continuous',
+          alignItems: 'center',
+          justifyContent: 'center',
+        },
+        fill,
+      ]}
+    >
+      <FadeText variant="label" weight="semibold" tint={lead ? c.onPrimary : c.primaryText} numberOfLines={1}>
+        {label}
+      </FadeText>
+    </Animated.View>
   );
 }
 
@@ -55,10 +99,24 @@ interface RowProps {
   /** Marked by Lumi today and now complete: the graphite strike runs through the label. */
   complete: boolean;
   strip: ReactNode;
+  /** How the row is set: the goal and its figure in columns or stacked, and a pill or a chevron at the end. */
+  fit: HeroFit;
+  /** The figure column's least width, shared by the rows so their bubbles start together. */
+  figureWidth: number;
+  /** Reports the figure's own width, so the rows can widen their figure columns together. */
+  onFigureWidth: (id: string, width: number) => void;
+  /** Lumi's next step is this row's: its pill is filled. */
+  lead: boolean;
 }
 
-/** One optik row: the goal, where it stands, its bubbles and a quiet verb (52 pt, bubble press). */
-function GoalRow({ id, label, value, unit, verb, href, complete, strip }: RowProps) {
+/** The hero's room (tablet only): the action as a pill, and the goal and its figure in separate columns. */
+interface HeroFit {
+  pill: boolean;
+  columns: boolean;
+}
+
+/** One optik row: the goal, where it stands in Lora, its bubbles and its verb (bubble press). */
+function GoalRow({ id, label, value, unit, verb, href, complete, strip, fit, figureWidth, onFigureWidth, lead }: RowProps) {
   const theme = useTheme();
   const { tablet } = useWindowLayout();
   const key = highlightKey(id);
@@ -72,17 +130,20 @@ function GoalRow({ id, label, value, unit, verb, href, complete, strip }: RowPro
       <AppText variant="heading">{label}</AppText>
     </Highlight>
   );
+  // The figure keeps its own width (a long one like "12/50 dk" widens every row's column).
   const figure = (
-    <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: theme.spacing.xxs }}>
-      <AppText variant="numeric">{value}</AppText>
+    <View
+      onLayout={(e: LayoutChangeEvent) => onFigureWidth(id, Math.ceil(e.nativeEvent.layout.width))}
+      style={{ alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'baseline', gap: theme.spacing.xs }}
+    >
+      <AppText variant="stat">{value}</AppText>
       {unit ? (
-        <AppText variant="caption" color="textMuted">
+        <AppText variant="label" color="textMuted">
           {unit}
         </AppText>
       ) : null}
     </View>
   );
-  const chevron = <Icon name="chevron-right" size={theme.layout.system.iconSize.sm} color={theme.colors.primaryText} />;
 
   return (
     <PressableScale
@@ -94,31 +155,38 @@ function GoalRow({ id, label, value, unit, verb, href, complete, strip }: RowPro
         haptics.grain();
         router.push(href);
       }}
-      style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm, minHeight: GOAL_ROW.height }}
+      style={{
+        flexGrow: 1,
+        // A stretched hero spreads its rows, but only so far (a 13" iPad would leave them sparse).
+        maxHeight: tablet && fit.columns ? Math.round(theme.layout.group.rowMinHeight.tablet * GOAL_ROW.maxShare) : undefined,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: fit.pill ? theme.spacing.lg : tablet ? theme.spacing.md : theme.spacing.sm,
+        paddingVertical: theme.spacing.sm,
+      }}
     >
-      {tablet ? (
+      {fit.columns ? (
         <>
           <View style={{ width: GOAL_ROW.label }}>{name}</View>
-          <View style={{ width: GOAL_ROW.value }}>{figure}</View>
+          <View style={{ minWidth: figureWidth, flexShrink: 0 }}>{figure}</View>
         </>
       ) : (
-        // Phone: the goal over its figure, so the bubbles get the width.
-        <View style={{ width: GOAL_ROW.label }}>
+        // Narrow: the goal over its figure, so the bubbles get the width.
+        <View style={{ minWidth: figureWidth, flexShrink: 0 }}>
           {name}
           {figure}
         </View>
       )}
-      <View style={{ flex: 1, paddingVertical: theme.spacing.xs }}>{strip}</View>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.xxs }}>
-        {tablet ? (
-          <AppText variant="label" color="primaryText">
-            {verb}
-          </AppText>
-        ) : null}
-        {chevron}
-      </View>
+      <View style={{ flex: 1, minWidth: 0 }}>{strip}</View>
+      {fit.pill ? <ActionPill label={verb} lead={lead} /> : <Icon name="chevron-right" size={theme.layout.system.iconSize.sm} color={theme.colors.primaryText} />}
     </PressableScale>
   );
+}
+
+/** The optik's printed rule between rows. */
+function Rule() {
+  const theme = useTheme();
+  return <View style={{ height: theme.layout.borderWidth, backgroundColor: theme.colors.optikSoft }} />;
 }
 
 /** The teacher's check across the finished optik: drawn once (420 ms pencil), static after. */
@@ -168,21 +236,100 @@ function CheckStroke({ play }: { play: boolean }) {
   );
 }
 
+interface Words {
+  title?: string;
+  text: string;
+  /** The companion's live line re-types itself; the hero's own line just shows. */
+  typed: boolean;
+  action?: { label: string; onPress: () => void };
+}
+
+/**
+ * Lumi's words in a speech bubble on note paper, its tail pointing at the perch; set in Lora,
+ * Lumi's voice. With room the action sits at the bubble's right, else under the words.
+ */
+function SpeechBubble({ words, wide }: { words: Words; wide: boolean }) {
+  const theme = useTheme();
+  const { tablet } = useWindowLayout();
+  const ink = theme.colors.noteInk;
+  const tail = theme.layout.bubbleTail;
+  // A line with a title reads title + body; a bare line is set at the title's size. Lora's
+  // tabular figures widen its spaces, so Lumi's sentences keep proportional ones.
+  const bodyVariant = words.title ? 'body' : 'heading';
+  const body = words.typed ? (
+    <TypedLine text={words.text} variant={bodyVariant} family="serif" weight="regular" tabular={false} tint={ink} />
+  ) : (
+    <AppText variant={bodyVariant} family="serif" weight="regular" tabular={false} tint={ink}>
+      {words.text}
+    </AppText>
+  );
+  const action = words.action ? (
+    <Button label={words.action.label} size="sm" onPress={words.action.onPress} style={{ alignSelf: wide ? 'center' : 'flex-start' }} />
+  ) : null;
+
+  return (
+    <View
+      style={{
+        flex: 1,
+        flexDirection: wide ? 'row' : 'column',
+        alignItems: wide ? 'center' : 'stretch',
+        gap: wide ? theme.spacing.lg : theme.spacing.md,
+        paddingVertical: tablet ? theme.spacing.lg : theme.spacing.md,
+        paddingHorizontal: tablet ? theme.spacing.xl : theme.spacing.lg,
+        borderRadius: theme.radius.lg,
+        borderCurve: 'continuous',
+        backgroundColor: theme.colors.bubble,
+      }}
+    >
+      {/* The tail: a small diamond of the same paper, pointing back at Lumi. */}
+      <View
+        aria-hidden
+        pointerEvents="none"
+        style={{
+          position: 'absolute',
+          left: -tail / 2 + theme.layout.borderWidth,
+          top: '50%',
+          marginTop: -tail / 2,
+          width: tail,
+          height: tail,
+          borderRadius: theme.radius.xs / 2,
+          backgroundColor: theme.colors.bubble,
+          transform: [{ rotate: TAIL_TURN }],
+        }}
+      />
+      <View style={{ flex: wide ? 1 : undefined, gap: theme.spacing.xs }}>
+        {words.title ? (
+          <AppText variant="heading" family="serif" weight="semibold" tabular={false} tint={ink}>
+            {words.title}
+          </AppText>
+        ) : null}
+        {body}
+      </View>
+      {action}
+    </View>
+  );
+}
+
+/** A step Home's note offers, and the goal row it leads to. */
+interface NoteStep {
+  label: string;
+  href: Href;
+  row: 'home.tekrar' | 'home.odak';
+}
+
 /** What Home's note offers to do next, in the order homeLine picks its line. */
-function noteAction(o: { phase: string; allDone: boolean; due: number; streak: number; streakToday: boolean; hour: number }): { label: string; href: Href } | undefined {
-  if (o.phase !== 'idle') return { label: 'Sayacı aç', href: '/timer' };
+function noteAction(o: { phase: string; allDone: boolean; due: number; streak: number; streakToday: boolean; hour: number }): NoteStep | undefined {
+  if (o.phase !== 'idle') return { label: 'Sayacı aç', href: '/timer', row: 'home.odak' };
   if (o.allDone || o.hour < 5) return undefined;
-  if (o.due) return { label: 'Tekrara başla', href: '/review-session' };
-  if (o.streak > 0 && !o.streakToday) return { label: 'Sayacı aç', href: '/timer' };
+  if (o.due) return { label: 'Tekrara başla', href: '/review-session', row: 'home.tekrar' };
+  if (o.streak > 0 && !o.streakToday) return { label: 'Sayacı aç', href: '/timer', row: 'home.odak' };
   return undefined;
 }
 
-/** Lumi's perch and its note: the companion's current line while it has one, else homeLine. */
-function HeroNote({ goals }: { goals: TodayGoals }) {
-  const theme = useTheme();
+/** Home's line and its next step (the companion's live line aside). */
+function useHomeNote(goals: TodayGoals) {
   const profile = useProfile().data;
   const phase = useTimerStore((s) => s.phase);
-  const voiced = useHeroVoice();
   const ctx = {
     phase,
     due: goals.review.due,
@@ -191,14 +338,26 @@ function HeroNote({ goals }: { goals: TodayGoals }) {
     hour: new Date().getHours(),
     ringsClosed: goals.allDone,
   };
-  const line = homeLine(ctx);
-  const own = noteAction({ ...ctx, due: ctx.due ?? 0, allDone: goals.allDone });
+  return { line: homeLine(ctx), step: noteAction({ ...ctx, due: ctx.due ?? 0, allDone: goals.allDone }) };
+}
 
-  const note = voiced ? (
-    <Note
-      title={voiced.title}
-      action={
-        voiced.action
+/**
+ * Lumi on its perch, saying the companion's current line while it has one, else homeLine.
+ * With `rowsLead`, the note's own step is left to its goal row (the filled pill), so the
+ * hero shows one next step, not two.
+ */
+function HeroGreeting({ note, wide, rowsLead }: { note: ReturnType<typeof useHomeNote>; wide: boolean; rowsLead: boolean }) {
+  const theme = useTheme();
+  const voiced = useHeroVoice();
+  const { line, step } = note;
+  const own = rowsLead ? undefined : step;
+
+  const words: Words = voiced
+    ? {
+        title: voiced.title,
+        text: voiced.text,
+        typed: true,
+        action: voiced.action
           ? {
               label: voiced.action.label,
               onPress: () => {
@@ -208,34 +367,45 @@ function HeroNote({ goals }: { goals: TodayGoals }) {
                 useCompanionStore.getState().dismiss();
               },
             }
-          : undefined
+          : undefined,
       }
-    >
-      <TypedLine text={voiced.text} variant="note" tint={theme.colors.noteInk} />
-    </Note>
-  ) : (
-    <Note title={line.title} action={own ? { label: own.label, onPress: () => router.push(own.href) } : undefined}>
-      {line.body}
-    </Note>
-  );
+    : {
+        title: line.title,
+        text: line.body,
+        typed: false,
+        action: own ? { label: own.label, onPress: () => router.push(own.href) } : undefined,
+      };
 
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: theme.spacing.sm }}>
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.lg }}>
       <CompanionPerch id="home-note" fallbackMood={voiced?.mood ?? line.mood} />
-      <View style={{ flex: 1 }}>{note}</View>
+      <SpeechBubble words={words} wide={wide} />
     </View>
   );
 }
 
 /**
- * "Bugünün optiği": Lumi's note over three optik rows (Tekrar, Odak, Soru). When all three
+ * "Bugünün optiği": Lumi's words over three optik rows (Tekrar, Odak, Soru). When all three
  * fill, a graphite check draws across them, with two soft haptics and `goals.allDone`, once
  * a day per user.
  */
 export function TodayOptik({ goals, style }: { goals: TodayGoals; style?: StyleProp<ViewStyle> }) {
   const theme = useTheme();
+  const { tablet } = useWindowLayout();
+  const { width } = useContentSize();
+  const fit: HeroFit = { pill: tablet && width >= GOAL_ROW.pillMin, columns: tablet && width >= GOAL_ROW.columnsMin };
   const memo = useHomeDay();
+  const note = useHomeNote(goals);
+  // With pills, the note's next step fills its row's pill instead of repeating as a button.
+  const lead = fit.pill ? note.step?.row : undefined;
   const { review, focus, solve } = goals;
+
+  // The figure columns: their least width, widened together to the widest figure.
+  const [figures, setFigures] = useState<Record<string, number>>({});
+  const onFigureWidth = useCallback((id: string, w: number) => setFigures((f) => (f[id] === w ? f : { ...f, [id]: w })), []);
+  const least = fit.columns ? GOAL_ROW.figure : tablet ? GOAL_ROW.stacked.tablet : GOAL_ROW.stacked.compact;
+  const figureWidth = Math.max(least, ...Object.values(figures));
+  const rowProps = { fit, figureWidth, onFigureWidth };
 
   // The day's celebration: decided once the day's memory is read and the goals are in.
   const [celebrate, setCelebrate] = useState(false);
@@ -261,51 +431,61 @@ export function TodayOptik({ goals, style }: { goals: TodayGoals; style?: StyleP
   const focusWhole = Math.min(GOAL_BUBBLES.focusSteps, Math.floor(focus.value / step));
   const focusPart = focusWhole < GOAL_BUBBLES.focusSteps ? (focus.value - focusWhole * step) / step : 0;
   const dash = '–';
+  // Odak past its goal shows the minutes alone ("125 dk"), not "125/50".
+  const minutes = Math.floor(focus.value);
+  const focusFigure = minutes >= focus.goal ? String(minutes) : `${minutes}/${focus.goal}`;
 
   return (
-    <Card variant="hero" style={style} accessibilityLabel="Bugünün optiği">
-      <HeroNote goals={goals} />
-      {/* When the row stretches the hero (landscape), the rows sit centred in the slack. */}
-      <View style={{ flexGrow: 1, justifyContent: 'center' }}>
-        <View>
-          <GoalRow
-            id="home.tekrar"
-            label="Tekrar"
-            value={goals.loaded && review.goal ? `${review.value}/${review.goal}` : dash}
-            verb={review.due ? 'Başla' : 'Liste'}
-            href={review.due ? '/review-session' : '/review'}
-            complete={review.complete}
-            strip={
-              goals.loaded && !review.goal ? (
-                <AppText variant="caption" color="textMuted" numberOfLines={1}>
-                  Bugün tekrar yok
-                </AppText>
-              ) : (
-                <BubbleStrip count={reviewCount} filled={reviewFilled} />
-              )
-            }
-          />
-          <GoalRow
-            id="home.odak"
-            label="Odak"
-            value={goals.loaded ? `${Math.floor(focus.value)}/${focus.goal}` : dash}
-            unit="dk"
-            verb="Sayaç"
-            href="/timer"
-            complete={focus.complete}
-            strip={<BubbleStrip count={GOAL_BUBBLES.focusSteps} filled={focusWhole} partial={focusPart} />}
-          />
-          <GoalRow
-            id="home.solve"
-            label="Soru"
-            value={goals.loaded ? `${Math.min(solve.value, solve.goal)}/${solve.goal}` : dash}
-            verb="Çöz"
-            href="/camera"
-            complete={solve.complete}
-            strip={<BubbleStrip count={solve.goal} filled={Math.min(solve.value, solve.goal)} />}
-          />
-          {showCheck ? <CheckStroke play={celebrate} /> : null}
-        </View>
+    <Card variant="hero" style={[{ gap: 0 }, style]} accessibilityLabel="Bugünün optiği">
+      <HeroGreeting note={note} wide={fit.pill} rowsLead={!!lead} />
+      {/* The rows share the height the hero is given (iPad: toward the strip), each up to its
+          cap; any rest is split above and below them rather than left under the last row. */}
+      <View style={{ flexGrow: 1, justifyContent: 'center', marginTop: tablet ? theme.spacing.lg : theme.spacing.md }}>
+        <GoalRow
+          id="home.tekrar"
+          label="Tekrar"
+          value={goals.loaded && review.goal ? `${review.value}/${review.goal}` : dash}
+          verb={review.due ? 'Başla' : 'Listeyi aç'}
+          href={review.due ? '/review-session' : '/review'}
+          complete={review.complete}
+          lead={lead === 'home.tekrar'}
+          {...rowProps}
+          strip={
+            goals.loaded && !review.goal ? (
+              <AppText variant="caption" color="textMuted" numberOfLines={1}>
+                Bugün tekrar yok
+              </AppText>
+            ) : (
+              <BubbleStrip count={reviewCount} filled={reviewFilled} />
+            )
+          }
+        />
+        <Rule />
+        <GoalRow
+          id="home.odak"
+          label="Odak"
+          value={goals.loaded ? focusFigure : dash}
+          unit="dk"
+          verb="Sayacı aç"
+          href="/timer"
+          complete={focus.complete}
+          lead={lead === 'home.odak'}
+          {...rowProps}
+          strip={<BubbleStrip count={GOAL_BUBBLES.focusSteps} filled={focusWhole} partial={focusPart} />}
+        />
+        <Rule />
+        <GoalRow
+          id="home.solve"
+          label="Soru"
+          value={goals.loaded ? `${Math.min(solve.value, solve.goal)}/${solve.goal}` : dash}
+          verb="Soru çöz"
+          href="/camera"
+          complete={solve.complete}
+          lead={false}
+          {...rowProps}
+          strip={<BubbleStrip count={solve.goal} filled={Math.min(solve.value, solve.goal)} />}
+        />
+        {showCheck ? <CheckStroke play={celebrate} /> : null}
       </View>
     </Card>
   );

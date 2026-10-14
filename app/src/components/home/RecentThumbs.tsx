@@ -1,17 +1,16 @@
 import { router } from 'expo-router';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import { useQuestionList } from '../../api/hooks';
 import type { Question } from '../../api/types';
 import { getTopic, topicLabel } from '../../data/topics';
 import { subjectColor, useTheme } from '../../theme';
-import { AppText } from '../AppText';
 import { PressableScale } from '../motion/PressableScale';
 import { QuestionImage } from '../QuestionImage';
 
 // TOKEN-PENDING: layout.thumb.accentEdge = 4 (the subject-ink edge on a recent thumbnail)
 const ACCENT_EDGE = 4;
 // TOKEN-PENDING: home.recentCount = 3
-const RECENT_COUNT = 3;
+export const RECENT_COUNT = 3;
 
 /** The most recent questions (first page of the history). */
 export function useRecentQuestions(count: number): Question[] {
@@ -19,9 +18,8 @@ export function useRecentQuestions(count: number): Question[] {
   return list.data?.pages[0]?.items.slice(0, count) ?? [];
 }
 
-function Thumb({ question }: { question: Question }) {
+function Thumb({ question, side }: { question: Question; side: number }) {
   const theme = useTheme();
-  const side = theme.layout.thumb.recent;
   const topic = getTopic(question.topicId);
   return (
     <PressableScale
@@ -46,21 +44,20 @@ function Thumb({ question }: { question: Question }) {
   );
 }
 
-/** "Son çözdüklerin": three thumbnails with a subject edge; `inline` puts the label beside them. */
-export function RecentThumbs({ inline = false }: { inline?: boolean }) {
+/**
+ * The latest questions as thumbnails with a subject edge (each opens its question). `size`
+ * defaults to `layout.thumb.recent`; Home's solve bar matches them to its buttons.
+ */
+export function RecentThumbs({ size, style }: { size?: number; style?: StyleProp<ViewStyle> }) {
   const theme = useTheme();
   const recent = useRecentQuestions(RECENT_COUNT);
   if (!recent.length) return null;
+  const side = size ?? theme.layout.thumb.recent;
   return (
-    <View style={inline ? { flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md } : { gap: theme.spacing.sm }}>
-      <AppText variant="label" color="textMuted" style={inline ? { flex: 1 } : undefined}>
-        Son çözdüklerin
-      </AppText>
-      <View style={{ flexDirection: 'row', gap: theme.spacing.sm }}>
-        {recent.map((q) => (
-          <Thumb key={q.id} question={q} />
-        ))}
-      </View>
+    <View style={[{ flexDirection: 'row', gap: theme.spacing.sm }, style]} accessibilityLabel="Son çözdüklerin">
+      {recent.map((q) => (
+        <Thumb key={q.id} question={q} side={side} />
+      ))}
     </View>
   );
 }

@@ -1,91 +1,101 @@
-import { View } from 'react-native';
+import { BottomTabBarHeightContext } from 'expo-router/js-tabs';
+import { useContext, useState } from 'react';
+import { View, type LayoutChangeEvent } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLeaderboard, useProfile } from '../../api/hooks';
 import { Col, Row } from '../../components/Grid';
 import { Countdown } from '../../components/home/Countdown';
 import { dayLine, greeting } from '../../components/home/dates';
-import { LastExamCard, useLastExam } from '../../components/home/LastExamCard';
-import { LeagueCard } from '../../components/home/LeagueCard';
+import { useLastExam } from '../../components/home/LastExamCard';
+import { ProgressPanel } from '../../components/home/ProgressPanel';
 import { SolvePanel } from '../../components/home/SolvePanel';
-import { StreakCard } from '../../components/home/StreakCard';
 import { TodayOptik } from '../../components/home/TodayOptik';
 import { useTodayGoals, type TodayGoals } from '../../components/home/useTodayGoals';
 import { Screen } from '../../components/Screen';
 import { ErrorState } from '../../components/states/ErrorState';
 import { localToday } from '../../lib/format';
 import { useWindowLayout } from '../../lib/layout';
-import { raceLine } from '../../lib/lumiLines';
 import { useAuthStore } from '../../store/authStore';
 import { useTheme } from '../../theme';
 
-const fill = { flex: 1 } as const;
+const grow = { flexGrow: 1 } as const;
 
-/** The progress sheets under the hero (Seri, Bu hafta, Son deneme), whichever have data. */
-function useProgressSheets() {
-  const exam = useLastExam();
-  const league = !!raceLine(useLeaderboard('week').data);
-  return { exam, league };
+// TOKEN-PENDING: home.stretchMax = 96 (how far an iPad dashboard may stretch past its own height toward the strip)
+const STRETCH_MAX = 96;
+// TOKEN-PENDING: home.titleNameMin = 760 (the window width from which the first name joins the greeting in the title)
+const TITLE_NAME_MIN = 760;
+
+/**
+ * How tall an iPad dashboard should be: down to where the page's padding above the strip
+ * starts, but at most `STRETCH_MAX` past its own height, so a tall window (a 13" iPad) gets
+ * a little air rather than sparse rows. The room mirrors Screen's tab padding: the safe area
+ * and `spacing.lg` on top, the strip's reported height and `spacing.xxl` at the bottom.
+ * The block's own height is measured unstretched, again whenever the window or `shape` (what
+ * the page holds) changes. Undefined until measured.
+ */
+function useRoomToStrip(shape: string) {
+  const theme = useTheme();
+  const insets = useSafeAreaInsets();
+  const { width, height } = useWindowLayout();
+  const strip = useContext(BottomTabBarHeightContext) ?? 0;
+  const [top, setTop] = useState<number | null>(null);
+  const [natural, setNatural] = useState<number | null>(null);
+  const key = `${width}x${height}|${shape}`;
+  const [measuredFor, setMeasuredFor] = useState(key);
+  if (measuredFor !== key) {
+    setMeasuredFor(key);
+    setNatural(null);
+  }
+  const room = top === null ? undefined : Math.max(0, height - insets.top - theme.spacing.lg - top - theme.spacing.xxl - strip);
+  const minHeight = room === undefined || natural === null ? undefined : Math.min(room, natural + STRETCH_MAX);
+  const onLayout = (e: LayoutChangeEvent) => {
+    const { y, height: h } = e.nativeEvent.layout;
+    if (Math.round(y) !== top) setTop(Math.round(y));
+    // Unstretched, or grown past the stretch: this is the block's own height.
+    if (minHeight === undefined || h > minHeight + 1) setNatural(Math.round(h));
+  };
+  return { onLayout, minHeight };
 }
 
 function HomeContent({ goals }: { goals: TodayGoals }) {
   const theme = useTheme();
-  const { sizeClass } = useWindowLayout();
+  const { sizeClass, tablet, landscape } = useWindowLayout();
+  const exam = useLastExam();
+  const board = useLeaderboard('week').data;
+  const room = useRoomToStrip(`${goals.loaded}|${!!exam}|${!!board}`);
   const profile = useProfile();
-  const { exam, league } = useProgressSheets();
   const error = profile.isError ? <ErrorState error={profile.error} onRetry={() => profile.refetch()} /> : null;
+  const gap = tablet ? theme.layout.screen.gap.tablet : theme.layout.screen.gap.compact;
 
-  const streak = <StreakCard style={fill} />;
-  const leagueCard = league ? <LeagueCard style={fill} /> : null;
-  const examCard = exam ? <LastExamCard data={exam} style={fill} /> : null;
-
-  if (sizeClass === 'wide') {
-    // iPad landscape: the optik (7) beside the camera (5), then the progress sheets in thirds
-    // (halves when one is missing). Everything sits above the strip at 820 pt.
-    const span = 12 / (1 + (league ? 1 : 0) + (exam ? 1 : 0));
+  if (sizeClass === 'wide' && landscape) {
+    // iPad landscape, 8/4: the optik over the camera bar beside the progress sheet. Both
+    // columns reach toward the strip; the optik's rows and the deneme's sparkline take the slack.
     return (
-      <>
+      <View onLayout={room.onLayout} style={{ minHeight: room.minHeight, gap }}>
         {error}
-        <Row>
-          <Col span={{ compact: 4, wide: 7 }}>
-            <TodayOptik goals={goals} style={fill} />
+        <Row style={{ flexGrow: 1, alignContent: 'stretch' }}>
+          <Col span={{ compact: 4, wide: 8 }} style={{ gap }}>
+            <TodayOptik goals={goals} style={grow} />
+            <SolvePanel layout="bar" />
           </Col>
-          <Col span={{ compact: 4, wide: 5 }}>
-            <SolvePanel layout="side" style={fill} />
+          <Col span={{ compact: 4, wide: 4 }}>
+            <ProgressPanel layout="column" fill />
           </Col>
         </Row>
-        <Row>
-          <Col span={{ compact: 4, wide: span }}>{streak}</Col>
-          {leagueCard ? <Col span={{ compact: 4, wide: span }}>{leagueCard}</Col> : null}
-          {examCard ? <Col span={{ compact: 4, wide: span }}>{examCard}</Col> : null}
-        </Row>
-      </>
+      </View>
     );
   }
 
-  if (sizeClass === 'regular') {
-    // iPad portrait: the optik full width, then the camera (4) beside the progress sheets
-    // stacked (4), so the two columns end together; the last sheet takes up any slack.
-    const right = [
-      { key: 'streak', card: streak },
-      { key: 'league', card: leagueCard },
-      { key: 'exam', card: examCard },
-    ].filter((r) => r.card);
+  if (tablet) {
+    // iPad portrait (a 13" one too) and split view: the optik, the camera bar, then the progress
+    // sheet (Seri beside Bu hafta over the deneme). The optik takes the slack.
     return (
-      <>
+      <View onLayout={room.onLayout} style={{ minHeight: room.minHeight, gap }}>
         {error}
-        <TodayOptik goals={goals} />
-        <Row>
-          <Col span={{ compact: 4, regular: 4 }}>
-            <SolvePanel layout="stack" style={fill} />
-          </Col>
-          <Col span={{ compact: 4, regular: 4 }}>
-            {right.map((r, i) => (
-              <View key={r.key} style={i === right.length - 1 ? fill : undefined}>
-                {r.card}
-              </View>
-            ))}
-          </Col>
-        </Row>
-      </>
+        <TodayOptik goals={goals} style={grow} />
+        <SolvePanel layout="bar" />
+        <ProgressPanel layout="grid" />
+      </View>
     );
   }
 
@@ -95,31 +105,38 @@ function HomeContent({ goals }: { goals: TodayGoals }) {
       {error}
       <TodayOptik goals={goals} />
       <SolvePanel layout="phone" />
-      <View style={{ gap: theme.spacing.lg }}>
-        {streak}
-        {leagueCard}
-        {examCard}
-      </View>
+      <ProgressPanel layout="column" />
     </>
   );
 }
 
-/** "Salı, 13 Ekim. Bugün 3 hedefin var." */
-function caption(goals: TodayGoals) {
+/** "Salı, 13 Ekim. Bugün 3 hedefin var.", or with a name "Salı, 13 Ekim. Zeynep, bugün 3 hedefin var." */
+function caption(goals: TodayGoals, name: string) {
   const day = dayLine(localToday());
+  const to = (line: string) => (name ? `${name}, ${line.charAt(0).toLocaleLowerCase('tr-TR')}${line.slice(1)}` : line);
   if (!goals.loaded) return `${day}.`;
-  if (goals.remaining === 0) return `${day}. Bugünün optiği tamam.`;
-  if (goals.remaining === 3) return `${day}. Bugün 3 hedefin var.`;
-  return `${day}. Bugün ${goals.remaining} hedefin kaldı.`;
+  if (goals.remaining === 0) return `${day}. ${to('Bugünün optiği tamam.')}`;
+  if (goals.remaining === 3) return `${day}. ${to('Bugün 3 hedefin var.')}`;
+  return `${day}. ${to(`Bugün ${goals.remaining} hedefin kaldı.`)}`;
 }
 
 export default function HomeScreen() {
   const name = useAuthStore((s) => s.user?.displayName);
   const goals = useTodayGoals();
-  // The demo user ("Sen") gets no name.
-  const first = name && name !== 'Sen' ? `, ${name.split(' ')[0]}` : '';
+  const { width, tablet } = useWindowLayout();
+  // The demo user ("Sen") gets no name. The title keeps one line, so the countdown stays on
+  // its baseline: the name joins the greeting only in a roomy window, moves to the subtitle
+  // in a narrower tablet window and stays out on a phone (one-line subtitle); a phone also
+  // drops "YKS'ye".
+  const first = name && name !== 'Sen' ? name.split(' ')[0]! : '';
+  const nameInTitle = !!first && width >= TITLE_NAME_MIN;
+  const hello = greeting(new Date().getHours());
   return (
-    <Screen title={`${greeting(new Date().getHours())}${first}`} subtitle={caption(goals)} headerRight={<Countdown />}>
+    <Screen
+      title={nameInTitle ? `${hello}, ${first}` : hello}
+      subtitle={caption(goals, nameInTitle || !tablet ? '' : first)}
+      headerRight={<Countdown short={!tablet} />}
+    >
       <HomeContent goals={goals} />
     </Screen>
   );

@@ -19,11 +19,12 @@ export function daysToYks(): number {
 }
 
 /**
- * Home's header right: "YKS'ye 249 gün", the number in `hero` (tablet) with the day's one
- * focus pull and Lumi's `home.countdown` highlight. Inside the screen's compact bar it
- * repeats small, without the highlight.
+ * Home's header right: "YKS'ye 248 gün" on the title's line, the number in the title's Lora
+ * size so it shares the title's baseline, with the day's one focus pull and Lumi's
+ * `home.countdown` highlight. `short` drops "YKS'ye" (a narrow window, so the title keeps one
+ * line). Inside the screen's compact bar it repeats small, without the highlight.
  */
-export function Countdown() {
+export function Countdown({ short = false }: { short?: boolean }) {
   const theme = useTheme();
   const { tablet } = useWindowLayout();
   const compact = useCompactHeader();
@@ -39,10 +40,10 @@ export function Countdown() {
       </View>
     );
   }
-  return <HeaderCountdown days={left} tablet={tablet} />;
+  return <HeaderCountdown days={left} tablet={tablet} short={short} />;
 }
 
-function HeaderCountdown({ days, tablet }: { days: number; tablet: boolean }) {
+function HeaderCountdown({ days, tablet, short }: { days: number; tablet: boolean; short: boolean }) {
   const theme = useTheme();
   const memo = useHomeDay();
   const { update } = memo;
@@ -53,38 +54,28 @@ function HeaderCountdown({ days, tablet }: { days: number; tablet: boolean }) {
     if (play.current) update({ pulled: true });
   }, [memo.ready, update]);
 
-  // The title row is one title line tall; the number is centred on the title and the
-  // caption under it, so it overhangs the row instead of pushing the caption down.
-  const type = theme.typography;
-  const size = (v: keyof typeof type) => (tablet ? type[v].sizeTablet : type[v].size);
-  const variant = tablet ? 'hero' : 'stat';
-  const titleLine = Math.round(size('title') * type.title.lineRatio);
-  const numberLine = Math.round(size(variant) * type[variant].lineRatio);
-  const blockLine = titleLine + theme.spacing.xs + Math.round(size('body') * type.body.lineRatio);
-  const overhang = Math.max(0, numberLine - titleLine);
-  const lift = tablet ? Math.round((numberLine - blockLine) / 2) : 0;
-  const drop = Math.round(size(variant) * FIGURE_DROP);
+  // The number is set in `title`, one title line tall, so the title row (which centres its
+  // actions) puts it on the title's baseline; the labels drop to the figure's baseline.
+  const size = tablet ? theme.typography.title.sizeTablet : theme.typography.title.size;
+  const drop = Math.round(size * FIGURE_DROP);
 
   return (
-    <View style={{ height: titleLine, justifyContent: 'flex-start' }} accessible accessibilityLabel={`YKS'ye ${days} gün`}>
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'flex-end',
-          gap: theme.spacing.sm,
-          marginTop: -lift - (tablet ? 0 : overhang / 2),
-        }}
-      >
+    <View
+      style={{ flexDirection: 'row', alignItems: 'flex-end', gap: theme.spacing.sm }}
+      accessible
+      accessibilityLabel={`YKS'ye ${days} gün`}
+    >
+      {short ? null : (
         <AppText variant="label" color="textMuted" style={{ marginBottom: drop }}>
           YKS'ye
         </AppText>
-        <Highlight id="home.countdown">
-          <FocusPull text={String(days)} variant={variant} play={play.current === true} />
-        </Highlight>
-        <AppText variant="label" color="textMuted" style={{ marginBottom: drop }}>
-          gün
-        </AppText>
-      </View>
+      )}
+      <Highlight id="home.countdown">
+        <FocusPull text={String(days)} variant="title" play={play.current === true} />
+      </Highlight>
+      <AppText variant="label" color="textMuted" style={{ marginBottom: drop }}>
+        gün
+      </AppText>
     </View>
   );
 }
