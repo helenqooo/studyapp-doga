@@ -1,10 +1,24 @@
 import { useEffect, useRef, useState } from 'react';
-import { Image, Pressable, View, type ImageLoadEventData, type NativeSyntheticEvent, type StyleProp, type ViewStyle } from 'react-native';
+import {
+  Image,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  View,
+  type ImageLoadEventData,
+  type ImageSourcePropType,
+  type NativeSyntheticEvent,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native';
 import Animated, { ReduceMotion, useAnimatedStyle, useReducedMotion, useSharedValue, withTiming } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import { questionImageSource } from '../api/client';
+import { useWindowLayout } from '../lib/layout';
 import { useSolveStore } from '../store/solveStore';
-import { useTheme } from '../theme';
+import { elevated, useTheme } from '../theme';
 import { AppText } from './AppText';
 import { Icon } from './Icon';
 import { PressableScale } from './motion/PressableScale';
@@ -14,6 +28,10 @@ import { ease } from './motion/presets';
 const RM_FADE_MS = 120;
 // TOKEN-PENDING: opacity.imageFade = 0.96 (the paper fade over a clipped photo's bottom edge)
 const FADE_OPACITY = 0.96;
+// TOKEN-PENDING: colors.photoPaper = { light: surface, dark: '#FFFFFF' } (the scan's own white, which a clipped photo
+//   fades into: fading into the dark sheet left a grey smear). Until it lands, dark uses textOnAccent (#FFFFFF).
+// TOKEN-PENDING: layout.photoViewer.maxZoom = 4 (pinch zoom in the full-screen photo, iOS)
+const VIEWER_MAX_ZOOM = 4;
 
 interface Props {
   questionId: string;
@@ -28,6 +46,8 @@ interface Props {
   pillPlacement?: 'below' | 'overlay';
   /** The photo could not be loaded. */
   onError?: () => void;
+  /** A tap on the photo opens it full screen (pinch to zoom on iOS); the pill still expands it here. */
+  zoomable?: boolean;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -37,11 +57,13 @@ interface Props {
  * height glides open). The local cropped copy is used when we have it, otherwise it is
  * fetched with auth.
  */
-export function QuestionImage({ questionId, size = 'regular', cap: capProp, pillPlacement = 'below', onError, style }: Props) {
+export function QuestionImage({ questionId, size = 'regular', cap: capProp, pillPlacement = 'below', onError, zoomable = false, style }: Props) {
   const theme = useTheme();
+  const { touch } = useWindowLayout();
   const reduceMotion = useReducedMotion();
   const local = useSolveStore((s) => s.localImages[questionId]);
   const [expanded, setExpanded] = useState(false);
+  const [viewing, setViewing] = useState(false);
   const [ratio, setRatio] = useState<number | null>(local ? local.width / local.height : null);
   const [width, setWidth] = useState(0);
   const source = local ? { uri: local.uri } : questionImageSource(questionId);
@@ -79,6 +101,8 @@ export function QuestionImage({ questionId, size = 'regular', cap: capProp, pill
   const clipped = size !== 'thumb' && natural > cap + 1;
   const target = expanded || !clipped ? natural : cap;
   const fade = theme.layout.questionImageFade;
+  // The fade ends in the photo's own paper, so a clipped scan ends in a soft white edge.
+  const paper = theme.scheme === 'dark' ? theme.colors.textOnAccent : theme.colors.surface;
 
   // The frame's height glides between the cap and the whole photo when she taps; sizing on
   // load (width, then the photo's real shape) is set at once, so nothing moves on open.
@@ -153,12 +177,13 @@ export function QuestionImage({ questionId, size = 'regular', cap: capProp, pill
   return (
     <View style={[{ width: '100%', gap: theme.spacing.xs }, style]}>
       <Pressable
-        // With the pill below, the pill is the control; the photo itself stays a plain image.
-        accessible={!(below && clipped)}
-        accessibilityRole={clipped ? 'imagebutton' : 'image'}
-        accessibilityLabel={clipped ? (expanded ? 'Görseli küçült' : 'Görselin tamamını gör') : 'Soru görseli'}
-        disabled={!clipped}
-        onPress={toggle}
+        // With the pill below, the pill is the control; the photo itself stays a plain image,
+        // unless a tap opens it full screen.
+        accessible={zoomable || !(below && clipped)}
+        accessibilityRole={zoomable || clipped ? 'imagebutton' : 'image'}
+        accessibilityLabel={zoomable ? 'Soruyu tam ekranda aç' : clipped ? (expanded ? 'Görseli küçült' : 'Görselin tamamını gör') : 'Soru görseli'}
+        disabled={!zoomable && !clipped}
+        onPress={zoomable ? () => setViewing(true) : toggle}
         onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
         style={{ width: '100%' }}
       >
@@ -179,8 +204,8 @@ export function QuestionImage({ questionId, size = 'regular', cap: capProp, pill
               <Svg width="100%" height={fade}>
                 <Defs>
                   <LinearGradient id="qfade" x1="0" y1="0" x2="0" y2="1">
-                    <Stop offset="0" stopColor={theme.colors.surface} stopOpacity={0} />
-                    <Stop offset="1" stopColor={theme.colors.surface} stopOpacity={FADE_OPACITY} />
+                    <Stop offset="0" stopColor={paper} stopOpacity={0} />
+                    <Stop offset="1" stopColor={paper} stopOpacity={FADE_OPACITY} />
                   </LinearGradient>
                 </Defs>
                 <Rect x="0" y="0" width="100%" height={fade} fill="url(#qfade)" />
@@ -197,11 +222,81 @@ export function QuestionImage({ questionId, size = 'regular', cap: capProp, pill
           accessibilityLabel={expanded ? 'Görseli küçült' : 'Görselin tamamını gör'}
           accessibilityState={{ expanded }}
           onPress={toggle}
-          style={{ alignSelf: 'center', minHeight: theme.layout.minTouch, justifyContent: 'center' }}
+          style={{ alignSelf: 'center', minHeight: touch, justifyContent: 'center' }}
         >
           {pillFace}
         </PressableScale>
       ) : null}
+      {zoomable ? <PhotoViewer source={source} ratio={ratio} visible={viewing} onClose={() => setViewing(false)} /> : null}
     </View>
+  );
+}
+
+/**
+ * The question photo full screen, as large as the window allows, on the paper. iOS zooms it
+ * with a pinch (a zooming ScrollView); the close control sits top right.
+ */
+function PhotoViewer({ source, ratio, visible, onClose }: { source: ImageSourcePropType; ratio: number | null; visible: boolean; onClose: () => void }) {
+  const theme = useTheme();
+  const insets = useSafeAreaInsets();
+  const { width, height, margin, touch } = useWindowLayout();
+  const shape = ratio ?? 4 / 3;
+  // Room under the close control and above the hint line.
+  const band = touch + theme.spacing.lg;
+  const photoWidth = Math.max(0, Math.min(width - margin * 2, (height - insets.top - insets.bottom - band * 2) * shape));
+  return (
+    <Modal
+      visible={visible}
+      animationType="fade"
+      presentationStyle="fullScreen"
+      supportedOrientations={['portrait', 'portrait-upside-down', 'landscape', 'landscape-left', 'landscape-right']}
+      onRequestClose={onClose}
+    >
+      <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{ flexGrow: 1, alignItems: 'center', justifyContent: 'center', paddingTop: insets.top + band, paddingBottom: insets.bottom + band }}
+          maximumZoomScale={VIEWER_MAX_ZOOM}
+          minimumZoomScale={1}
+          bouncesZoom
+          centerContent
+          showsHorizontalScrollIndicator={false}
+          showsVerticalScrollIndicator={false}
+        >
+          <Image
+            source={source}
+            resizeMode="contain"
+            accessibilityLabel="Soru görseli"
+            style={{ width: photoWidth, height: photoWidth / shape, borderRadius: theme.radius.md }}
+          />
+        </ScrollView>
+        <PressableScale
+          kind="bubble"
+          accessibilityRole="button"
+          accessibilityLabel="Kapat"
+          onPress={onClose}
+          style={[
+            elevated(theme, 'floating'),
+            {
+              position: 'absolute',
+              top: insets.top + theme.spacing.md,
+              right: margin,
+              width: touch,
+              height: touch,
+              borderRadius: theme.radius.pill,
+              alignItems: 'center',
+              justifyContent: 'center',
+            },
+          ]}
+        >
+          <Icon name="x" size={theme.layout.iconSize.md} color={theme.colors.text} />
+        </PressableScale>
+        {Platform.OS === 'ios' ? (
+          <AppText variant="caption" color="textMuted" align="center" style={{ position: 'absolute', left: margin, right: margin, bottom: insets.bottom + theme.spacing.lg }}>
+            İki parmakla yakınlaştır
+          </AppText>
+        ) : null}
+      </View>
+    </Modal>
   );
 }

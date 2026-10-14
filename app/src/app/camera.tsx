@@ -13,6 +13,7 @@ import { PressableScale } from '../components/motion/PressableScale';
 import { ease } from '../components/motion/presets';
 import { haptics } from '../lib/haptics';
 import { normalizeImage } from '../lib/image';
+import { useWindowLayout } from '../lib/layout';
 import { usePickImage } from '../lib/usePickImage';
 import { useSolveStore } from '../store/solveStore';
 import { useTheme } from '../theme';
@@ -52,7 +53,8 @@ function RoundButton({
   const fillStyle = useAnimatedStyle(() => ({ backgroundColor: withTiming(bg, fade) }), [bg, reduceMotion]);
   const offStyle = useAnimatedStyle(() => ({ opacity: withTiming(on ? 0 : 1, fade) }), [on, reduceMotion]);
   const onStyle = useAnimatedStyle(() => ({ opacity: withTiming(on ? 1 : 0, fade) }), [on, reduceMotion]);
-  const size = theme.layout.minTouch;
+  // 44 on a phone, 48 on a tablet (`layout.system.touch`).
+  const size = useWindowLayout().touch;
   return (
     <PressableScale
       kind="bubble"
@@ -126,8 +128,9 @@ export default function CameraScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const window = useWindowDimensions();
+  const { touch } = useWindowLayout();
   // 3:4 guide that fits the space between the top buttons and the shutter row, in any orientation.
-  const chrome = insets.top + insets.bottom + theme.layout.shutterSize + theme.layout.minTouch * 3;
+  const chrome = insets.top + insets.bottom + theme.layout.shutterSize + touch * 3;
   const frameWidth = Math.min(window.width * theme.layout.cameraFrameShare, (window.height - chrome) * GUIDE_RATIO);
   const [permission, requestPermission] = useCameraPermissions();
   const cameraRef = useRef<CameraView>(null);
@@ -264,7 +267,7 @@ export default function CameraScreen() {
             />
           )}
         </PressableScale>
-        <View style={{ width: theme.layout.minTouch }} />
+        <View style={{ width: touch }} />
       </View>
     </View>
   );

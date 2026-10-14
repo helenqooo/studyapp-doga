@@ -1,73 +1,43 @@
 import { router } from 'expo-router';
-import { useState, type ReactNode } from 'react';
+import { useState } from 'react';
 import { View } from 'react-native';
 import { useFacets } from '../api/hooks';
 import { AppText } from '../components/AppText';
 import { Bubble } from '../components/Bubble';
-import { PressableScale } from '../components/motion/PressableScale';
+import { Card, ListRow } from '../components/Card';
 import { Screen } from '../components/Screen';
-import { SectionHeader } from '../components/SectionHeader';
+import { Section } from '../components/SectionHeader';
 import { SegmentedControl } from '../components/SegmentedControl';
 import { Skeleton, SkeletonRows } from '../components/states/Skeleton';
 import { ErrorState } from '../components/states/ErrorState';
 import { getTopic, SUBJECTS_BY_EXAM, TOPICS, topicLabel, type Exam, type Topic } from '../data/topics';
 import { haptics } from '../lib/haptics';
 import { useHistoryFilter } from '../store/historyFilter';
-import { elevated, subjectSoftColor, useTheme } from '../theme';
-
-// TOKEN-PENDING: layout.list.rowHeight = 52 (a picker or settings row)
-const ROW_HEIGHT = 52;
-
-function Row({ label, count, selected, onPress }: { label: string; count?: number; selected: boolean; onPress: () => void }) {
-  const theme = useTheme();
-  return (
-    <PressableScale
-      kind="row"
-      accessibilityRole="button"
-      accessibilityState={{ selected }}
-      accessibilityLabel={count !== undefined ? `${label}, ${count} soru` : label}
-      onPress={onPress}
-      style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: theme.spacing.md,
-        minHeight: ROW_HEIGHT,
-        paddingHorizontal: theme.spacing.lg,
-        paddingVertical: theme.spacing.sm,
-      }}
-    >
-      <AppText style={{ flex: 1 }}>{label}</AppText>
-      {count !== undefined ? (
-        <AppText variant="numeric" color="textMuted">
-          {count}
-        </AppText>
-      ) : null}
-      <Bubble size="row" filled={selected} verdict={selected ? 'check' : undefined} />
-    </PressableScale>
-  );
-}
+import { subjectSoftColor, useTheme, type Theme } from '../theme';
 
 /**
- * One inset sheet of rows with optikSoft hairlines between them. The rows' press fill is
- * clipped by an inner layer, so the sheet itself keeps its shadow (as Card does).
+ * A topic row: its name, the question count and an optik bubble that is coded when chosen.
+ * A plain function, not a component: `Card divided` runs ListRow children edge to edge.
  */
-function Sheet({ children }: { children: ReactNode[] }) {
-  const theme = useTheme();
-  const sheet = elevated(theme);
-  const inner = Math.max(0, sheet.borderRadius - sheet.borderWidth);
+function topicRow(theme: Theme, key: string, { label, count, selected, onPress }: { label: string; count?: number; selected: boolean; onPress: () => void }) {
   return (
-    <View style={sheet}>
-      <View style={{ borderRadius: inner, borderCurve: 'continuous', overflow: 'hidden' }}>
-        {children.map((child, i) => (
-          <View key={i}>
-            {i > 0 ? (
-              <View style={{ height: theme.layout.borderWidth, marginLeft: theme.spacing.lg, backgroundColor: theme.colors.optikSoft }} />
-            ) : null}
-            {child}
-          </View>
-        ))}
-      </View>
-    </View>
+    <ListRow
+      key={key}
+      title={label}
+      chevron={false}
+      onPress={onPress}
+      accessibilityLabel={`${label}${count !== undefined ? `, ${count} soru` : ''}${selected ? ', seçili' : ''}`}
+      trailing={
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md }}>
+          {count !== undefined ? (
+            <AppText variant="numeric" color="textMuted">
+              {count}
+            </AppText>
+          ) : null}
+          <Bubble size="row" filled={selected} verdict={selected ? 'check' : undefined} />
+        </View>
+      }
+    />
   );
 }
 
@@ -97,7 +67,12 @@ export default function TopicPickerScreen() {
   };
 
   return (
-    <Screen safeTop={false} width="readable">
+    <Screen
+      safeTop={false}
+      width="readable"
+      title="Konu seç"
+      subtitle={subject ? `${subject} sorularını bir konuya göre süz.` : 'Geçmişteki soruları bir konuya göre süz.'}
+    >
       <SegmentedControl
         options={[
           { value: 'TYT', label: 'TYT' },
@@ -107,7 +82,9 @@ export default function TopicPickerScreen() {
         onChange={setExam}
       />
 
-      <Sheet>{[<Row key="all" label={subject ? `Tüm ${subject} konuları` : 'Tüm konular'} selected={!topicId} onPress={chooseAll} />]}</Sheet>
+      <Card divided>
+        {topicRow(theme, 'all', { label: subject ? `Tüm ${subject} konuları` : 'Tüm konular', selected: !topicId, onPress: chooseAll })}
+      </Card>
 
       {facets.isPending ? (
         <Skeleton>
@@ -122,18 +99,16 @@ export default function TopicPickerScreen() {
       ) : null}
 
       {groups.map((g) => (
-        <View key={g.subject} style={{ gap: theme.spacing.xs }}>
-          <SectionHeader
-            title={g.subject}
-            swipe={subjectSoftColor(theme, g.subject)}
-            count={g.items.reduce((n, t) => n + (counts.get(t.id) ?? 0), 0)}
-          />
-          <Sheet>
-            {g.items.map((t) => (
-              <Row key={t.id} label={topicLabel(t)} count={counts.get(t.id)} selected={topicId === t.id} onPress={() => choose(t)} />
-            ))}
-          </Sheet>
-        </View>
+        <Section
+          key={g.subject}
+          title={g.subject}
+          swipe={subjectSoftColor(theme, g.subject)}
+          count={g.items.reduce((n, t) => n + (counts.get(t.id) ?? 0), 0)}
+        >
+          <Card divided>
+            {g.items.map((t) => topicRow(theme, t.id, { label: topicLabel(t), count: counts.get(t.id), selected: topicId === t.id, onPress: () => choose(t) }))}
+          </Card>
+        </Section>
       ))}
     </Screen>
   );

@@ -8,13 +8,14 @@ import { AnswerKeyEditor } from '../../../components/AnswerKeyEditor';
 import { AppText } from '../../../components/AppText';
 import { Badge } from '../../../components/Badge';
 import { Button } from '../../../components/Button';
-import { Card } from '../../../components/Card';
+import { Card, ListRow } from '../../../components/Card';
 import { Difficulty } from '../../../components/Difficulty';
 import { Icon } from '../../../components/Icon';
 import { MathView } from '../../../components/math/MathView';
 import { Appear } from '../../../components/motion/Appear';
 import { AnswerStrip } from '../../../components/question/AnswerStrip';
 import { HintStack, SolutionSheet } from '../../../components/question/HintStack';
+import { ResultTag } from '../../../components/question/ResultTag';
 import { WorkDesk } from '../../../components/question/WorkDesk';
 import { QuestionImage } from '../../../components/QuestionImage';
 import { RevealOnMount, Screen, SplitScreen } from '../../../components/Screen';
@@ -23,13 +24,16 @@ import { ErrorState } from '../../../components/states/ErrorState';
 import { Skeleton, SkeletonQuestion } from '../../../components/states/Skeleton';
 import { TextToggle } from '../../../components/TextToggle';
 import { LOW_CONFIDENCE_THRESHOLD } from '../../../config';
-import { getTopic, topicLabel } from '../../../data/topics';
+import { getTopic } from '../../../data/topics';
 import { useVerdict } from '../../../lib/celebrate';
 import { reviewDueLabel, shortDate } from '../../../lib/format';
 import { haptics } from '../../../lib/haptics';
 import { useWindowLayout } from '../../../lib/layout';
 import { gradingKey, isGradedChoice, RESULT_SHORT, solutionMarkdown } from '../../../lib/question';
 import { subjectColor, subjectSoftColor, useTheme } from '../../../theme';
+
+// TOKEN-PENDING: question.historyFoldMin = 3 (this many reviews with one result fold into one Geçmiş row)
+const HISTORY_FOLD_MIN = 3;
 
 function ReviewStatus({ q }: { q: Question }) {
   const theme = useTheme();
@@ -55,26 +59,63 @@ function ReviewStatus({ q }: { q: Question }) {
   );
 }
 
+/**
+ * Geçmiş: when she answered and how it went, newest first. The date is the row's name; only
+ * the first solve says what it was. Three or more reviews with one result fold into a
+ * single row ("5 tekrar", "Hepsi doğru") above the first solve.
+ */
 function AttemptHistory({ q }: { q: Question }) {
-  const theme = useTheme();
   if (q.attempts.length < 2) return null;
-  const color = { correct: theme.colors.success, wrong: theme.colors.danger, blank: theme.colors.neutral };
+  const newest = [...q.attempts].reverse();
+  const reviews = newest.filter((a) => a.source !== 'solve');
+  const first = newest.filter((a) => a.source === 'solve');
+  const same = reviews.length >= HISTORY_FOLD_MIN && reviews.every((a) => a.result === reviews[0]!.result);
+  const row = (a: Question['attempts'][number]) => {
+    const detail = a.source === 'solve' ? 'İlk çözüm' : undefined;
+    const date = shortDate(a.createdAt);
+    return (
+      <ListRow
+        key={a.id}
+        title={date}
+        detail={detail}
+        trailing={<ResultTag result={a.result} />}
+        accessibilityLabel={`${date}, ${detail ? `${detail}, ` : ''}${RESULT_SHORT[a.result]}`}
+      />
+    );
+  };
+  if (!same) {
+    return (
+      <Card divided title="Geçmiş">
+        {newest.map(row)}
+      </Card>
+    );
+  }
+  const result = reviews[0]!.result;
+  const span = `${shortDate(reviews[reviews.length - 1]!.createdAt)} – ${shortDate(reviews[0]!.createdAt)}`;
+  const all = `Hepsi ${RESULT_SHORT[result].toLocaleLowerCase('tr')}`;
   return (
-    <Card title="Geçmiş">
-      {[...q.attempts].reverse().map((a) => (
-        <View key={a.id} style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md }}>
-          <AppText variant="label" color="textMuted" tabular>
-            {shortDate(a.createdAt)}
-          </AppText>
-          <AppText variant="label" style={{ flex: 1 }}>
-            {a.source === 'solve' ? 'İlk çözüm' : 'Tekrar'}
-          </AppText>
-          <AppText variant="label" weight="semibold" tint={color[a.result]}>
-            {RESULT_SHORT[a.result]}
-          </AppText>
-        </View>
-      ))}
+    <Card divided title="Geçmiş">
+      <ListRow title={`${reviews.length} tekrar`} detail={span} trailing={<ResultTag result={result} label={all} />} accessibilityLabel={`${reviews.length} tekrar, ${span}, ${all}`} />
+      {first.map(row)}
     </Card>
+  );
+}
+
+/**
+ * The title block in the split layout, where Screen doesn't draw it: the topic in Lora and
+ * its unit under it. Reports its height so the desk's first sheet starts level with the
+ * question sheet.
+ */
+function PaneTitle({ title, subtitle, onHeight }: { title: string; subtitle?: string; onHeight: (h: number) => void }) {
+  const theme = useTheme();
+  const sl = theme.layout.screen;
+  return (
+    <View onLayout={(e) => onHeight(Math.round(e.nativeEvent.layout.height))} style={{ gap: sl.titleGap.tablet, marginBottom: sl.afterTitle.tablet }}>
+      <AppText variant="title" accessibilityRole="header">
+        {title}
+      </AppText>
+      {subtitle ? <AppText color="textMuted">{subtitle}</AppText> : null}
+    </View>
   );
 }
 
@@ -96,6 +137,8 @@ export default function QuestionScreen() {
   const [sealing, setSealing] = useState(false);
   // XP from the answer saved on this visit (null when the question was answered before).
   const [savedXp, setSavedXp] = useState<number | null>(null);
+  // Split layout: the title block's height, so the desk's band matches it.
+  const [titleHeight, setTitleHeight] = useState(0);
 
   if (query.isPending) {
     return (
@@ -187,13 +230,19 @@ export default function QuestionScreen() {
   const imageCap = split ? theme.layout.question.imageCap.split : tablet ? theme.layout.question.imageCap.tablet : theme.layout.question.imageCap.compact;
   const exam = theme.colors.exam[q.exam];
 
-  // The native title is the subject; the topic is the sheet's heading.
-  const title = <Stack.Screen options={{ title: q.subject }} />;
+  // The topic is the large title, its unit the line under it (the sheet's badges carry the
+  // exam and the subject). The native title fades in after scroll (Screen); in the split
+  // the pane draws the title instead.
+  const heading = topic ? (topic.subtopic ?? topic.topic) : q.subject;
+  const subheading = topic?.subtopic ? topic.topic : undefined;
+  // Only the split sets headerTitle: a `headerTitle` key here would override Screen's own.
+  const title = <Stack.Screen options={split ? { title: q.subject, headerTitle: () => null } : { title: q.subject }} />;
+  const sl = theme.layout.screen;
 
   // ---- Soru kâğıdı -----------------------------------------------------------------------
   const questionPane = (
     <>
-      {split ? <SectionHeader title="Soru kâğıdı" /> : null}
+      {split ? <PaneTitle title={heading} subtitle={subheading} onHeight={setTitleHeight} /> : null}
       {lowConfidence ? (
         <Card background={theme.colors.warningSoft}>
           <View style={{ flexDirection: 'row', gap: theme.spacing.md, alignItems: 'center' }}>
@@ -212,23 +261,16 @@ export default function QuestionScreen() {
       ) : null}
 
       <Card>
-        <View style={{ gap: theme.spacing.sm }}>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: theme.spacing.sm }}>
-            <Badge label={q.exam} color={exam.fg} background={exam.bg} />
-            <Badge label={q.subject} dot={subjectColor(theme, q.subject)} background={subjectSoftColor(theme, q.subject)} />
-            <Difficulty value={q.difficulty} />
-          </View>
-          {topic ? (
-            <AppText variant="heading" accessibilityRole="header">
-              {topicLabel(topic)}
-            </AppText>
-          ) : null}
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: theme.spacing.sm }}>
+          <Badge label={q.exam} color={exam.fg} background={exam.bg} />
+          <Badge label={q.subject} dot={subjectColor(theme, q.subject)} background={subjectSoftColor(theme, q.subject)} />
+          <Difficulty value={q.difficulty} />
         </View>
         {/* The photo is the question; its typed-out copy is one tap away. Without a photo
             (it failed to load) the typed copy takes its place. */}
         {imageMissing ? null : (
           <>
-            <QuestionImage questionId={q.id} cap={imageCap} pillPlacement="below" onError={() => setImageMissing(true)} />
+            <QuestionImage questionId={q.id} cap={imageCap} pillPlacement="below" zoomable onError={() => setImageMissing(true)} />
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.sm }}>
               <TextToggle open={showText} onToggle={() => setShowText((v) => !v)} />
               {choicesCollapsed && q.choices?.length ? (
@@ -258,7 +300,14 @@ export default function QuestionScreen() {
   const fresh = savedXp !== null;
   const workPane = (
     <>
-      <SectionHeader title="Çalışma masası" />
+      {split ? (
+        // A band as tall as the question's title block: both sheets start on one line.
+        <View style={{ minHeight: titleHeight + sl.afterTitle.tablet, justifyContent: 'flex-end' }}>
+          <SectionHeader title="Çalışma masası" />
+        </View>
+      ) : (
+        <SectionHeader title="Çalışma masası" />
+      )}
       {saved ? (
         fresh ? (
           // The verdict just arrived: it eases in and the page brings it into view (spec 5.3).
@@ -347,7 +396,7 @@ export default function QuestionScreen() {
           xp={savedXp}
           answer={graded ? { labels, picked: savedPick, correct: key } : null}
         />
-        <Button label="Yeni soru" icon="camera" onPress={() => router.replace('/camera')} style={{ flex: 1 }} />
+        <Button label="Yeni soru" icon="camera" onPress={() => router.replace('/camera')} style={{ flexShrink: 0 }} />
       </AnswerDock>
     );
   }
@@ -363,7 +412,7 @@ export default function QuestionScreen() {
   }
 
   return (
-    <Screen safeTop={false} width="readable" dock={dock}>
+    <Screen safeTop={false} width="readable" dock={dock} title={heading} subtitle={subheading}>
       {title}
       {questionPane}
       {workPane}

@@ -141,6 +141,7 @@ interface LetterProps {
 /** One optik bubble: pressing it scribbles it in (Bubble), with the pencil-grain haptic. */
 function Letter({ label, filled, tone, verdict, sealing, disabled, a11y, checked, onPress }: LetterProps) {
   const theme = useTheme();
+  const { touch } = useWindowLayout();
   const reduceMotion = useReducedMotion();
   const box = useRef<View>(null);
   const breath = useSharedValue(0);
@@ -180,7 +181,7 @@ function Letter({ label, filled, tone, verdict, sealing, disabled, a11y, checked
         measure();
         onPress();
       }}
-      style={{ minWidth: theme.layout.minTouch, minHeight: theme.layout.minTouch, alignItems: 'center', justifyContent: 'center' }}
+      style={{ minWidth: touch, minHeight: touch, alignItems: 'center', justifyContent: 'center' }}
     >
       <Animated.View ref={box} collapsable={false} onLayout={measure} style={[{ width: letter.w, height: letter.h }, breathStyle]}>
         <Bubble size="letter" filled={filled} tone={tone} verdict={verdict}>
@@ -232,8 +233,10 @@ export function DockLetters({
     picked = wrong ?? selected ?? correct ?? null;
   }, [selected, wrong, correct]);
 
+  // Inline, the letters keep a clear gap: touching hit areas would let a thumb on a seam
+  // code the neighbour.
   const style: ViewStyle = inline
-    ? { flexDirection: 'row', columnGap: theme.spacing.xxs }
+    ? { flexDirection: 'row', columnGap: theme.spacing.sm }
     : { flexDirection: 'row', width: '100%', justifyContent: 'space-between' };
 
   return (
@@ -268,6 +271,7 @@ export function DockLetters({
 /** The dock's primary: a graphite (lamp in dark) fill, the rigid "Kodla" haptic. */
 function KodlaButton({ ready, loading, disabled, onPress }: { ready: boolean; loading: boolean; disabled: boolean; onPress: () => void }) {
   const theme = useTheme();
+  const { tablet, touch } = useWindowLayout();
   const reduceMotion = useReducedMotion();
   const c = theme.colors;
   const live = (ready || loading) && !disabled;
@@ -301,7 +305,8 @@ function KodlaButton({ ready, loading, disabled, onPress }: { ready: boolean; lo
       style={[
         {
           flex: 1,
-          minHeight: system.minTouch + theme.spacing.sm,
+          // A md button's height: 52 on a phone, 56 on a tablet.
+          minHeight: touch + theme.spacing.sm,
           borderRadius: theme.radius.button,
           borderCurve: 'continuous',
           paddingHorizontal: theme.spacing.lg,
@@ -321,7 +326,13 @@ function KodlaButton({ ready, loading, disabled, onPress }: { ready: boolean; lo
       ) : (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm }}>
           <Icon name="pen-line" size={system.iconSize.sm} color={fg} />
-          <FadeText variant="label" weight="semibold" tint={fg} numberOfLines={1} style={{ fontSize: theme.fontSize.md }}>
+          <FadeText
+            variant="label"
+            weight="semibold"
+            tint={fg}
+            numberOfLines={1}
+            style={{ fontSize: theme.layout.button.label[tablet ? 'tablet' : 'compact'].md }}
+          >
             Kodla
           </FadeText>
         </View>

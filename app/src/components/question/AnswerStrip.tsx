@@ -69,7 +69,8 @@ export function AnswerStrip({ q, result, pick, fresh, keyEditor }: Props) {
     <View
       accessible
       accessibilityLabel={`Şıklar. ${pick ? `Senin cevabın ${pick}` : 'Boş bıraktın'}${key ? `, doğru cevap ${key}` : ''}.`}
-      style={{ flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.xs }}
+      // The same spacing as the dock's letters, so the two optik rows read alike.
+      style={{ flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.sm }}
     >
       {labels.map((l) => {
         const mine = pick === l;

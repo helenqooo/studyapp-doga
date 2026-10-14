@@ -9,7 +9,8 @@ import { PressableScale } from './motion/PressableScale';
 // TOKEN-PENDING: layout.viewfinder = { stroke: 3, arm: 22, inset: 12 } (spec 3 Viewfinder: 3 pt L-corners, 22 pt arms)
 const VIEWFINDER = { stroke: 3, arm: 22, inset: 12 } as const;
 
-const RATIO = { '4:3': 4 / 3, '16:10': 16 / 10 } as const;
+// `3:4` is an upright frame, the shape of a question sheet (Solve's capture panel on a tablet).
+const RATIO = { '4:3': 4 / 3, '16:10': 16 / 10, '3:4': 3 / 4 } as const;
 
 interface Props {
   aspect: keyof typeof RATIO;

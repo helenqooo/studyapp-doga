@@ -3,6 +3,7 @@ import { View } from 'react-native';
 import { useSetAnswerKey } from '../api/hooks';
 import type { Question } from '../api/types';
 import { haptics } from '../lib/haptics';
+import { useWindowLayout } from '../lib/layout';
 import { useTheme } from '../theme';
 import { AppText } from './AppText';
 import { Bubble } from './Bubble';
@@ -17,13 +18,14 @@ import { PressableScale } from './motion/PressableScale';
 export function AnswerKeyEditor({ q, initiallyOpen = false }: { q: Question; initiallyOpen?: boolean }) {
   const theme = useTheme();
   const setKey = useSetAnswerKey(q.id);
+  const { touch } = useWindowLayout();
   const [open, setOpen] = useState(initiallyOpen);
   if (!q.choices?.length) return null;
   // The pressed letter is coded at once (the bubble scribbles in) while the server re-grades;
   // on an error it falls back to the saved key.
   const pending = setKey.isPending && setKey.variables !== undefined ? (setKey.variables ?? q.correctChoice) : undefined;
   const current = pending ?? q.answerKey ?? q.correctChoice;
-  const { bubble, system } = theme.layout;
+  const { bubble } = theme.layout;
 
   if (!open) {
     return (
@@ -59,7 +61,7 @@ export function AnswerKeyEditor({ q, initiallyOpen = false }: { q: Question; ini
                 // Picking the model's own letter clears the override.
                 setKey.mutate(label === q.correctChoice ? null : label, { onError: () => haptics.error() });
               }}
-              style={{ minWidth: system.minTouch, minHeight: system.minTouch, alignItems: 'center', justifyContent: 'center' }}
+              style={{ minWidth: touch, minHeight: touch, alignItems: 'center', justifyContent: 'center' }}
             >
               <View style={{ width: bubble.letter.w, height: bubble.letter.h }}>
                 <Bubble size="letter" filled={active}>
