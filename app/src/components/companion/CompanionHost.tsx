@@ -39,6 +39,7 @@ import { useTimerStore } from '../../store/timerStore';
 import { useTheme } from '../../theme';
 import { Mascot, type Held, type MascotMood } from '../mascot/Mascot';
 import { LIGHT } from '../mascot/parts';
+import { POSES } from '../mascot/poses';
 import { ease, spring } from '../motion/presets';
 import { stripGeometry } from '../TabBar';
 import { CompanionNote, type NotePlacement } from './CompanionNote';
@@ -75,8 +76,8 @@ const HOP_FAR = 120;
 const SHORT_ARC = 0.5;
 // TOKEN-PENDING: opacity.companionHalo = { low: 0.35, high: 1 } (the breathing halo round the tip light)
 const HALO = { low: 0.35, high: 1, scale: 1.25 };
-// TOKEN-PENDING: layout.companion.haloDot = 0.125 (the breathing tip-light halo's radius, × size)
-const HALO_DOT = 0.125;
+// TOKEN-PENDING: layout.companion.haloDot = 0.2 (the breathing tip-light halo's radius, × size)
+const HALO_DOT = 0.2;
 /** Lumi's drawing grid (parts.tsx viewBox). */
 const GRID = 200;
 // TOKEN-PENDING: motion.companion.scrollDismiss = 24 (a scroll this far closes the note)
@@ -1128,7 +1129,9 @@ export function CompanionHost() {
               </Svg>
             ) : null}
             {atNest && !reduceMotion ? (
+              // A soft glow that fades out past the tip's edge, as bright as the tip light (dim when sleepy).
               <Animated.View
+                pointerEvents="none"
                 style={[
                   styles.halo,
                   {
@@ -1136,12 +1139,20 @@ export function CompanionHost() {
                     top: ly - glowR,
                     width: glowR * 2,
                     height: glowR * 2,
-                    borderRadius: glowR,
-                    backgroundColor: theme.colors.mascot.glowSoft,
                   },
                   haloStyle,
                 ]}
-              />
+              >
+                <Svg pointerEvents="none" width={glowR * 2} height={glowR * 2}>
+                  <Defs>
+                    <RadialGradient id="tipHalo" cx="50%" cy="50%" r="50%">
+                      <Stop offset="0" stopColor={theme.colors.mascot.glowSoft} stopOpacity={POSES[mood].glow ?? 1} />
+                      <Stop offset="1" stopColor={theme.colors.mascot.glowSoft} stopOpacity={0} />
+                    </RadialGradient>
+                  </Defs>
+                  <Circle cx={glowR} cy={glowR} r={glowR} fill="url(#tipHalo)" />
+                </Svg>
+              </Animated.View>
             ) : null}
             <Mascot
               mood={mood}

@@ -4,7 +4,7 @@
 // react-native-svg elements; Mascot.tsx stacks them in layers that move on their own.
 // Flat 2D: solid fills, one shade and one highlight, no outlines.
 import { Circle, Ellipse, G, Path, Rect, Text as SvgText } from 'react-native-svg';
-import type { MascotColors } from '../../theme';
+import { fonts, type MascotColors } from '../../theme';
 
 export type EyeKind = 'open' | 'happy' | 'closed' | 'wide' | 'heart' | 'wink' | 'up' | 'down' | 'sad' | 'spiral';
 export type BrowKind = 'sad' | 'focus' | 'raised' | 'worried';
@@ -232,11 +232,11 @@ export function Worn({ c, item }: { c: MascotColors; item: Accessory }) {
     case 'headphones':
       return (
         <G>
-          <Path d="M46 132 C42 62 158 62 154 132" stroke={c.gear} strokeWidth={7} fill="none" strokeLinecap="round" />
-          <Rect x={34} y={116} width={18} height={30} rx={8} fill={c.gear} />
-          <Rect x={148} y={116} width={18} height={30} rx={8} fill={c.gear} />
-          <Rect x={38} y={122} width={8} height={18} rx={4} fill={c.body} />
-          <Rect x={154} y={122} width={8} height={18} rx={4} fill={c.body} />
+          <Path d="M46 122 C42 52 158 52 154 122" stroke={c.gear} strokeWidth={7} fill="none" strokeLinecap="round" />
+          <Rect x={34} y={106} width={18} height={30} rx={8} fill={c.gear} />
+          <Rect x={148} y={106} width={18} height={30} rx={8} fill={c.gear} />
+          <Rect x={38} y={112} width={8} height={18} rx={4} fill={c.body} />
+          <Rect x={154} y={112} width={8} height={18} rx={4} fill={c.body} />
         </G>
       );
     case 'party':
@@ -309,11 +309,11 @@ export function EffectArt({ c, kind, index = 0 }: { c: MascotColors; kind: Effec
       return <Path d="M154 84 q-7 11 0 15 q7 -4 0 -15 Z" fill={c.water} />;
     case 'zzz':
       return index === 0 ? (
-        <SvgText x={140} y={70} fontSize={20} fontWeight="700" fill={c.accentBlue}>
+        <SvgText x={140} y={70} fontSize={20} fontFamily={fonts.display.semibold} fill={c.accentBlue}>
           z
         </SvgText>
       ) : (
-        <SvgText x={152} y={52} fontSize={26} fontWeight="700" fill={c.accentBlue}>
+        <SvgText x={152} y={52} fontSize={26} fontFamily={fonts.display.semibold} fill={c.accentBlue}>
           Z
         </SvgText>
       );
@@ -331,13 +331,13 @@ export function EffectArt({ c, kind, index = 0 }: { c: MascotColors; kind: Effec
       );
     case 'question':
       return (
-        <SvgText x={146} y={66} fontSize={30} fontWeight="800" fill={c.accentBlue}>
+        <SvgText x={146} y={66} fontSize={30} fontFamily={fonts.display.semibold} fill={c.accentBlue}>
           ?
         </SvgText>
       );
     case 'exclaim':
       return (
-        <SvgText x={148} y={66} fontSize={32} fontWeight="800" fill={c.heart}>
+        <SvgText x={148} y={66} fontSize={32} fontFamily={fonts.display.semibold} fill={c.heart}>
           !
         </SvgText>
       );
@@ -361,8 +361,8 @@ export function EffectArt({ c, kind, index = 0 }: { c: MascotColors; kind: Effec
     case 'flame':
       return (
         <G>
-          <Path d="M172 150 c-12 -10 -6 -22 0 -30 c2 8 10 10 8 20 c3 -2 4 -5 4 -8 c6 8 2 18 -12 18 Z" fill={c.flame} />
-          <Path d="M174 148 c-5 -4 -3 -10 0 -13 c1 4 5 5 4 9 Z" fill={c.gold} />
+          <Path d="M172 184 c-12 -10 -6 -22 0 -30 c2 8 10 10 8 20 c3 -2 4 -5 4 -8 c6 8 2 18 -12 18 Z" fill={c.flame} />
+          <Path d="M174 182 c-5 -4 -3 -10 0 -13 c1 4 5 5 4 9 Z" fill={c.gold} />
         </G>
       );
     case 'steam':

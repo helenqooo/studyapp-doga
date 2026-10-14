@@ -78,7 +78,7 @@ export const POSES: Record<MascotMood, Pose> = {
     effects: ['confetti'],
   },
   sad: { eyes: 'sad', brows: 'sad', mouth: 'sad', armL: 12, armR: -12, body: 'droop', lift: 4, effects: ['tear'], glow: 0.6 },
-  thinking: { eyes: 'up', mouth: 'small', armL: REST_L, armR: 78, armMotionR: 'tap', body: 'breathe', effects: ['question'], pulse: true },
+  thinking: { eyes: 'up', mouth: 'small', armL: REST_L, armR: 62, armMotionR: 'tap', body: 'breathe', effects: ['question'], pulse: true },
   talking: { eyes: 'open', mouth: 'talk', armL: REST_L, armR: -105, armMotionR: 'gesture', body: 'sway', talk: true },
   listening: { eyes: 'open', mouth: 'small', armL: REST_L, armR: REST_R, body: 'nod', tilt: -7 },
   sleepy: { eyes: 'closed', mouth: 'small', armL: 18, armR: -18, body: 'breathe', effects: ['zzz'], glow: 0.4 },

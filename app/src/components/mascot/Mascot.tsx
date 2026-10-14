@@ -72,7 +72,7 @@ const LOOPS = {
   gesture: { deg: 20, ms: 760 },
   tap: { deg: -6, ms: 160, rest: 700 },
   scribble: { deg: 6, ms: 110 },
-  sip: { delay: 1800, deg: -48, ms: 420, hold: 700 },
+  sip: { delay: 1800, deg: 14, ms: 420, hold: 700 },
   pop: { deg: 16, ms: 90, rest: 1100 },
   blink: { closed: 0.1, close: 70, open: 100, every: 3400 },
   blink2: { close: 60, open: 80, reopen: 90 },
@@ -243,6 +243,9 @@ const cupCorner = (angle: number) => {
 const heldRight = (pose: Pose) =>
   pose.held === 'pompoms' ? 'pompom' : pose.held === 'pencil' ? 'pencil' : pose.held === 'marker' ? 'marker' : undefined;
 
+/** The worn items that move with the face (glasses) or stay on the body (the rest). */
+const wornOn = (pose: Pose, face: boolean) => (pose.worn ?? []).filter((w) => FACE_ITEMS.includes(w) === face);
+
 /** The pose drawn once, in a single SVG (eyes can follow `lookAt`, the scroll `gaze`, or blink). */
 export function StillMascot({
   pose,
@@ -280,7 +283,13 @@ export function StillMascot({
         </G>
         {pose.brows ? <Brows c={c} kind={pose.brows} /> : null}
         <Mouth c={c} kind={pose.mouth} />
-        {(pose.worn ?? []).map((w) => (
+        {/* Glasses look around with the eyes. */}
+        <G transform={look ? `translate(${look} 0)` : undefined}>
+          {wornOn(pose, true).map((w) => (
+            <Worn key={w} c={c} item={w} />
+          ))}
+        </G>
+        {wornOn(pose, false).map((w) => (
           <Worn key={w} c={c} item={w} />
         ))}
         <Arm c={c} side="l" angle={pose.armL} held={pose.held === 'pompoms' ? 'pompom' : undefined} />
@@ -317,7 +326,7 @@ const EFFECT_ORIGIN: Record<Effect, [{ x: number; y: number }, { x: number; y: n
   question: [{ x: 154, y: 56 }],
   exclaim: [{ x: 154, y: 58 }],
   confetti: [{ x: 100, y: 60 }],
-  flame: [{ x: 176, y: 150 }],
+  flame: [{ x: 176, y: 184 }],
   steam: [{ x: 11, y: -12 }, { x: 11, y: -12 }],
 };
 
@@ -736,6 +745,8 @@ function LiveMascot({
   const blinks = BLINKING_EYES.includes(pose.eyes);
   const cup = pose.held === 'cup' ? cupCorner(pose.armR) : null;
   const heldR = heldRight(pose);
+  const faceWorn = wornOn(pose, true);
+  const bodyWorn = wornOn(pose, false);
 
   return (
     <View style={StyleSheet.absoluteFill}>
@@ -769,10 +780,18 @@ function LiveMascot({
           <Layer size={size} origin={MOUTH} style={pose.talk ? mouthStyle : undefined}>
             <Mouth c={c} kind={pose.mouth} />
           </Layer>
+          {/* Glasses move with the face (their own layer, so a blink doesn't squash them). */}
+          {faceWorn.length ? (
+            <Layer size={size}>
+              {faceWorn.map((w) => (
+                <Worn key={w} c={c} item={w} />
+              ))}
+            </Layer>
+          ) : null}
         </Animated.View>
-        {(pose.worn ?? []).length ? (
+        {bodyWorn.length ? (
           <Layer size={size}>
-            {(pose.worn ?? []).map((w) => (
+            {bodyWorn.map((w) => (
               <Worn key={w} c={c} item={w} />
             ))}
           </Layer>
@@ -784,13 +803,19 @@ function LiveMascot({
           <Arm c={c} side="r" held={heldR} />
         </Layer>
         {cup ? (
-          <Layer size={size} style={cupStyle}>
-            <Cup c={c} x={cup.x} y={cup.y} />
-          </Layer>
+          // The steam rises from the cup wherever the sip takes it.
+          <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, cupStyle]}>
+            <Layer size={size}>
+              <Cup c={c} x={cup.x} y={cup.y} />
+            </Layer>
+            {pose.effects?.includes('steam') ? <EffectLayer kind="steam" size={size} c={c} a={fxA} b={fxB} pop={pop} cup={cup} /> : null}
+          </Animated.View>
         ) : null}
-        {(pose.effects ?? []).map((e) => (
-          <EffectLayer key={e} kind={e} size={size} c={c} a={fxA} b={fxB} pop={pop} cup={cup} />
-        ))}
+        {(pose.effects ?? [])
+          .filter((e) => !(e === 'steam' && cup))
+          .map((e) => (
+            <EffectLayer key={e} kind={e} size={size} c={c} a={fxA} b={fxB} pop={pop} cup={cup} />
+          ))}
       </Pivot>
     </View>
   );
