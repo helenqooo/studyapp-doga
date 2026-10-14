@@ -150,12 +150,14 @@ export interface MascotColors {
   body: string;
   shade: string;
   highlight: string;
+  /** The lighter core behind the face. */
+  core: string;
   arm: string;
   foot: string;
   ink: string;
   eyeShine: string;
   cheek: string;
-  /** The light on its antenna (it *is* the highlighter), its halo and highlight. */
+  /** The gold light in the flame's tip, its halo and highlight. */
   glow: string;
   glowSoft: string;
   glowShine: string;
@@ -179,18 +181,19 @@ export interface MascotColors {
   shadow: string;
 }
 
-/** Lumi: a brighter tangerine, so it reads as made of highlighter colors. */
+/** Lumi: a clay flame (the app's accent clay) with a gold light in its tip. */
 const MASCOT_BASE = {
-  body: '#E07B54',
-  shade: '#C9623F',
-  highlight: '#F4A27F',
-  arm: '#D96F4B',
-  foot: '#B4553A',
+  body: '#D97757',
+  shade: '#C2603F',
+  highlight: '#F4B094',
+  core: '#EFA07D',
+  arm: '#C2603F',
+  foot: '#B5573A',
   ink: '#2A1C17',
   eyeShine: '#FFFFFF',
-  cheek: '#F59C93',
-  glow: '#FFC94D',
-  glowSoft: 'rgba(255, 201, 77, 0.28)',
+  cheek: '#F29C8C',
+  glow: '#F0BE5E',
+  glowSoft: 'rgba(240, 190, 94, 0.28)',
   glowShine: '#FFF3C4',
   gear: '#3B3633',
   gearSoft: '#5A524C',

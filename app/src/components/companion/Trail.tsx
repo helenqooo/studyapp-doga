@@ -4,7 +4,7 @@ import { useTheme } from '../../theme';
 import { LIGHT } from '../mascot/parts';
 import { arcPoint } from './flight';
 
-/** Lumi's drawing grid (parts.tsx viewBox); the dots sit on its antenna light (LIGHT). */
+/** Lumi's drawing grid (parts.tsx viewBox); the dots sit on the light in its tip (LIGHT). */
 const GRID = 200;
 // TOKEN-PENDING: layout.companion.trailStep = 0.04 (progress between trail dots)
 const TRAIL_STEP = 0.04;
@@ -27,7 +27,7 @@ export interface FlightValues {
 }
 
 /**
- * Five fading antenna-light dots behind Lumi, sampled on the same arc a little earlier
+ * Five fading tip-light dots behind Lumi, sampled on the same arc a little earlier
  * (p − k·0.04): no buffer, five Views driven by the flight's own values (spec 6.4.5).
  */
 export function Trail({ f, size }: { f: FlightValues; size: number }) {

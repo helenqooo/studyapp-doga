@@ -1,6 +1,8 @@
-// Lumi's drawing, part by part, on a 200 × 200 grid (feet at y ≈ 184). Each function
-// returns plain react-native-svg elements; Mascot.tsx stacks them in layers that move on
-// their own. Flat 2D: solid fills, one shade and one highlight, no outlines.
+// Lumi's drawing, part by part, on a 200 × 200 grid (feet at y ≈ 184). Lumi is a little clay
+// flame: a round body with a lick on its left, a lighter core behind the face, and a tip that
+// sways on its own layer with the gold light inside it. Each function returns plain
+// react-native-svg elements; Mascot.tsx stacks them in layers that move on their own.
+// Flat 2D: solid fills, one shade and one highlight, no outlines.
 import { Circle, Ellipse, G, Path, Rect, Text as SvgText } from 'react-native-svg';
 import type { MascotColors } from '../../theme';
 
@@ -10,17 +12,25 @@ export type MouthKind = 'smile' | 'grin' | 'o' | 'sad' | 'flat' | 'talk' | 'wavy
 export type Accessory = 'headphones' | 'party' | 'crown' | 'cap' | 'glasses' | 'book' | 'cup' | 'pompoms' | 'pencil';
 export type Effect = 'tear' | 'sweat' | 'zzz' | 'hearts' | 'sparkles' | 'question' | 'exclaim' | 'confetti' | 'flame' | 'steam';
 
-export const ARM_LEN = 30;
-export const PIVOT = { l: { x: 44, y: 124 }, r: { x: 156, y: 124 } } as const;
+export const ARM_LEN = 26;
+export const PIVOT = { l: { x: 50, y: 138 }, r: { x: 150, y: 138 } } as const;
 /** Where the character stands; tilts and squashes happen around this point. */
 export const GROUND = { x: 100, y: 184 };
-export const EYE_Y = 112;
-export const MOUTH = { x: 100, y: 128 };
-export const ANTENNA_BASE = { x: 108, y: 62 };
-export const LIGHT = { x: 118, y: 31 };
+/** The eyes' centres; EYE_Y is also where a blink squashes them. */
+const EYE = { l: 84, r: 116 };
+export const EYE_Y = 134;
+export const MOUTH = { x: 100, y: 152 };
+/** The tip sways around this point, hidden inside the body. */
+export const TIP_BASE = { x: 100, y: 100 };
+/** The gold light inside the tip (the companion's trail and halo start here too). */
+export const LIGHT = { x: 100, y: 47 };
 
-const BODY = 'M100 60 C138 60 164 94 164 134 C164 166 138 184 100 184 C62 184 36 166 36 134 C36 94 62 60 100 60 Z';
-const SHADE = 'M164 134 C164 166 138 184 100 184 C70 184 47 171 39 150 C58 166 82 172 104 171 C134 169 156 155 164 134 Z';
+const BODY = 'M80 84 C90 76 110 74 122 78 C146 86 160 104 160 128 C160 162 134 184 100 184 C66 184 40 162 40 128 C40 104 50 86 62 68 C64 78 70 86 80 84 Z';
+const SHADE = 'M160 128 C160 162 134 184 100 184 C74 184 52 172 44 152 C62 168 84 172 104 170 C134 168 156 152 160 128 Z';
+/** The hotter, lighter core behind the face. */
+const CORE = 'M100 94 C114 112 134 126 134 148 C134 167 119 178 100 178 C81 178 66 167 66 148 C66 126 86 112 100 94 Z';
+/** The tip: its lower half stays hidden behind the body however it sways. */
+const TIP = 'M100 16 C108 34 126 50 127 72 C128 94 116 108 100 108 C84 108 72 94 73 72 C74 50 92 34 100 16 Z';
 
 /** Where a hand ends up for an arm angle (0 = hanging straight down, + = clockwise). */
 export function handAt(side: 'l' | 'r', angle: number) {
@@ -36,23 +46,25 @@ export function Shadow({ c, rx = 46 }: { c: MascotColors; rx?: number }) {
 export function Feet({ c }: { c: MascotColors }) {
   return (
     <G>
-      <Ellipse cx={80} cy={184} rx={14} ry={8} fill={c.foot} />
-      <Ellipse cx={120} cy={184} rx={14} ry={8} fill={c.foot} />
+      <Ellipse cx={82} cy={184} rx={13} ry={7} fill={c.foot} />
+      <Ellipse cx={118} cy={184} rx={13} ry={7} fill={c.foot} />
     </G>
   );
 }
 
-export function AntennaStem({ c }: { c: MascotColors }) {
-  return <Path d="M108 62 Q104 46 116 34" stroke={c.shade} strokeWidth={4.5} fill="none" strokeLinecap="round" />;
+/** The flame's tip, drawn under the body; its layer sways and flares around TIP_BASE. */
+export function Tip({ c }: { c: MascotColors }) {
+  return <Path d={TIP} fill={c.body} />;
 }
 
-/** The light on the antenna; `halo` is the soft glow around it. */
-export function AntennaLight({ c, halo = true }: { c: MascotColors; halo?: boolean }) {
+/** The gold light inside the tip; `halo` is the soft glow around it, kept inside the tip even when it pulses. */
+export function TipLight({ c, halo = true }: { c: MascotColors; halo?: boolean }) {
+  const { x, y } = LIGHT;
   return (
     <G>
-      {halo ? <Circle cx={LIGHT.x} cy={LIGHT.y} r={14} fill={c.glowSoft} /> : null}
-      <Circle cx={LIGHT.x} cy={LIGHT.y} r={8} fill={c.glow} />
-      <Circle cx={LIGHT.x - 2.5} cy={LIGHT.y - 2.5} r={2.4} fill={c.glowShine} />
+      {halo ? <Ellipse cx={x} cy={y + 1} rx={10} ry={14} fill={c.glowSoft} /> : null}
+      <Path d={`M${x} ${y - 13} C${x + 4} ${y - 6} ${x + 8} ${y - 1} ${x + 8} ${y + 4} C${x + 8} ${y + 9} ${x + 4} ${y + 11} ${x} ${y + 11} C${x - 4} ${y + 11} ${x - 8} ${y + 9} ${x - 8} ${y + 4} C${x - 8} ${y - 1} ${x - 4} ${y - 6} ${x} ${y - 13} Z`} fill={c.glow} />
+      <Circle cx={x - 3} cy={y + 4} r={2.4} fill={c.glowShine} />
     </G>
   );
 }
@@ -62,17 +74,18 @@ export function Body({ c, blush = false }: { c: MascotColors; blush?: boolean })
     <G>
       <Path d={BODY} fill={c.body} />
       <Path d={SHADE} fill={c.shade} />
-      <Ellipse cx={68} cy={84} rx={11} ry={6} fill={c.highlight} transform="rotate(-35 68 84)" />
-      <Circle cx={58} cy={98} r={3} fill={c.highlight} />
-      <Ellipse cx={64} cy={128} rx={9} ry={5.5} fill={c.cheek} opacity={blush ? 1 : 0.8} />
-      <Ellipse cx={136} cy={128} rx={9} ry={5.5} fill={c.cheek} opacity={blush ? 1 : 0.8} />
+      <Path d={CORE} fill={c.core} />
+      <Ellipse cx={58} cy={106} rx={8} ry={5} fill={c.highlight} transform="rotate(-50 58 106)" />
+      <Circle cx={52} cy={120} r={2.6} fill={c.highlight} />
+      <Ellipse cx={72} cy={150} rx={8} ry={5} fill={c.cheek} opacity={blush ? 1 : 0.8} />
+      <Ellipse cx={128} cy={150} rx={8} ry={5} fill={c.cheek} opacity={blush ? 1 : 0.8} />
     </G>
   );
 }
 
 export function Eyes({ c, kind }: { c: MascotColors; kind: EyeKind }) {
-  const L = 80;
-  const R = 120;
+  const L = EYE.l;
+  const R = EYE.r;
   const Y = EYE_Y;
   const dot = (x: number, y: number, rx = 7.5, ry = 10, key?: string) => (
     <G key={key}>
@@ -132,42 +145,44 @@ export function Eyes({ c, kind }: { c: MascotColors; kind: EyeKind }) {
 export const BLINKING_EYES: EyeKind[] = ['open', 'wide', 'up', 'sad', 'wink'];
 
 export function Brows({ c, kind }: { c: MascotColors; kind: BrowKind }) {
-  const b = (x1: number, y1: number, x2: number, y2: number) => `M${x1} ${y1} L${x2} ${y2}`;
-  const d = {
-    sad: `${b(72, 100, 86, 94)} ${b(128, 100, 114, 94)}`,
-    focus: `${b(72, 98, 87, 102)} ${b(128, 98, 113, 102)}`,
-    raised: `${b(73, 93, 86, 90)} ${b(114, 90, 127, 93)}`,
-    worried: `${b(73, 99, 86, 94)} ${b(114, 94, 127, 99)}`,
+  // [outer dx, outer dy, inner dx, inner dy] from the left eye's centre; the right brow mirrors it.
+  const [ox, oy, ix, iy] = {
+    sad: [-8, -12, 6, -18],
+    focus: [-8, -14, 7, -10],
+    raised: [-7, -19, 6, -22],
+    worried: [-7, -13, 6, -18],
   }[kind];
+  const d = `M${EYE.l + ox} ${EYE_Y + oy} L${EYE.l + ix} ${EYE_Y + iy} M${EYE.r - ox} ${EYE_Y + oy} L${EYE.r - ix} ${EYE_Y + iy}`;
   return <Path d={d} stroke={c.ink} strokeWidth={3.4} strokeLinecap="round" fill="none" />;
 }
 
 export function Mouth({ c, kind }: { c: MascotColors; kind: MouthKind }) {
   const ink = c.ink;
+  const { x, y } = MOUTH;
   switch (kind) {
     case 'grin':
       return (
         <G>
-          <Path d="M90 125 Q100 140 110 125 Z" fill={ink} />
-          <Path d="M94 132 Q100 137 106 132 Q100 129 94 132 Z" fill={c.heart} />
+          <Path d={`M${x - 10} ${y - 3} Q${x} ${y + 12} ${x + 10} ${y - 3} Z`} fill={ink} />
+          <Path d={`M${x - 6} ${y + 4} Q${x} ${y + 9} ${x + 6} ${y + 4} Q${x} ${y + 1} ${x - 6} ${y + 4} Z`} fill={c.heart} />
         </G>
       );
     case 'o':
-      return <Ellipse cx={100} cy={130} rx={5.5} ry={7} fill={ink} />;
+      return <Ellipse cx={x} cy={y + 2} rx={5.5} ry={7} fill={ink} />;
     case 'sad':
-      return <Path d="M93 132 Q100 125 107 132" stroke={ink} strokeWidth={3.2} fill="none" strokeLinecap="round" />;
+      return <Path d={`M${x - 7} ${y + 4} Q${x} ${y - 3} ${x + 7} ${y + 4}`} stroke={ink} strokeWidth={3.2} fill="none" strokeLinecap="round" />;
     case 'flat':
-      return <Path d="M94 129 L106 129" stroke={ink} strokeWidth={3.2} strokeLinecap="round" />;
+      return <Path d={`M${x - 6} ${y + 1} L${x + 6} ${y + 1}`} stroke={ink} strokeWidth={3.2} strokeLinecap="round" />;
     case 'talk':
-      return <Path d="M92 124 Q100 138 108 124 Q100 127 92 124 Z" fill={ink} />;
+      return <Path d={`M${x - 8} ${y - 4} Q${x} ${y + 10} ${x + 8} ${y - 4} Q${x} ${y - 1} ${x - 8} ${y - 4} Z`} fill={ink} />;
     case 'wavy':
-      return <Path d="M91 130 q3 -4 6 0 t6 0 t6 0" stroke={ink} strokeWidth={3} fill="none" strokeLinecap="round" />;
+      return <Path d={`M${x - 9} ${y + 2} q3 -4 6 0 t6 0 t6 0`} stroke={ink} strokeWidth={3} fill="none" strokeLinecap="round" />;
     case 'small':
-      return <Path d="M96 127 Q100 131 104 127" stroke={ink} strokeWidth={3} fill="none" strokeLinecap="round" />;
+      return <Path d={`M${x - 4} ${y - 1} Q${x} ${y + 3} ${x + 4} ${y - 1}`} stroke={ink} strokeWidth={3} fill="none" strokeLinecap="round" />;
     case 'cat':
-      return <Path d="M92 126 q4 5 8 0 q4 5 8 0" stroke={ink} strokeWidth={3} fill="none" strokeLinecap="round" />;
+      return <Path d={`M${x - 8} ${y - 2} q4 5 8 0 q4 5 8 0`} stroke={ink} strokeWidth={3} fill="none" strokeLinecap="round" />;
     default:
-      return <Path d="M92 125 Q100 133 108 125" stroke={ink} strokeWidth={3.4} fill="none" strokeLinecap="round" />;
+      return <Path d={`M${x - 8} ${y - 3} Q${x} ${y + 5} ${x + 8} ${y - 3}`} stroke={ink} strokeWidth={3.4} fill="none" strokeLinecap="round" />;
   }
 }
 
@@ -200,7 +215,7 @@ export function Arm({ c, side, angle = 0, held }: { c: MascotColors; side: 'l' |
         </G>
       ) : null}
       {held === 'marker' ? (
-        // The fosfor highlighter: a stubby rounded body with a dark chisel cap, tip outward.
+        // The highlighter: a stubby rounded body with a dark chisel cap, tip outward.
         <G transform={`rotate(150 ${p.x} ${y})`}>
           <Rect x={p.x - 6} y={y - 10} width={12} height={36} rx={5} fill={c.marker} />
           <Path d={`M${p.x - 5} ${y + 24} L${p.x + 5} ${y + 24} L${p.x + 4} ${y + 34} L${p.x - 4} ${y + 31} Z`} fill={c.markerCap} />
@@ -217,53 +232,56 @@ export function Worn({ c, item }: { c: MascotColors; item: Accessory }) {
     case 'headphones':
       return (
         <G>
-          <Path d="M44 118 C40 56 160 56 156 118" stroke={c.gear} strokeWidth={7} fill="none" strokeLinecap="round" />
-          <Rect x={32} y={102} width={18} height={30} rx={8} fill={c.gear} />
-          <Rect x={150} y={102} width={18} height={30} rx={8} fill={c.gear} />
-          <Rect x={36} y={108} width={8} height={18} rx={4} fill={c.body} />
-          <Rect x={156} y={108} width={8} height={18} rx={4} fill={c.body} />
+          <Path d="M46 132 C42 62 158 62 154 132" stroke={c.gear} strokeWidth={7} fill="none" strokeLinecap="round" />
+          <Rect x={34} y={116} width={18} height={30} rx={8} fill={c.gear} />
+          <Rect x={148} y={116} width={18} height={30} rx={8} fill={c.gear} />
+          <Rect x={38} y={122} width={8} height={18} rx={4} fill={c.body} />
+          <Rect x={154} y={122} width={8} height={18} rx={4} fill={c.body} />
         </G>
       );
     case 'party':
+      // Worn on the lick, leaning out, so the tip and its light stay clear.
       return (
-        <G>
-          <Path d="M70 70 L84 26 L100 64 Z" fill={c.accentBlue} />
-          <Path d="M76 52 L91 47 M73 61 L96 55" stroke={c.paper} strokeWidth={3} strokeLinecap="round" />
-          <Circle cx={84} cy={25} r={6} fill={c.gold} />
+        <G transform="rotate(-24 66 80)">
+          <Path d="M50 82 L64 36 L80 80 Z" fill={c.accentBlue} />
+          <Path d="M56 66 L71 61 M53 75 L76 69" stroke={c.paper} strokeWidth={3} strokeLinecap="round" />
+          <Circle cx={64} cy={35} r={6} fill={c.gold} />
         </G>
       );
     case 'crown':
+      // Round the base of the tip: the flame rises out of it.
       return (
         <G>
-          <Path d="M74 66 L70 40 L84 52 L94 34 L104 52 L118 40 L114 66 Z" fill={c.gold} />
-          <Circle cx={94} cy={34} r={3.5} fill={c.heart} />
-          <Rect x={74} y={62} width={40} height={7} rx={3} fill={c.goldDeep} />
+          <Path d="M78 86 L74 64 L88 74 L100 64 L112 74 L126 64 L122 86 Z" fill={c.gold} />
+          <Circle cx={100} cy={66} r={3.5} fill={c.heart} />
+          <Rect x={77} y={81} width={46} height={7} rx={3} fill={c.goldDeep} />
         </G>
       );
     case 'cap':
+      // The mortarboard sits low on the tip; the light pokes out above it.
       return (
         <G>
-          <Path d="M60 52 L100 36 L140 52 L100 68 Z" fill={c.gear} />
-          <Path d="M78 60 L78 72 Q100 82 122 72 L122 60 L100 68 Z" fill={c.gearSoft} />
-          <Path d="M140 52 L140 72" stroke={c.gold} strokeWidth={3} />
-          <Circle cx={140} cy={74} r={4} fill={c.gold} />
+          <Path d="M62 74 L100 60 L138 74 L100 88 Z" fill={c.gear} />
+          <Path d="M78 82 L78 94 Q100 104 122 94 L122 82 L100 88 Z" fill={c.gearSoft} />
+          <Path d="M138 74 L138 94" stroke={c.gold} strokeWidth={3} />
+          <Circle cx={138} cy={96} r={4} fill={c.gold} />
         </G>
       );
     case 'glasses':
       return (
         <G>
-          <Circle cx={80} cy={112} r={13} fill={c.paper} fillOpacity={0.18} stroke={c.gear} strokeWidth={3.5} />
-          <Circle cx={120} cy={112} r={13} fill={c.paper} fillOpacity={0.18} stroke={c.gear} strokeWidth={3.5} />
-          <Path d="M93 111 L107 111" stroke={c.gear} strokeWidth={3.5} />
+          <Circle cx={EYE.l} cy={EYE_Y} r={12.5} fill={c.paper} fillOpacity={0.18} stroke={c.gear} strokeWidth={3.5} />
+          <Circle cx={EYE.r} cy={EYE_Y} r={12.5} fill={c.paper} fillOpacity={0.18} stroke={c.gear} strokeWidth={3.5} />
+          <Path d={`M${EYE.l + 12.5} ${EYE_Y - 1} L${EYE.r - 12.5} ${EYE_Y - 1}`} stroke={c.gear} strokeWidth={3.5} />
         </G>
       );
     case 'book':
       return (
         <G>
-          <Path d="M64 142 L100 150 L136 142 L136 172 L100 180 L64 172 Z" fill={c.accentBlue} />
-          <Path d="M68 140 L100 147 L100 176 L68 169 Z" fill={c.paper} />
-          <Path d="M132 140 L100 147 L100 176 L132 169 Z" fill={c.paperShade} />
-          <Path d="M75 150 L94 154 M75 157 L94 161 M106 154 L125 150 M106 161 L125 157" stroke={c.ruling} strokeWidth={2} strokeLinecap="round" />
+          <Path d="M64 158 L100 166 L136 158 L136 186 L100 194 L64 186 Z" fill={c.accentBlue} />
+          <Path d="M68 156 L100 163 L100 190 L68 183 Z" fill={c.paper} />
+          <Path d="M132 156 L100 163 L100 190 L132 183 Z" fill={c.paperShade} />
+          <Path d="M75 166 L94 170 M75 173 L94 177 M106 170 L125 166 M106 177 L125 173" stroke={c.ruling} strokeWidth={2} strokeLinecap="round" />
         </G>
       );
     default:
@@ -286,9 +304,9 @@ export function Cup({ c, x, y }: { c: MascotColors; x: number; y: number }) {
 export function EffectArt({ c, kind, index = 0 }: { c: MascotColors; kind: Effect; index?: number }) {
   switch (kind) {
     case 'tear':
-      return <Path d="M74 124 q-5 9 0 13 q5 -4 0 -13 Z" fill={c.water} />;
+      return <Path d={`M${EYE.l - 4} ${EYE_Y + 12} q-5 9 0 13 q5 -4 0 -13 Z`} fill={c.water} />;
     case 'sweat':
-      return <Path d="M148 76 q-7 11 0 15 q7 -4 0 -15 Z" fill={c.water} />;
+      return <Path d="M154 84 q-7 11 0 15 q7 -4 0 -15 Z" fill={c.water} />;
     case 'zzz':
       return index === 0 ? (
         <SvgText x={140} y={70} fontSize={20} fontWeight="700" fill={c.accentBlue}>
@@ -307,7 +325,7 @@ export function EffectArt({ c, kind, index = 0 }: { c: MascotColors; kind: Effec
       );
     case 'sparkles':
       return index === 0 ? (
-        <Path d="M38 70 l3 -9 l3 9 l9 3 l-9 3 l-3 9 l-3 -9 l-9 -3 Z" fill={c.gold} />
+        <Path d="M36 66 l3 -9 l3 9 l9 3 l-9 3 l-3 9 l-3 -9 l-9 -3 Z" fill={c.gold} />
       ) : (
         <Path d="M160 84 l2 -6 l2 6 l6 2 l-6 2 l-2 6 l-2 -6 l-6 -2 Z" fill={c.gold} />
       );

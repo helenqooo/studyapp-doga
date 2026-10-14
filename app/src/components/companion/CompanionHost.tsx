@@ -55,7 +55,7 @@ const GAZE_RESET_MS = 600;
 const LONG_PRESS_MS = 400;
 // TOKEN-PENDING: motion.companion.tickMs = 500 (how often the unsolicited-line scheduler looks)
 const TICK_MS = 500;
-// TOKEN-PENDING: motion.companion.haloBreathMs = 2400 (the nest's breathing antenna halo)
+// TOKEN-PENDING: motion.companion.haloBreathMs = 2400 (the nest's breathing halo round the tip light)
 const HALO_BREATH_MS = 2400;
 // TOKEN-PENDING: motion.companion.slideOutMs = 220 (dragged away: Lumi slides off)
 const SLIDE_OUT_MS = 220;
@@ -73,9 +73,9 @@ const NOTE_ROOM = 160;
 const HOP_FAR = 120;
 // TOKEN-PENDING: layout.companion.routeHopLift = 0.5 (route hops and returns fly a flatter arc)
 const SHORT_ARC = 0.5;
-// TOKEN-PENDING: opacity.companionHalo = { low: 0.35, high: 1 } (the breathing antenna halo)
+// TOKEN-PENDING: opacity.companionHalo = { low: 0.35, high: 1 } (the breathing halo round the tip light)
 const HALO = { low: 0.35, high: 1, scale: 1.25 };
-// TOKEN-PENDING: layout.companion.haloDot = 0.125 (the breathing antenna halo's radius, × size)
+// TOKEN-PENDING: layout.companion.haloDot = 0.125 (the breathing tip-light halo's radius, × size)
 const HALO_DOT = 0.125;
 /** Lumi's drawing grid (parts.tsx viewBox). */
 const GRID = 200;
@@ -96,7 +96,7 @@ const wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 /**
  * Lumi, the companion (design spec 6): one Lumi that lives in its nest beside the optik strip,
- * hops to perches (the Home note, the timer ring), flies banked arcs with a five-dot antenna
+ * hops to perches (the Home note, the timer ring), flies banked arcs with a five-dot tip-light
  * trail to highlight the one thing that matters, and speaks in a sticky note. Mounted once in
  * the root layout; screens only register perches and targets, emit events and say lines.
  */

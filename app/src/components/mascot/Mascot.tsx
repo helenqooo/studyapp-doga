@@ -21,9 +21,6 @@ import { usePrefsStore, type Outfit } from '../../store/prefsStore';
 import { motion, useTheme, type MascotColors } from '../../theme';
 import { ease } from '../motion/presets';
 import {
-  ANTENNA_BASE,
-  AntennaLight,
-  AntennaStem,
   Arm,
   ARM_LEN,
   BLINKING_EYES,
@@ -41,10 +38,13 @@ import {
   MOUTH,
   PIVOT,
   Shadow,
+  Tip,
+  TIP_BASE,
+  TipLight,
   Worn,
   type Effect,
 } from './parts';
-import { FACE_ITEMS, HEAD_ITEMS, HIDES_ANTENNA, POSES, type ArmMotion, type BodyMotion, type Held, type MascotMood, type Pose } from './poses';
+import { FACE_ITEMS, HEAD_ITEMS, POSES, type ArmMotion, type BodyMotion, type Held, type MascotMood, type Pose } from './poses';
 
 export type { Held, MascotMood } from './poses';
 
@@ -76,7 +76,7 @@ const LOOPS = {
   pop: { deg: 16, ms: 90, rest: 1100 },
   blink: { closed: 0.1, close: 70, open: 100, every: 3400 },
   blink2: { close: 60, open: 80, reopen: 90 },
-  antennaSway: { deg: 5, ms: 1700 },
+  tipSway: { deg: 5, ms: 1500 },
   glow: { rest: 1.12, restMs: 1500, pulse: 1.35, pulseMs: 420, dimMs: 500 },
   talk: { from: 0.35, ms: 130 },
   fxMs: 1500,
@@ -88,7 +88,7 @@ const LOOPS = {
   look: { x: 5, back: -3, y: -1, hold: 700, settle: 500, yHold: 1200 },
   lookUp: { x: 4, y: -4, hold: 900 },
   fidgetHop: { y: -14, up: 200, down: 190, stretch: 1.05, squash: 0.9, squashMs: 90 },
-  flick: { deg: -22, ms: 120, spring: { damping: 5, stiffness: 180 } },
+  flick: { deg: -16, ms: 120, spring: { damping: 5, stiffness: 180 } },
   tilt: { deg: 7, hold: 900 },
   shiver: { deg: 5, ms: [90, 120, 120] },
   hello: { up: -122, low: -104, high: -136, ms: 170, times: 3, settle: 150, face: -2, faceHold: 1300 },
@@ -153,10 +153,10 @@ function dress(pose: Pose, outfit: Outfit | null, held: Held | null | undefined)
 }
 
 /**
- * Lumi, the assistant: a little flat light-creature with a glowing antenna. Each mood has
- * a pose (eyes, mouth, arms, props) and a loop (breathing, waving, hopping…); switching
- * moods springs the arms over to the new pose. Between those, Lumi fidgets on its own:
- * looks around, blinks twice, hops, flicks its antenna, waves. Tapping it gets a reaction.
+ * Lumi, the assistant: a little flat clay flame with a gold light in its swaying tip. Each
+ * mood has a pose (eyes, mouth, arms, props) and a loop (breathing, waving, hopping…);
+ * switching moods springs the arms over to the new pose. Between those, Lumi fidgets on its
+ * own: looks around, blinks twice, hops, flares its tip, waves. Tapping it gets a reaction.
  * Decorative: what it "says" is in text.
  */
 export function Mascot({
@@ -234,7 +234,6 @@ export function Mascot({
 /** The shadow scales around its own centre under the feet. */
 const SHADOW_ORIGIN = { x: GROUND.x, y: 190 };
 
-const hasAntenna = (pose: Pose) => !(pose.worn ?? []).some((w) => HIDES_ANTENNA.includes(w));
 const cupCorner = (angle: number) => {
   const h = handAt('r', angle);
   return { x: h.x - 12, y: h.y - 14 };
@@ -271,14 +270,10 @@ export function StillMascot({
       <Shadow c={c} rx={46 - Math.abs(lift)} />
       <G transform={`translate(0 ${lift}) rotate(${pose.tilt ?? 0} ${GROUND.x} ${GROUND.y})`}>
         <Feet c={c} />
-        {hasAntenna(pose) ? (
-          <G>
-            <AntennaStem c={c} />
-            <G opacity={pose.glow ?? 1}>
-              <AntennaLight c={c} />
-            </G>
-          </G>
-        ) : null}
+        <Tip c={c} />
+        <G opacity={pose.glow ?? 1}>
+          <TipLight c={c} />
+        </G>
         <Body c={c} blush={pose.blush} />
         <G transform={look ? `translate(${look} 0)` : undefined}>
           <Eyes c={c} kind={eyes} />
@@ -314,11 +309,11 @@ const TWIN_EFFECTS: Effect[] = ['zzz', 'hearts', 'sparkles'];
 
 /** Where each effect turns, grows or falls from. */
 const EFFECT_ORIGIN: Record<Effect, [{ x: number; y: number }, { x: number; y: number }?]> = {
-  tear: [{ x: 74, y: 130 }],
-  sweat: [{ x: 148, y: 84 }],
+  tear: [{ x: 80, y: 152 }],
+  sweat: [{ x: 154, y: 92 }],
   zzz: [{ x: 145, y: 62 }, { x: 160, y: 44 }],
   hearts: [{ x: 150, y: 64 }, { x: 40, y: 55 }],
-  sparkles: [{ x: 41, y: 73 }, { x: 162, y: 86 }],
+  sparkles: [{ x: 39, y: 69 }, { x: 162, y: 86 }],
   question: [{ x: 154, y: 56 }],
   exclaim: [{ x: 154, y: 58 }],
   confetti: [{ x: 100, y: 60 }],
@@ -554,7 +549,7 @@ function LiveMascot({
   const hopY = useSharedValue(0);
   const hopS = useSharedValue(1);
   const tiltX = useSharedValue(0);
-  const kickAntenna = useSharedValue(0);
+  const kickTip = useSharedValue(0);
   const kickArmR = useSharedValue(0);
   const idleArm = useSharedValue(0);
   // Pops in on first show (unless swapped in for the still Lumi); squashes a little on every mood change.
@@ -609,7 +604,7 @@ function LiveMascot({
           return;
         }
         case 'flick':
-          kickAntenna.value = withSequence(withTiming(LOOPS.flick.deg, { duration: LOOPS.flick.ms }), withSpring(0, LOOPS.flick.spring));
+          kickTip.value = withSequence(withTiming(LOOPS.flick.deg, { duration: LOOPS.flick.ms }), withSpring(0, LOOPS.flick.spring));
           return;
         case 'tilt': {
           const dir = Math.random() < 0.5 ? -1 : 1;
@@ -647,7 +642,7 @@ function LiveMascot({
       alive = false;
       clearTimeout(t);
     };
-  }, [mood, faceX, faceY, blink, hopY, hopS, kickAntenna, tiltX, kickArmR]);
+  }, [mood, faceX, faceY, blink, hopY, hopS, kickTip, tiltX, kickArmR]);
 
   useEffect(() => {
     const p = pose;
@@ -677,8 +672,8 @@ function LiveMascot({
       withTiming(1, { duration: MASCOT.blinkMs }),
       withRepeat(withSequence(withDelay(b.every, withTiming(b.closed, { duration: b.close })), withTiming(1, { duration: b.open })), -1),
     );
-    sway.value = -LOOPS.antennaSway.deg;
-    loop(sway, LOOPS.antennaSway.deg, LOOPS.antennaSway.ms);
+    sway.value = -LOOPS.tipSway.deg;
+    loop(sway, LOOPS.tipSway.deg, LOOPS.tipSway.ms);
     loop(glow, p.pulse ? LOOPS.glow.pulse : LOOPS.glow.rest, p.pulse ? LOOPS.glow.pulseMs : LOOPS.glow.restMs);
     if (p.talk) {
       talk.value = LOOPS.talk.from;
@@ -692,7 +687,7 @@ function LiveMascot({
     idleArm.value = 0;
     if (!p.armMotionL && !p.armMotionR && p.body === 'breathe') loop(idleArm, LOOPS.idleArm.deg, LOOPS.idleArm.ms);
     // Fidgets from the previous mood settle.
-    for (const v of [faceX, faceY, hopY, tiltX, kickAntenna, kickArmR]) v.value = withSpring(0, spring);
+    for (const v of [faceX, faceY, hopY, tiltX, kickTip, kickArmR]) v.value = withSpring(0, spring);
     hopS.value = withSpring(1, spring);
     if (first.current) first.current = false;
     else {
@@ -701,7 +696,7 @@ function LiveMascot({
     }
   }, [
     pose, lift, tilt, armL, armR, glowDim, bodyY, bodyRot, oscL, oscR, talk, fxA, fxB, pop, glow, bodySX, bodySY, blink, sway,
-    idleArm, faceX, faceY, hopY, hopS, tiltX, kickAntenna, kickArmR, bump,
+    idleArm, faceX, faceY, hopY, hopS, tiltX, kickTip, kickArmR, bump,
   ]);
 
   const { enterFrom, enterRise } = MASCOT;
@@ -722,7 +717,7 @@ function LiveMascot({
     };
   });
   const faceStyle = useAnimatedStyle(() => ({ transform: [{ translateX: (faceX.value + lookX.value) * k }, { translateY: faceY.value * k }] }));
-  const antennaStyle = useAnimatedStyle(() => ({ transform: [{ rotate: `${sway.value + kickAntenna.value}deg` }] }));
+  const tipStyle = useAnimatedStyle(() => ({ transform: [{ rotate: `${sway.value + kickTip.value}deg` }] }));
   const lightStyle = useAnimatedStyle(() => ({ transform: [{ scale: glow.value }], opacity: glowDim.value }));
   const eyesStyle = useAnimatedStyle(() => ({ transform: [{ scaleY: blink.value }] }));
   const mouthStyle = useAnimatedStyle(() => ({ transform: [{ scaleY: talk.value }] }));
@@ -751,16 +746,14 @@ function LiveMascot({
         <Layer size={size}>
           <Feet c={c} />
         </Layer>
-        {hasAntenna(pose) ? (
-          <Pivot size={size} origin={ANTENNA_BASE} style={antennaStyle}>
-            <Layer size={size}>
-              <AntennaStem c={c} />
-            </Layer>
-            <Layer size={size} origin={LIGHT} style={lightStyle}>
-              <AntennaLight c={c} />
-            </Layer>
-          </Pivot>
-        ) : null}
+        <Pivot size={size} origin={TIP_BASE} style={tipStyle}>
+          <Layer size={size}>
+            <Tip c={c} />
+          </Layer>
+          <Layer size={size} origin={LIGHT} style={lightStyle}>
+            <TipLight c={c} />
+          </Layer>
+        </Pivot>
         <Layer size={size}>
           <Body c={c} blush={pose.blush} />
         </Layer>

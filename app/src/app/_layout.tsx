@@ -138,6 +138,7 @@ export default function RootLayout() {
                 <Stack.Screen name="assistant" options={{ title: 'Lumi' }} />
                 <Stack.Screen name="dev-kit" options={{ title: 'Dev kit' }} />
                 <Stack.Screen name="dev-lumi" options={{ title: 'Lumi laboratuvarı' }} />
+                <Stack.Screen name="dev-lumi-sheet" options={{ title: 'Lumi hâlleri' }} />
               </Stack.Protected>
               <Stack.Protected guard={!signedIn}>
                 <Stack.Screen name="login" options={{ headerShown: false, animation: 'fade' }} />

@@ -24,7 +24,7 @@ interface Item {
   lock: string;
 }
 
-/** Accessories already drawn in mascot/parts.tsx, unlocked by level (spec 8.2). The cap hides the antenna, so it isn't offered. */
+/** Accessories already drawn in mascot/parts.tsx, unlocked by level (spec 8.2). The cap belongs to the graduate pose, so it isn't offered. */
 const ITEMS: Item[] = [
   { id: 'glasses', slot: 'face', label: 'Gözlük', icon: 'glasses', level: 3, lock: "Seviye 3'te açılır" },
   { id: 'party', slot: 'head', label: 'Parti şapkası', icon: 'party-popper', level: 5, lock: "Seviye 5'te açılır" },

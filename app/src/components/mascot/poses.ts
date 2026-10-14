@@ -51,7 +51,7 @@ export interface Pose {
   /** Held in the hands (pom-poms in both; a pencil, a cup or the fosfor marker in the right). */
   held?: Held;
   effects?: Effect[];
-  /** Antenna light: 1 = normal, 0.4 = dim (sleepy); `pulse` throbs while thinking. */
+  /** The light in the tip: 1 = normal, 0.4 = dim (sleepy); `pulse` throbs while thinking. */
   glow?: number;
   pulse?: boolean;
   /** Mouth flaps (talking). */
@@ -120,6 +120,3 @@ export const POSES: Record<MascotMood, Pose> = {
 /** Worn items by slot: the wardrobe fills a slot only when the pose leaves it empty. */
 export const HEAD_ITEMS: Accessory[] = ['party', 'crown', 'headphones', 'cap'];
 export const FACE_ITEMS: Accessory[] = ['glasses'];
-
-/** Moods that hide the antenna light under a hat or a headband. */
-export const HIDES_ANTENNA: Accessory[] = ['cap'];
