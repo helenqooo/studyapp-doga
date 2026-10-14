@@ -4,7 +4,7 @@ import Animated from 'react-native-reanimated';
 import { useProfile, useStudyDay, useStudyDays, useUpdateSettings } from '../api/hooks';
 import { AppText } from '../components/AppText';
 import { Button } from '../components/Button';
-import { Card } from '../components/Card';
+import { Card, GroupDivider } from '../components/Card';
 import { Chip } from '../components/Chip';
 import { Col, Row } from '../components/Grid';
 import { Icon, type IconName } from '../components/Icon';
@@ -13,11 +13,12 @@ import { enter } from '../components/motion/presets';
 import { PressableScale } from '../components/motion/PressableScale';
 import { ProgressBar } from '../components/ProgressBar';
 import { Screen } from '../components/Screen';
+import { Section } from '../components/SectionHeader';
 import { FocusDim, FocusVignette, type FocusLevel } from '../components/timer/FocusDim';
 import { TimerRing } from '../components/timer/TimerRing';
 import { WeekBars } from '../components/timer/WeekBars';
 import { useStopTimer } from '../components/TimerSupervisor';
-import { SUBJECTS_BY_EXAM } from '../data/topics';
+import { SUBJECTS_BY_EXAM, type Exam } from '../data/topics';
 import { haptics } from '../lib/haptics';
 import { useWindowLayout } from '../lib/layout';
 import { formatClock, formatMinutes, useNow } from '../lib/useNow';
@@ -27,33 +28,40 @@ import { subjectColor, useTheme } from '../theme';
 // TOKEN-PENDING: layout.timer.numeralShare = 0.32 (the clock never grows past this share of the ring)
 const NUMERAL_SHARE = 0.32;
 
-const SUBJECTS = [...SUBJECTS_BY_EXAM.TYT, ...SUBJECTS_BY_EXAM.AYT];
+const EXAMS: Exam[] = ['TYT', 'AYT'];
 const DEFAULT_SETTINGS = { focusMinutes: 25, breakMinutes: 5 };
 
-/** − 25 dk + : minutes for focus or break, saved to the profile. */
-function Stepper({ label, value, min, max, step, onChange }: {
+/**
+ * One row of "Süre": the name on the left, then − value + on the right. The value sits in a
+ * fixed slot so the focus and break rows line up; while a phase runs the buttons rest.
+ */
+function StepperRow({ label, value, min, max, step, disabled, onChange }: {
   label: string;
   value: number;
   min: number;
   max: number;
   step: number;
+  disabled: boolean;
   onChange: (v: number) => void;
 }) {
   const theme = useTheme();
-  const button = (icon: 'minus' | 'plus', next: number, disabled: boolean) => (
+  const { touch, tablet } = useWindowLayout();
+  const rowMin = tablet ? theme.layout.group.rowMinHeight.tablet : theme.layout.group.rowMinHeight.compact;
+  const button = (icon: 'minus' | 'plus', next: number, off: boolean) => (
     <PressableScale
       kind="bubble"
       accessibilityRole="button"
       accessibilityLabel={`${label} ${icon === 'plus' ? 'artır' : 'azalt'}`}
-      disabled={disabled}
-      dimmed={disabled}
+      accessibilityState={{ disabled: off }}
+      disabled={off}
+      dimmed={off}
       onPress={() => {
         haptics.select();
         onChange(next);
       }}
       style={{
-        width: theme.layout.minTouch,
-        height: theme.layout.minTouch,
+        width: touch,
+        height: touch,
         borderRadius: theme.radius.pill,
         backgroundColor: theme.colors.surfaceAlt,
         alignItems: 'center',
@@ -64,20 +72,22 @@ function Stepper({ label, value, min, max, step, onChange }: {
     </PressableScale>
   );
   return (
-    <View style={{ flex: 1, minWidth: theme.layout.minTouch * 3, alignItems: 'center', gap: theme.spacing.xs }}>
-      <AppText variant="caption" color="textMuted">
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm, minHeight: rowMin }}>
+      <AppText weight="medium" style={{ flex: 1 }}>
         {label}
       </AppText>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm }}>
-        {button('minus', Math.max(min, value - step), value <= min)}
-        <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'center', gap: theme.spacing.xxs, minWidth: theme.layout.minTouch + theme.spacing.md }}>
-          <AppText variant="numeric">{value}</AppText>
-          <AppText variant="caption" color="textMuted">
-            dk
-          </AppText>
-        </View>
-        {button('plus', Math.min(max, value + step), value >= max)}
+      {button('minus', Math.max(min, value - step), disabled || value <= min)}
+      <View
+        accessible
+        accessibilityLabel={`${label} ${value} dakika`}
+        style={{ width: touch + theme.spacing.lg, flexDirection: 'row', alignItems: 'baseline', justifyContent: 'center', gap: theme.spacing.xxs }}
+      >
+        <AppText variant="numeric">{value}</AppText>
+        <AppText variant="caption" color="textMuted">
+          dk
+        </AppText>
       </View>
+      {button('plus', Math.min(max, value + step), disabled || value >= max)}
     </View>
   );
 }
@@ -112,33 +122,53 @@ function RoundControl({ icon, label, onPress, primary = false }: { icon: IconNam
   );
 }
 
-/** "Ders": subject chips that wrap, and the focus and break steppers while idle. */
-function Setup({ idle, settings, onSettings }: { idle: boolean; settings: typeof DEFAULT_SETTINGS; onSettings: (next: Partial<typeof DEFAULT_SETTINGS>) => void }) {
+/** "Ders": Genel, then the subjects grouped by exam (TYT, AYT). */
+function Subjects() {
   const theme = useTheme();
   const subject = useTimerStore((s) => s.subject);
   const setSubject = useTimerStore((s) => s.setSubject);
-  return (
-    <Card title="Ders">
+  const group = (exam: Exam) => (
+    <View key={exam} style={{ gap: theme.spacing.xs }}>
+      <AppText variant="caption" color="textMuted">
+        {exam}
+      </AppText>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.sm }}>
-        <Chip label="Genel" selected={!subject} onPress={() => setSubject(null)} />
-        {SUBJECTS.map((s) => (
+        {SUBJECTS_BY_EXAM[exam].map((s) => (
           <Chip key={s} label={s} color={subjectColor(theme, s)} selected={subject === s} onPress={() => setSubject(s)} />
         ))}
       </View>
-      {idle ? (
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.md, paddingTop: theme.spacing.xs }}>
-          <Stepper label="Odak" value={settings.focusMinutes} min={5} max={90} step={5} onChange={(v) => onSettings({ focusMinutes: v })} />
-          <Stepper label="Mola" value={settings.breakMinutes} min={1} max={30} step={1} onChange={(v) => onSettings({ breakMinutes: v })} />
+    </View>
+  );
+  return (
+    <Section title="Ders">
+      <View style={{ gap: theme.spacing.md }}>
+        <View style={{ flexDirection: 'row' }}>
+          <Chip label="Genel" selected={!subject} onPress={() => setSubject(null)} />
         </View>
-      ) : null}
-      <AppText variant="caption" color="textMuted">
-        5 dakikadan uzun tamamlanan her odak +20 XP kazandırır ve günü seriye sayar. Süre bitince bildirim gelir.
-      </AppText>
-    </Card>
+        {EXAMS.map(group)}
+      </View>
+    </Section>
   );
 }
 
-/** "Bugün": today's focus minutes, the pomodoro line, and the split by subject. */
+/** "Süre": the focus and break steppers in one sheet, and what a focus earns. */
+function Durations({ idle, settings, onSettings }: { idle: boolean; settings: typeof DEFAULT_SETTINGS; onSettings: (next: Partial<typeof DEFAULT_SETTINGS>) => void }) {
+  const theme = useTheme();
+  return (
+    <Section title="Süre">
+      <Card style={{ paddingVertical: theme.spacing.xs, gap: 0 }}>
+        <StepperRow label="Odak" value={settings.focusMinutes} min={5} max={90} step={5} disabled={!idle} onChange={(v) => onSettings({ focusMinutes: v })} />
+        <GroupDivider inset={0} />
+        <StepperRow label="Mola" value={settings.breakMinutes} min={1} max={30} step={1} disabled={!idle} onChange={(v) => onSettings({ breakMinutes: v })} />
+      </Card>
+      <AppText variant="caption" color="textMuted">
+        5 dakikadan uzun her odak +20 XP kazandırır ve günü seriye sayar.
+      </AppText>
+    </Section>
+  );
+}
+
+/** "Bugün", on the paper: today's focus minutes, the pomodoro line, and the split by subject. */
 function Today({ focusMinutes }: { focusMinutes: number }) {
   const theme = useTheme();
   const d = useStudyDay().data;
@@ -147,12 +177,12 @@ function Today({ focusMinutes }: { focusMinutes: number }) {
   const line = !d
     ? ''
     : d.pomodoros > 0
-      ? `Bugün ${d.pomodoros} pomodoro`
+      ? `${d.pomodoros} pomodoro tamamladın.`
       : (minutes ?? 0) < focusMinutes
         ? `İlk pomodoroya ${focusMinutes - (minutes ?? 0)} dk kaldı.`
         : 'Bugün henüz tamamlanan pomodoro yok.';
   return (
-    <Card title="Bugün">
+    <Section title="Bugün">
       <View style={{ gap: theme.spacing.xxs }}>
         <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: theme.spacing.xs }}>
           <AppText variant="stat" color={minutes === null ? 'textMuted' : 'text'}>
@@ -187,21 +217,18 @@ function Today({ focusMinutes }: { focusMinutes: number }) {
           ))}
         </View>
       ) : null}
-    </Card>
+    </Section>
   );
 }
 
-/** "Son 7 gün": the week's focus as bars that fill the sheet. */
+/** "Son 7 gün", on the paper: the week's focus as bars, minutes over each. */
 function Week() {
   const days = useStudyDays(7).data?.days ?? [];
   const total = days.reduce((sum, d) => sum + d.focusSec, 0);
   return (
-    <Card title="Son 7 gün">
-      <AppText variant="caption" color="textMuted">
-        Toplam {formatMinutes(total)} odak.
-      </AppText>
+    <Section title="Son 7 gün" caption={`Günlük odak, dakika olarak. Toplam ${formatMinutes(total)}.`}>
       <WeekBars days={days} />
-    </Card>
+    </Section>
   );
 }
 
@@ -285,19 +312,25 @@ export default function TimerScreen() {
     </Card>
   );
 
-  const setup = <Setup idle={idle} settings={settings} onSettings={saveSettings} />;
+  const subjects = <Subjects />;
+  const durations = <Durations idle={idle} settings={settings} onSettings={saveSettings} />;
   const today = <Today focusMinutes={settings.focusMinutes} />;
   const week = <Week />;
+  const gap = tablet ? theme.layout.screen.gap.tablet : theme.layout.screen.gap.compact;
 
+  // The clock is the one sheet; everything else sits on the paper and steps back while focusing.
   let body: ReactNode;
   if (sizeClass === 'wide') {
     body = (
       <Row>
-        <Col span={{ compact: 4, wide: 7 }}>{ringCard}</Col>
-        <Col span={{ compact: 4, wide: 5 }}>
-          <FocusDim level={level} style={{ gap: theme.spacing.lg }}>
-            {setup}
-            {today}
+        <Col span={{ compact: 4, wide: 6 }} style={{ gap }}>
+          {ringCard}
+          <FocusDim level={level}>{today}</FocusDim>
+        </Col>
+        <Col span={{ compact: 4, wide: 6 }}>
+          <FocusDim level={level} style={{ gap }}>
+            {subjects}
+            {durations}
             {week}
           </FocusDim>
         </Col>
@@ -307,14 +340,13 @@ export default function TimerScreen() {
     body = (
       <>
         {ringCard}
-        <FocusDim level={level}>
+        <FocusDim level={level} style={{ gap }}>
+          {subjects}
           <Row>
-            <Col span={{ compact: 4, regular: 4 }}>{setup}</Col>
-            <Col span={{ compact: 4, regular: 4 }}>
-              {today}
-              {week}
-            </Col>
+            <Col span={{ compact: 4, regular: 4 }}>{durations}</Col>
+            <Col span={{ compact: 4, regular: 4 }}>{today}</Col>
           </Row>
+          {week}
         </FocusDim>
       </>
     );
@@ -322,8 +354,9 @@ export default function TimerScreen() {
     body = (
       <>
         {ringCard}
-        <FocusDim level={level} style={{ gap: theme.spacing.lg }}>
-          {setup}
+        <FocusDim level={level} style={{ gap }}>
+          {subjects}
+          {durations}
           {today}
           {week}
         </FocusDim>
@@ -333,7 +366,9 @@ export default function TimerScreen() {
 
   return (
     <View style={{ flex: 1 }}>
-      <Screen safeTop={false}>{body}</Screen>
+      <Screen safeTop={false} title="Sayaç" subtitle="Odaklan, sonra kısa bir mola.">
+        {body}
+      </Screen>
       <FocusVignette level={level} />
     </View>
   );

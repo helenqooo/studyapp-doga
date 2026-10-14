@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { View, type LayoutChangeEvent } from 'react-native';
 import Svg, { G, Rect, Text as SvgText } from 'react-native-svg';
-import { useFontScale } from '../../lib/layout';
+import { useFontScale, useWindowLayout } from '../../lib/layout';
 import { useTheme } from '../../theme';
 
-// TOKEN-PENDING: layout.chart.weekHeight = 148 (the week's bar chart, labels included)
-const HEIGHT = 148;
+// TOKEN-PENDING: layout.chart.weekHeight = { compact: 148, tablet: 196 } (the week's bar chart, labels included)
+const HEIGHT = { compact: 148, tablet: 196 };
 // TOKEN-PENDING: layout.chart.minBar = 2 (an empty day still shows a sliver)
 const MIN_BAR = 2;
 
@@ -13,11 +13,14 @@ const DAY_NAMES = ['Paz', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt'];
 
 /**
  * Focus minutes for the last days as bars that fill the measured width (one slot per day),
- * today's bar in `chart.today`, minutes over each bar and the day under it.
+ * today's bar in `chart.today`, minutes over each bar (Poppins, like every small number) and
+ * the day under a hairline baseline. Taller on a tablet.
  */
 export function WeekBars({ days }: { days: { date: string; focusSec: number }[] }) {
   const theme = useTheme();
   const fs = useFontScale();
+  const { tablet } = useWindowLayout();
+  const height = tablet ? HEIGHT.tablet : HEIGHT.compact;
   const [width, setWidth] = useState(0);
   const { barShare, labelGap } = theme.layout.chart.weekBar;
   const n = Math.max(1, days.length);
@@ -25,19 +28,20 @@ export function WeekBars({ days }: { days: { date: string; focusSec: number }[] 
   const barW = slot * barShare;
   const top = fs.xs + labelGap;
   const bottom = fs.xs + labelGap * 2;
-  const plot = HEIGHT - top - bottom;
+  const plot = height - top - bottom;
   // An hour fills the plot at least, so a 10 minute day doesn't look like a full one.
   const max = Math.max(60 * 60, ...days.map((d) => d.focusSec));
 
   return (
     <View
       onLayout={(e: LayoutChangeEvent) => setWidth(Math.round(e.nativeEvent.layout.width))}
-      style={{ width: '100%', height: HEIGHT }}
+      style={{ width: '100%', height }}
       accessible
       accessibilityLabel={`Son ${days.length} günün odak süreleri: ${days.map((d) => `${Math.round(d.focusSec / 60)} dakika`).join(', ')}`}
     >
       {width > 0 ? (
-        <Svg width={width} height={HEIGHT}>
+        <Svg width={width} height={height}>
+          <Rect x={0} y={top + plot} width={width} height={theme.layout.borderWidth} fill={theme.colors.chart.grid} />
           {days.map((d, i) => {
             const h = Math.max(MIN_BAR, (plot * d.focusSec) / max);
             const x = i * slot + (slot - barW) / 2;
@@ -58,7 +62,7 @@ export function WeekBars({ days }: { days: { date: string; focusSec: number }[] 
                     x={x + barW / 2}
                     y={top + plot - h - labelGap}
                     fontSize={fs.xs}
-                    fontFamily={theme.fonts.display.medium}
+                    fontFamily={theme.fonts.sans.semibold}
                     fill={theme.colors.text}
                     textAnchor="middle"
                   >
@@ -67,7 +71,7 @@ export function WeekBars({ days }: { days: { date: string; focusSec: number }[] 
                 ) : null}
                 <SvgText
                   x={x + barW / 2}
-                  y={HEIGHT - labelGap}
+                  y={height - labelGap}
                   fontSize={fs.xs}
                   fontFamily={isToday ? theme.fonts.sans.semibold : theme.fonts.sans.regular}
                   fill={isToday ? theme.colors.text : theme.colors.chart.axisText}

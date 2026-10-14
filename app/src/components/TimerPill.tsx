@@ -15,11 +15,23 @@ const PILL_TOP = 52;
 /** Tab routes show the timer ear on the strip instead; these full-attention routes show nothing. */
 const HIDDEN = new Set(['/', '/solve', '/review', '/exams', '/profile', '/timer', '/camera', '/crop']);
 
+/**
+ * Where the TimerPill's bottom edge sits in the window, or 0 while it isn't showing on this
+ * route: a screen whose first lines start at the top right (a chat thread) keeps them below it.
+ */
+export function useTimerPillBottom(): number {
+  const insets = useSafeAreaInsets();
+  const { touch } = useWindowLayout();
+  const pathname = usePathname();
+  const idle = useTimerStore((s) => s.phase === 'idle');
+  return idle || HIDDEN.has(pathname) ? 0 : insets.top + PILL_TOP + touch;
+}
+
 /** Small floating countdown on stack screens while a pomodoro runs; tapping it opens the timer. */
 export function TimerPill() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const { margin } = useWindowLayout();
+  const { margin, touch } = useWindowLayout();
   const pathname = usePathname();
   const timer = useTimerStore();
   const running = timer.phase !== 'idle' && timer.endsAt !== null;
@@ -40,7 +52,7 @@ export function TimerPill() {
         onPress={() => router.push('/timer')}
         style={{
           ...elevated(theme, 'floating'),
-          minHeight: theme.layout.minTouch,
+          minHeight: touch,
           minWidth: theme.layout.tabBar.ear.minWidth,
           paddingHorizontal: theme.spacing.sm,
           justifyContent: 'center',

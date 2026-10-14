@@ -16,15 +16,15 @@ import {
 import type { ExamResult } from '../api/types';
 import { AppText } from '../components/AppText';
 import { ChatView, type ChatContextItem, type ChatPrompt } from '../components/chat/ChatView';
-import { Icon } from '../components/Icon';
 import { Kareli } from '../components/Kareli';
 import { Mascot, type MascotMood } from '../components/mascot/Mascot';
-import { PressableScale } from '../components/motion/PressableScale';
 import { ease, enter, exit } from '../components/motion/presets';
+import { HeaderAction } from '../components/Screen';
 import { ASSISTANT_NAME } from '../brand';
 import { getTopic } from '../data/topics';
 import { formatDelta, formatNet } from '../lib/format';
 import { haptics } from '../lib/haptics';
+import { useWindowLayout } from '../lib/layout';
 import { useTheme, type Theme } from '../theme';
 
 // TOKEN-PENDING: layout.chat.headerMascot = 32 (the live Lumi in the assistant's header, spec 7.6)
@@ -33,6 +33,8 @@ const HEADER_MASCOT = 32;
 const RM_FADE_MS = 120;
 // TOKEN-PENDING: layout.chat.patchClear = 0.5 (share of the hero patch, from its center, where the graph paper is still unfaded)
 const PATCH_CLEAR = 0.5;
+// TOKEN-PENDING: layout.chat.heroShare = 0.18 (the intro Lumi is never taller than this share of the window, so a short landscape iPad keeps the starters above the composer)
+const HERO_SHARE = 0.18;
 
 /** The header caption: what Lumi is doing. */
 function statusOf(mood: MascotMood): string {
@@ -122,7 +124,8 @@ function contextItems(
     out.push({
       key: 'loss',
       icon: 'trending-down',
-      label: `En çok net kaybı: ${name}`,
+      // The name's last two words stay together, so a wrapped label never leaves one word alone.
+      label: `En çok net kaybı: ${name.replace(/ (\S+)$/, '\u00A0$1')}`,
       hint: 'Bu konuyu nasıl toparlarım?',
       prompt: `En çok net kaybım ${name} konusunda. Nasıl toparlarım?`,
     });
@@ -133,6 +136,7 @@ function contextItems(
 /** The assistant: a general study chat with Lumi that knows the student's numbers. */
 export default function AssistantScreen() {
   const theme = useTheme();
+  const win = useWindowLayout();
   const thread = useAssistantThread();
   const add = useAddAssistantMessages();
   const clear = useClearAssistant();
@@ -151,7 +155,7 @@ export default function AssistantScreen() {
 
   const context = contextItems(theme, profile.data?.streak, reviews.data?.items.length ?? 0, lastExam(exams.data?.items), overview.data?.topicLosses[0]?.topicId);
 
-  const hero = theme.layout.mascot.hero;
+  const hero = Math.min(theme.layout.mascot.hero, Math.round(win.height * HERO_SHARE));
   return (
     <>
       <Stack.Screen
@@ -161,19 +165,14 @@ export default function AssistantScreen() {
             items.length ? (
               // Arrives with the first exchange and leaves with "Yeni sohbet": a fade, not a pop.
               <Animated.View entering={enter({ still: true, duration: theme.motion.duration.base })} exiting={exit()}>
-                <PressableScale
-                  kind="bubble"
-                  accessibilityRole="button"
-                  accessibilityLabel="Yeni sohbet"
-                  hitSlop={theme.layout.system.hitSlop}
+                <HeaderAction
+                  icon="square-pen"
+                  label="Yeni sohbet"
                   onPress={() => {
                     haptics.tap();
                     clear.mutate();
                   }}
-                  style={{ minWidth: theme.layout.minTouch, minHeight: theme.layout.minTouch, alignItems: 'center', justifyContent: 'center' }}
-                >
-                  <Icon name="square-pen" color={theme.colors.primaryText} />
-                </PressableScale>
+                />
               </Animated.View>
             ) : null,
         }}
@@ -204,7 +203,9 @@ export default function AssistantScreen() {
             <AppText variant="title" align="center">
               Selam, ben {ASSISTANT_NAME}!
             </AppText>
-            <AppText align="center">Plan yapalım, bir konuyu anlatayım ya da netlerine bakalım.</AppText>
+            <AppText align="center" color="textMuted">
+              Plan yapalım, bir konuyu anlatayım ya da netlerine bakalım.
+            </AppText>
           </View>
         }
         prompts={PROMPTS}

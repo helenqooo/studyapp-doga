@@ -14,6 +14,7 @@ import type { MascotMood } from '../mascot/Mascot';
 import { Appear } from '../motion/Appear';
 import { Loader } from '../motion/Loader';
 import { ErrorState } from '../states/ErrorState';
+import { useTimerPillBottom } from '../TimerPill';
 import { ChatBubble, ChatComposer, ContextChips, ContextSheets, PromptGrid, type ChatContextItem, type ChatPrompt } from './ChatParts';
 
 export type { ChatContextItem, ChatPrompt } from './ChatParts';
@@ -79,6 +80,7 @@ export function ChatView({
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
   const win = useWindowLayout();
+  const pillBottom = useTimerPillBottom();
   const [draft, setDraft] = useState('');
   const scrollRef = useRef<ScrollView>(null);
   // The live reply whose typing animation has finished, and whether Lumi is still pleased about it.
@@ -162,6 +164,15 @@ export function ChatView({
   // Out of messages: starters and context stop being buttons (a tap would do nothing).
   const canAsk = !closedNote;
   const liveAvatar = !onMood;
+  // Portrait and phone: the facts as chips, under the starters while the chat is empty, then over the thread.
+  const chips = !aside && canAsk && !!context?.length;
+  const blockGap = win.tablet ? theme.layout.screen.gap.tablet : theme.layout.screen.gap.compact;
+  const barPad = win.tablet ? theme.spacing.md : theme.spacing.sm;
+  // While a pomodoro runs, the TimerPill floats at the top right: the thread (and the aside,
+  // so the two columns keep one top line) starts below it. The empty assistant's intro is
+  // centered, clear of the pill, and keeps its room.
+  const clearPill = pillBottom > 0 && (!empty || !!header);
+  const topPad = clearPill ? Math.max(win.margin, pillBottom + theme.spacing.sm - headerHeight) : win.margin;
 
   const thread = (
     <View style={{ flex: 1 }}>
@@ -170,7 +181,8 @@ export function ChatView({
         contentContainerStyle={{
           flexGrow: 1,
           paddingHorizontal: threadPad,
-          paddingVertical: win.margin,
+          paddingTop: topPad,
+          paddingBottom: win.margin,
           gap: theme.spacing.md,
           width: '100%',
           maxWidth: theme.layout.readableWidth + threadPad * 2,
@@ -182,13 +194,13 @@ export function ChatView({
           if (!empty) scrollRef.current?.scrollToEnd({ animated: true });
         }}
       >
-        {!aside && canAsk && context?.length ? <ContextChips items={context} onPick={go} /> : null}
+        {chips && rows.length > 0 ? <ContextChips items={context!} onPick={go} /> : null}
         {header}
         {loading ? <Loader /> : null}
         {loadError ? <ErrorState error={loadError} onRetry={onRetry} compact /> : null}
 
         {empty ? (
-          <View style={{ flexGrow: 1, justifyContent: header ? 'flex-start' : 'center', gap: theme.spacing.lg }}>
+          <View style={{ flexGrow: 1, justifyContent: header ? 'flex-start' : 'center', gap: blockGap }}>
             {intro}
             {canAsk && prompts?.length ? <PromptGrid prompts={prompts} onPick={go} /> : null}
             {canAsk && suggestions?.length ? (
@@ -198,6 +210,8 @@ export function ChatView({
                 ))}
               </View>
             ) : null}
+            {/* The empty chat keeps its facts under the starters, as one composition. */}
+            {chips ? <ContextChips items={context!} onPick={go} heading /> : null}
           </View>
         ) : null}
 
@@ -245,11 +259,11 @@ export function ChatView({
           borderTopColor: theme.colors.border,
           backgroundColor: theme.colors.background,
           paddingHorizontal: threadPad,
-          paddingTop: theme.spacing.sm,
-          paddingBottom: insets.bottom + theme.spacing.sm,
+          paddingTop: barPad,
+          paddingBottom: insets.bottom + barPad,
         }}
       >
-        <View style={{ width: '100%', maxWidth: theme.layout.readableWidth, alignSelf: 'center', gap: theme.spacing.xs }}>
+        <View style={{ width: '100%', maxWidth: theme.layout.readableWidth, alignSelf: 'center', gap: theme.spacing.sm }}>
           {closedNote ? (
             <AppText variant="label" color="textMuted" align="center" style={{ paddingVertical: theme.spacing.md }}>
               {closedNote}
@@ -258,7 +272,7 @@ export function ChatView({
             <>
               <ChatComposer value={draft} onChange={setDraft} onSend={() => go(draft)} busy={busy} placeholder={placeholder} />
               {footnote ? (
-                <AppText variant="caption" color="textMuted">
+                <AppText variant="caption" color="textMuted" align="center">
                   {footnote}
                 </AppText>
               ) : null}
@@ -283,7 +297,7 @@ export function ChatView({
             paddingHorizontal: win.margin,
           }}
         >
-          <ScrollView style={{ width: asideWidth, flexGrow: 0 }} contentContainerStyle={{ paddingVertical: win.margin }}>
+          <ScrollView style={{ width: asideWidth, flexGrow: 0 }} contentContainerStyle={{ paddingTop: topPad, paddingBottom: win.margin }}>
             <ContextSheets items={context!} onPick={canAsk ? go : undefined} />
           </ScrollView>
           {thread}

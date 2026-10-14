@@ -1,12 +1,12 @@
 import { useEffect, type ReactNode } from 'react';
 import { StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
 import Animated, { ReduceMotion, useAnimatedStyle, useReducedMotion, useSharedValue, withTiming } from 'react-native-reanimated';
-import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
+import Svg, { Defs, LinearGradient, Mask, RadialGradient, Rect, Stop } from 'react-native-svg';
 import { useTheme } from '../../theme';
 import { ease } from '../motion/presets';
 
-// TOKEN-PENDING: layout.focusVignette = { clear: 0.55, radius: '75%' } (where the edge shade starts, and the gradient's reach)
-const VIGNETTE = { clear: 0.55, radius: '75%' };
+// TOKEN-PENDING: layout.focusVignette = { clear: 0.55, radius: '75%', topFade: 96 } (where the edge shade starts, the gradient's reach, and the band over which its top edge fades in from nothing)
+const VIGNETTE = { clear: 0.55, radius: '75%', topFade: 96 };
 
 /** How deep "Odak modu" is: 0 off, 0.5 paused (lifted halfway), 1 focusing. */
 export type FocusLevel = 0 | 0.5 | 1;
@@ -35,21 +35,33 @@ export function FocusDim({ level, children, style }: { level: FocusLevel; childr
   return <Animated.View style={[style, animated]}>{children}</Animated.View>;
 }
 
-/** The focus vignette: the screen's edges shade softly while focusing. Never takes touches. */
+/**
+ * The focus vignette: the screen's edges shade softly while focusing. Its top fades in from
+ * nothing over `topFade`, so it meets the header's paper without a line. Never takes touches.
+ */
 export function FocusVignette({ level }: { level: FocusLevel }) {
   const theme = useTheme();
   const v = useLevel(level);
   const animated = useAnimatedStyle(() => ({ opacity: v.value }));
   return (
     <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, animated]}>
-      <Svg width="100%" height="100%" preserveAspectRatio="none" viewBox="0 0 100 100">
+      {/* In the sheet's own points (the radial gradient still stretches to an ellipse), so the top fade is a fixed band. */}
+      <Svg width="100%" height="100%">
         <Defs>
           <RadialGradient id="focusVignette" cx="50%" cy="50%" r={VIGNETTE.radius} fx="50%" fy="50%">
             <Stop offset={VIGNETTE.clear} stopColor={theme.colors.focusVignette} stopOpacity={0} />
             <Stop offset={1} stopColor={theme.colors.focusVignette} stopOpacity={1} />
           </RadialGradient>
+          {/* An alpha mask: only the stops' opacity counts, so any opaque ink will do (focusVignette itself is translucent). */}
+          <LinearGradient id="focusVignetteTop" x1={0} y1={0} x2={0} y2={VIGNETTE.topFade} gradientUnits="userSpaceOnUse">
+            <Stop offset={0} stopColor={theme.colors.text} stopOpacity={0} />
+            <Stop offset={1} stopColor={theme.colors.text} stopOpacity={1} />
+          </LinearGradient>
+          <Mask id="focusVignetteMask" style={{ maskType: 'alpha' }}>
+            <Rect x={0} y={0} width="100%" height="100%" fill="url(#focusVignetteTop)" />
+          </Mask>
         </Defs>
-        <Rect x={0} y={0} width={100} height={100} fill="url(#focusVignette)" />
+        <Rect x={0} y={0} width="100%" height="100%" fill="url(#focusVignette)" mask="url(#focusVignetteMask)" />
       </Svg>
     </Animated.View>
   );
