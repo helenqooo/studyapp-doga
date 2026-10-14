@@ -406,7 +406,7 @@ export default function QuestionScreen() {
     return (
       <>
         {title}
-        <SplitScreen left={questionPane} right={workPane} dock={dock} />
+        <SplitScreen left={questionPane} right={workPane} dock={dock} leftFlex={theme.layout.splitQuestion} />
       </>
     );
   }

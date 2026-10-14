@@ -535,9 +535,21 @@ function Pane({ children, flex, dock }: { children: ReactNode; flex: number; doc
  * question on the left stays in view while the solution scrolls on the right; a dock
  * floats over the bottom of the right pane.
  */
-export function SplitScreen({ left, right, dock }: { left: ReactNode; right: ReactNode; dock?: ReactNode }) {
+export function SplitScreen({
+  left,
+  right,
+  dock,
+  leftFlex,
+}: {
+  left: ReactNode;
+  right: ReactNode;
+  dock?: ReactNode;
+  /** Share of the left pane (0–1); defaults to `layout.splitLeft`. */
+  leftFlex?: number;
+}) {
   const theme = useTheme();
   const win = useWindowLayout();
+  const share = leftFlex ?? theme.layout.splitLeft;
   return (
     <View
       style={{
@@ -548,8 +560,8 @@ export function SplitScreen({ left, right, dock }: { left: ReactNode; right: Rea
         backgroundColor: theme.colors.background,
       }}
     >
-      <Pane flex={theme.layout.splitLeft}>{left}</Pane>
-      <Pane flex={1 - theme.layout.splitLeft} dock={dock}>
+      <Pane flex={share}>{left}</Pane>
+      <Pane flex={1 - share} dock={dock}>
         {right}
       </Pane>
     </View>

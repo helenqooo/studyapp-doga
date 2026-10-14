@@ -908,6 +908,8 @@ export const layout = {
   sidebarWidth: 220,
   /** Width of the left pane in split screens, as a fraction. */
   splitLeft: 0.46,
+  /** Left pane of the question screen: the photo is what the student reads. */
+  splitQuestion: 0.56,
   /** Minimum touch target (Apple HIG). */
   minTouch,
   borderWidth,
