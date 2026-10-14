@@ -4,17 +4,20 @@ import { View } from 'react-native';
 import { useExams, useFacets, useProfile } from '../../api/hooks';
 import { BADGES, badgeInfo, type BadgeInfo } from '../../data/badges';
 import { shortDate } from '../../lib/format';
+import { useContentSize, useResponsive, useWindowLayout } from '../../lib/layout';
 import { useAuthStore } from '../../store/authStore';
 import { useTheme } from '../../theme';
 import { AppText } from '../AppText';
 import { BadgeSeal } from '../BadgeSeal';
-import { Card } from '../Card';
 import { Grid } from '../Grid';
 import { Highlight } from '../Highlight';
-import { SectionHeader } from '../SectionHeader';
+import { Section } from '../SectionHeader';
 
-// TOKEN-PENDING: layout.badge.seal = 68 (a profile seal, its progress arc included)
-const SEAL_SIZE = 68;
+// TOKEN-PENDING: layout.badge.seal = { compact: 52, tablet: 60 } (a profile seal, its progress arc included)
+const SEAL_SIZE = { compact: 52, tablet: 60 };
+// TOKEN-PENDING: layout.badge.threeUp = 620 (the measured width from which the seals sit three across;
+//   narrower, a three-across cell would break "30 günlük seri" onto two lines, so they sit two across)
+const THREE_UP = 620;
 
 /** Earned badges whose foil sheen has played, per account (the sheen plays once). */
 const foilKey = (userId: string) => `derece.badgeFoil.${userId}`;
@@ -80,19 +83,23 @@ function lockedProgress(id: string, streak: number | null, solved: number | null
       return solved === null ? {} : goal(solved, 500, 'soru');
     case 'first-exam':
       return exams === null ? {} : { progress: Math.min(1, exams), left: 'İlk denemeni gir.' };
+    case 'topic-master':
+      // No single number to count toward; a short line (two caption lines on a phone) says what to do.
+      return { left: 'Bir konuda 10 doğru tekrar.' };
     default:
-      // Topic master: no single number to count toward; the description says what to do.
       return {};
   }
 }
 
 /**
- * "Rozetler": a section header with the earned count, then the seals 3 × 2. Locked seals
- * carry a progress arc and what's left; earned ones a duotone glyph and, the first time
- * they're seen on this device, a soft foil sheen.
+ * "Rozetler", set on the paper: a heading with the earned count, then the seals in a grid of
+ * rows (three across from `THREE_UP` of width, two across narrower and on a phone), each
+ * seal beside its name and what's left. Locked seals carry a progress arc; earned ones a
+ * duotone glyph and, the first time they're seen on this device, a soft foil sheen.
  */
 export function BadgeProgress() {
   const theme = useTheme();
+  const { tablet } = useWindowLayout();
   const profile = useProfile();
   const facets = useFacets();
   const exams = useExams();
@@ -103,6 +110,18 @@ export function BadgeProgress() {
   const masters = earned.filter((b) => b.id.startsWith('topic-master:'));
   const solved = facets.data ? facets.data.total : null;
   const examCount = exams.data ? exams.data.items.length : null;
+  const seal = tablet ? SEAL_SIZE.tablet : SEAL_SIZE.compact;
+  // Three across only where every name keeps one line (a portrait iPad, a 1180 landscape column).
+  const { width } = useContentSize();
+  const byClass = useResponsive({ compact: 2, regular: 3 });
+  const across = width > 0 ? (width >= THREE_UP ? 3 : 2) : byClass;
+  // Cells are top-aligned, and a title with one caption line is centered on the seal: every
+  // title in a row sits on the same line, and a longer caption just wraps downward.
+  const lineOf = (v: 'label' | 'caption') => {
+    const t = theme.typography[v];
+    return Math.round((tablet ? t.sizeTablet : t.size) * t.lineRatio);
+  };
+  const textTop = Math.max(0, Math.round((seal - lineOf('label') - theme.spacing.xxs - lineOf('caption')) / 2));
 
   const cells: Cell[] = [
     ...BADGES.map((b) => {
@@ -117,48 +136,47 @@ export function BadgeProgress() {
   const fresh = useFreshFoil(userId, cells.filter((c) => c.earnedAt).map((c) => c.key));
 
   return (
-    <View>
-      <SectionHeader title="Rozetler" count={p ? `${earnedIds.size}/${BADGES.length}` : undefined} />
-      <Card>
-        <Grid columns={{ compact: 3, regular: 3, wide: 3 }}>
-          {cells.map((c, i) => {
-            const earnedNow = !!c.earnedAt;
-            return (
-              <View
-                key={c.key}
-                accessible
-                accessibilityLabel={`${c.info.title}: ${earnedNow ? 'kazanıldı' : (c.left ?? c.info.description)}`}
-                style={{ alignItems: 'center', gap: theme.spacing.xs, paddingVertical: theme.spacing.sm }}
-              >
-                <BadgeSeal
-                  icon={c.info.icon}
-                  tier={c.info.tier}
-                  locked={!earnedNow}
-                  size={SEAL_SIZE}
-                  progress={earnedNow ? undefined : (c.progress ?? 0)}
-                  sheen={fresh.has(c.key)}
-                  sheenDelay={theme.motion.duration.slow + i * theme.motion.stagger * 2}
-                />
-                <AppText variant="label" weight="semibold" align="center" color={earnedNow ? 'text' : 'textMuted'}>
+    <Section title="Rozetler" count={p ? `${earnedIds.size}/${BADGES.length}` : undefined}>
+      <Grid columns={{ compact: across }} gap={theme.spacing.lg} columnGap={theme.spacing.xl}>
+        {cells.map((c, i) => {
+          const earnedNow = !!c.earnedAt;
+          return (
+            <View
+              key={c.key}
+              accessible
+              accessibilityLabel={`${c.info.title}: ${earnedNow ? 'kazanıldı' : (c.left ?? c.info.description)}`}
+              style={{ flexDirection: 'row', alignItems: 'flex-start', gap: theme.spacing.md, minHeight: seal }}
+            >
+              <BadgeSeal
+                icon={c.info.icon}
+                tier={c.info.tier}
+                locked={!earnedNow}
+                size={seal}
+                progress={earnedNow ? undefined : (c.progress ?? 0)}
+                sheen={fresh.has(c.key)}
+                sheenDelay={theme.motion.duration.slow + i * theme.motion.stagger * 2}
+              />
+              <View style={{ flex: 1, minWidth: 0, gap: theme.spacing.xxs, paddingTop: textTop }}>
+                <AppText variant="label" weight="semibold" numberOfLines={2}>
                   {c.info.title}
                 </AppText>
                 {!earnedNow && c.counted && c.left ? (
                   // The companion's `idle.badgeNear` target ("7 günlük seri rozetine 1 gün kaldı.").
-                  <Highlight id={`profile.badge.${c.key}`} style={{ alignSelf: 'center' }}>
-                    <AppText variant="caption" color="textMuted" align="center" numberOfLines={1}>
+                  <Highlight id={`profile.badge.${c.key}`} style={{ alignSelf: 'flex-start' }}>
+                    <AppText variant="caption" color="textMuted" numberOfLines={1}>
                       {c.left}
                     </AppText>
                   </Highlight>
                 ) : (
-                  <AppText variant="caption" color="textMuted" align="center" numberOfLines={3}>
+                  <AppText variant="caption" color="textMuted" numberOfLines={2}>
                     {earnedNow ? shortDate(new Date(c.earnedAt as number).toISOString()) : (c.left ?? c.info.description)}
                   </AppText>
                 )}
               </View>
-            );
-          })}
-        </Grid>
-      </Card>
-    </View>
+            </View>
+          );
+        })}
+      </Grid>
+    </Section>
   );
 }

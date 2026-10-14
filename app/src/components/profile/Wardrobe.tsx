@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { View, type LayoutChangeEvent } from 'react-native';
 import { haptics } from '../../lib/haptics';
 import { usePrefsStore, type Outfit } from '../../store/prefsStore';
@@ -7,10 +7,13 @@ import { AppText } from '../AppText';
 import { Bubble } from '../Bubble';
 import { Icon, type IconName } from '../Icon';
 import { Mascot } from '../mascot/Mascot';
+import { Appear } from '../motion/Appear';
+import { FadeText } from '../motion/FadeText';
 import { PressableScale } from '../motion/PressableScale';
 
-// TOKEN-PENDING: layout.wardrobe.itemWidth = 72 (the narrowest swatch column: the bubble and its two-line caption)
-const ITEM_WIDTH = 72;
+// TOKEN-PENDING: layout.wardrobe.itemWidth = { min: 72, max: 128 } (a swatch column: the bubble and its two-line caption;
+//   past `max` the swatches stay grouped beside the preview instead of spreading across a wide sheet)
+const ITEM_WIDTH = { min: 72, max: 128 };
 
 type ItemId = 'glasses' | 'party' | 'headphones' | 'crown';
 
@@ -33,7 +36,8 @@ const ITEMS: Item[] = [
 ];
 
 interface Props {
-  level: number;
+  /** Null until the profile loads: the swatches wait, quiet and closed, without claiming a lock. */
+  level: number | null;
   /** The 30-day streak badge also unlocks the crown. */
   streak30: boolean;
 }
@@ -41,19 +45,25 @@ interface Props {
 /**
  * "Lumi'nin gardırobu": a live Lumi wearing the outfit, and a row of bubble swatches. Tapping
  * a swatch puts the item on (or takes it off); locked ones say the level that opens them.
- * Saved in `prefsStore.outfit`; the companion and every in-tree Lumi wear it.
+ * Saved in `prefsStore.outfit`; the companion and every in-tree Lumi wear it. Until the
+ * level is known the bubbles stay empty and nothing says "locked"; then the glyphs and the
+ * lock lines fade in.
  */
 export function Wardrobe({ level, streak30 }: Props) {
   const theme = useTheme();
   const outfit = usePrefsStore((s) => s.outfit);
   const setOutfit = usePrefsStore((s) => s.setOutfit);
-  const open = (item: Item) => level >= item.level || (item.id === 'crown' && streak30);
+  const known = level !== null;
+  const open = (item: Item) => known && (level >= item.level || (item.id === 'crown' && streak30));
+  // Opened before the profile arrived: what arrives with it fades in. Opened with it, nothing animates.
+  const [cold] = useState(!known);
+  const arrive = (node: ReactNode) => (cold ? <Appear still>{node}</Appear> : node);
   const worn = (item: Item) => outfit[item.slot] === item.id;
   // Four swatches in a row when they fit, else two by two (never three and one).
   const [rowWidth, setRowWidth] = useState(0);
   const gap = theme.spacing.xs;
-  const perRow = rowWidth >= ITEM_WIDTH * ITEMS.length + gap * (ITEMS.length - 1) ? ITEMS.length : 2;
-  const itemWidth = rowWidth ? Math.floor((rowWidth - gap * (perRow - 1)) / perRow) : ITEM_WIDTH;
+  const perRow = rowWidth >= ITEM_WIDTH.min * ITEMS.length + gap * (ITEMS.length - 1) ? ITEMS.length : 2;
+  const itemWidth = rowWidth ? Math.min(ITEM_WIDTH.max, Math.floor((rowWidth - gap * (perRow - 1)) / perRow)) : ITEM_WIDTH.min;
 
   const toggle = (item: Item) => {
     haptics.select();
@@ -89,23 +99,27 @@ export function Wardrobe({ level, streak30 }: Props) {
               key={item.id}
               kind="bubble"
               accessibilityRole="checkbox"
-              accessibilityLabel={unlocked ? item.label : `${item.label}, ${item.lock}`}
-              accessibilityState={{ checked: on, disabled: !unlocked }}
+              accessibilityLabel={unlocked || !known ? item.label : `${item.label}, ${item.lock}`}
+              accessibilityState={{ checked: on, disabled: !unlocked, busy: !known }}
               disabled={!unlocked}
               onPress={() => toggle(item)}
               style={{ width: itemWidth, alignItems: 'center', gap: theme.spacing.xs, paddingVertical: theme.spacing.xs }}
             >
               <Bubble size="letter" filled={on}>
-                {(c: string) => <Icon name={unlocked ? item.icon : 'lock'} size={theme.layout.iconSize.sm} color={unlocked ? c : theme.colors.textMuted} />}
+                {(c: string) =>
+                  known ? arrive(<Icon name={unlocked ? item.icon : 'lock'} size={theme.layout.iconSize.sm} color={unlocked ? c : theme.colors.textMuted} />) : null
+                }
               </Bubble>
-              <AppText variant="caption" align="center" color={unlocked ? 'text' : 'textMuted'} numberOfLines={2}>
+              <FadeText variant="caption" align="center" tint={unlocked ? theme.colors.text : theme.colors.textMuted} numberOfLines={2}>
                 {item.label}
-              </AppText>
-              {unlocked ? null : (
-                <AppText variant="micro" align="center" color="textMuted" numberOfLines={2}>
-                  {item.lock}
-                </AppText>
-              )}
+              </FadeText>
+              {unlocked || !known
+                ? null
+                : arrive(
+                    <AppText variant="caption" align="center" color="textMuted" numberOfLines={2}>
+                      {item.lock}
+                    </AppText>,
+                  )}
             </PressableScale>
           );
         })}

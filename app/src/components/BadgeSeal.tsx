@@ -13,8 +13,9 @@ const FOIL_MS = 700;
 const FOIL_OPACITY = 0.55;
 // TOKEN-PENDING: layout.badge.foil = { band: 0.34, tiltDeg: 20 } (band width as a share of the seal, its slant)
 const FOIL = { band: 0.34, tiltDeg: 20 };
-// TOKEN-PENDING: layout.badge.arc = { radius: 57, stroke: 4, inset: 12 } (the locked seal's progress arc, 100-unit grid)
-const ARC = { radius: 57, stroke: 4, inset: 12 };
+// TOKEN-PENDING: layout.badge.arc = { radius: 57, stroke: 6, inset: 12 } (the locked seal's progress arc, 100-unit grid;
+//   6 so the arc still reads at a 52–60 pt seal)
+const ARC = { radius: 57, stroke: 6, inset: 12 };
 // TOKEN-PENDING: layout.badge.glyphShare = 0.38 (the glyph as a share of the seal)
 const GLYPH_SHARE = 0.38;
 

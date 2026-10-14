@@ -58,6 +58,7 @@ function TwoToneLogo({ size }: { size: number }) {
 function ColorDot({ color, selected, label, onPress }: { color: string; selected: boolean; label: string; onPress: () => void }) {
   const theme = useTheme();
   const reduceMotion = useReducedMotion();
+  const { touch } = useWindowLayout();
   const { w, h } = theme.layout.bubble.dot;
   const ringW = w + SELECT_RING * 2;
   const ringH = h + SELECT_RING * 2;
@@ -78,7 +79,7 @@ function ColorDot({ color, selected, label, onPress }: { color: string; selected
       accessibilityState={{ selected }}
       accessibilityLabel={label}
       onPress={onPress}
-      style={{ width: theme.layout.minTouch, height: theme.layout.minTouch, alignItems: 'center', justifyContent: 'center' }}
+      style={{ width: touch, height: touch, alignItems: 'center', justifyContent: 'center' }}
     >
       <Svg width={w} height={h}>
         <Ellipse cx={w / 2} cy={h / 2} rx={w / 2 - theme.layout.bubble.outline / 2} ry={h / 2 - theme.layout.bubble.outline / 2} fill={color} stroke={theme.colors.optik} strokeWidth={theme.layout.bubble.outline} />
@@ -183,6 +184,8 @@ export default function LoginScreen() {
           { value: 'login', label: 'Giriş yap' },
           { value: 'register', label: 'Hesap oluştur' },
         ]}
+        // The form's own switch: as wide as the fields under it, on a tablet too.
+        fill
         value={mode}
         onChange={(m) => {
           setMode(m);

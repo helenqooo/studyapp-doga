@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { View } from 'react-native';
 import { ASSISTANT_NAME } from '../../brand';
 import { haptics } from '../../lib/haptics';
+import { useWindowLayout } from '../../lib/layout';
 import { usePrefsStore, type TalkLevel } from '../../store/prefsStore';
 import { useTheme } from '../../theme';
 import { AppText } from '../AppText';
@@ -46,9 +47,11 @@ function Section({ title, caption, first = false, children }: { title: string; c
 /**
  * Profile → Lumi (spec 6.9): how often Lumi speaks up, what it wears, and vibration. Every
  * choice is saved per account in `prefsStore` (and haptics obey the switch at once).
+ * `level` is null until the profile loads; the wardrobe shows no locks until then.
  */
-export function LumiSettings({ level, streak30 }: { level: number; streak30: boolean }) {
+export function LumiSettings({ level, streak30 }: { level: number | null; streak30: boolean }) {
   const theme = useTheme();
+  const { touch } = useWindowLayout();
   const talk = usePrefsStore((s) => s.talk);
   const setTalk = usePrefsStore((s) => s.setTalk);
   const vibrate = usePrefsStore((s) => s.haptics);
@@ -77,7 +80,7 @@ export function LumiSettings({ level, streak30 }: { level: number; streak30: boo
             flexDirection: 'row',
             alignItems: 'center',
             gap: theme.spacing.md,
-            minHeight: theme.layout.minTouch + theme.spacing.md,
+            minHeight: touch + theme.spacing.md,
             paddingHorizontal: theme.spacing.sm,
             marginHorizontal: -theme.spacing.sm,
             borderRadius: theme.radius.md,

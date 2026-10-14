@@ -14,7 +14,11 @@ import { Skeleton, SkeletonRows } from '../components/states/Skeleton';
 import { Screen } from '../components/Screen';
 import { SegmentedControl } from '../components/SegmentedControl';
 import { DEMO_MODE } from '../config';
+import { useFontScale, useWindowLayout } from '../lib/layout';
 import { useTheme } from '../theme';
+
+// TOKEN-PENDING: layout.leaderboard.rowAvatar = { compact: 40, tablet: 48 } (a row's avatar, read at arm's length on an iPad)
+const ROW_AVATAR = { compact: 40, tablet: 48 };
 
 type Period = 'week' | 'all';
 
@@ -24,9 +28,14 @@ function daysToReset(): number {
   return dow === 1 ? 7 : (8 - dow) % 7 || 7;
 }
 
-/** A row from rank 4 on: rank, avatar, name (yours highlighted), level and streak, XP, and the gap to the leader. */
-function Row({ e, leaderXp, last }: { e: LeaderboardEntry; leaderXp: number; last: boolean }) {
+/**
+ * A row from rank 4 on, inside the divided sheet: rank, avatar (yours ringed), the name (yours
+ * with a highlighter swipe), level and streak, the gap to the leader as a thin bar, and the XP.
+ */
+function Row({ e, leaderXp }: { e: LeaderboardEntry; leaderXp: number }) {
   const theme = useTheme();
+  const { tablet } = useWindowLayout();
+  const type = useFontScale();
   const name = (
     <AppText weight="semibold" numberOfLines={1}>
       {entryName(e)}
@@ -36,22 +45,14 @@ function Row({ e, leaderXp, last }: { e: LeaderboardEntry; leaderXp: number; las
     <View
       accessible
       accessibilityLabel={`${e.rank}. ${entryName(e)}, ${e.xp} XP, seviye ${e.level}, ${e.streak} günlük seri`}
-      style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: theme.spacing.md,
-        minHeight: theme.layout.minTouch + theme.spacing.xl,
-        paddingVertical: theme.spacing.sm,
-        borderBottomWidth: last ? 0 : theme.layout.borderWidth,
-        borderBottomColor: theme.colors.optikSoft,
-      }}
+      style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md }}
     >
       <AppText variant="numeric" color="textMuted" align="center" style={{ width: theme.spacing.xl }}>
         {e.rank}
       </AppText>
-      <Avatar name={e.displayName} color={e.avatar} />
-      <View style={{ flex: 1, gap: theme.spacing.xs }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm }}>
+      <Avatar name={e.displayName} color={e.avatar} size={tablet ? ROW_AVATAR.tablet : ROW_AVATAR.compact} ring={e.isMe ? theme.colors.accent : undefined} />
+      <View style={{ flex: 1, minWidth: 0, gap: theme.spacing.xs }}>
+        <View style={{ flexDirection: 'row' }}>
           <View style={{ flexShrink: 1 }}>{e.isMe ? <Highlight drawn>{name}</Highlight> : name}</View>
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.xs }}>
@@ -60,7 +61,7 @@ function Row({ e, leaderXp, last }: { e: LeaderboardEntry; leaderXp: number; las
           </AppText>
           {e.streak > 0 ? (
             <>
-              <Icon name="flame" size={theme.fontSize.sm} color={theme.colors.streak} filled />
+              <Icon name="flame" size={type.sm} color={theme.colors.streak} filled />
               <AppText variant="caption" color="textMuted">
                 {e.streak} gün
               </AppText>
@@ -89,20 +90,27 @@ export default function LeaderboardScreen() {
   const leaderXp = items[0]?.xp ?? 0;
   const days = daysToReset();
 
+  const subtitle = me
+    ? period === 'week'
+      ? `Bu hafta ${me.rank}. sıradasın.`
+      : `Tüm zamanlarda ${me.rank}. sıradasın.`
+    : 'Arkadaşlarınla XP yarışı.';
+
   return (
-    <Screen safeTop={false} width="readable">
-      <SegmentedControl<Period>
-        options={[
-          { value: 'week', label: 'Bu hafta' },
-          { value: 'all', label: 'Tüm zamanlar' },
-        ]}
-        value={period}
-        onChange={setPeriod}
-      />
-      <AppText variant="caption" color="textMuted">
-        {period === 'week' ? `Pazartesi sıfırlanır, ${days} gün kaldı.` : 'Başladığından beri kazanılan toplam XP.'}
-        {me ? ` Sen ${me.rank}. sıradasın.` : ''}
-      </AppText>
+    <Screen safeTop={false} width="readable" title="Sıralama" subtitle={subtitle}>
+      <View style={{ gap: theme.spacing.sm }}>
+        <SegmentedControl<Period>
+          options={[
+            { value: 'week', label: 'Bu hafta' },
+            { value: 'all', label: 'Tüm zamanlar' },
+          ]}
+          value={period}
+          onChange={setPeriod}
+        />
+        <AppText variant="caption" color="textMuted">
+          {period === 'week' ? `Pazartesi sıfırlanır, ${days} gün kaldı.` : 'Başladığından beri kazanılan toplam XP.'}
+        </AppText>
+      </View>
 
       {board.isPending ? (
         <Skeleton>
@@ -114,9 +122,9 @@ export default function LeaderboardScreen() {
       {items.length ? <Podium items={items.slice(0, 3)} /> : null}
 
       {rest.length ? (
-        <Card style={{ paddingVertical: theme.spacing.xs, gap: 0 }}>
-          {rest.map((e, i) => (
-            <Row key={`${period}-${e.userId}`} e={e} leaderXp={leaderXp} last={i === rest.length - 1} />
+        <Card divided>
+          {rest.map((e) => (
+            <Row key={`${period}-${e.userId}`} e={e} leaderXp={leaderXp} />
           ))}
         </Card>
       ) : null}
